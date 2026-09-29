@@ -1,0 +1,24 @@
+# Runs the test suite on the three operating systems the tool promises, on the oldest and newest Python it
+# supports, so a change that only works on the author's machine cannot land unnoticed.
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  suite:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: test suite
+        run: python tests/test_rw.py
+      - name: the tool answers from a clean checkout
+        run: python skills/readwright/scripts/rw.py formats

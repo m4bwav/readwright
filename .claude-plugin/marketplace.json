@@ -1,0 +1,16 @@
+{
+  "name": "readwright",
+  "owner": {
+    "name": "Mark Rogers"
+  },
+  "metadata": {
+    "description": "Read ebooks and documents a section at a time: outline, sections, search"
+  },
+  "plugins": [
+    {
+      "name": "readwright",
+      "source": "./",
+      "description": "Read ebooks and documents a section at a time instead of dumping them into context: outline, then only the chapters needed, then search with section and paragraph numbers. One standard-library Python CLI for EPUB, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zips of them, plus PDF, MOBI, AZW3 and legacy Office through poppler, calibre or LibreOffice when installed. Reports DRM, never removes it. Evergreen."
+    }
+  ]
+}

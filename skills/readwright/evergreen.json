@@ -1,0 +1,66 @@
+{
+  "evergreen": "1.0",
+  "name": "readwright",
+  "kind": "skill",
+  "main": "SKILL.md",
+  "files": {
+    "research": "RESEARCH.md",
+    "changelog": "CHANGELOG.md",
+    "learnings": "LEARNINGS.md",
+    "tests": "TESTS.md"
+  },
+  "protocol": "MAINTENANCE.md",
+  "source": null,
+  "topic": "Reading text from ebook and document formats for AI agents: EPUB (W3C spec), MOBI/AZW/KFX, FB2, OOXML, ODF, RTF, HTML, EML, PDF text extraction; the converters readwright shells out to (calibre, poppler, MuPDF, LibreOffice, pandoc, markitdown); DRM markers; agent tools for sectioned document reading",
+  "tier": "moderate",
+  "interval_days": 30,
+  "last_checked": "2026-09-29",
+  "next_due": "2026-10-29",
+  "verify_at_use": false,
+  "volatile_claims": [
+    "KFX container signature CONT at byte 0 (unverified); calibre reads KFX only with the third-party KFX Input plugin",
+    "mutool show FILE outline output format, parsed best-effort by pdf_outline and untested on a real outline",
+    "Converter versions in RESEARCH.md: calibre 9.15, pandoc 3.12, markitdown 0.1.8, poppler 26.09.0, MuPDF 1.27.2, LibreOffice 26.8 (2026-09-29)"
+  ],
+  "contradiction": null,
+  "events": [
+    {
+      "date": "2026-10-19",
+      "settle_days": 30,
+      "note": "EPUB 3.4 Candidate Recommendation comment period ends; check whether it moved to Proposed Recommendation"
+    }
+  ],
+  "streak": {
+    "quiet": 0,
+    "pinned_min": 0,
+    "pinned_max": 0,
+    "vau_quiet": 0
+  },
+  "history": [
+    {
+      "date": "2026-09-29",
+      "m": null,
+      "interval_after": 30,
+      "note": "created; research by one subagent pass (about 30 searches and fetches), 6 R- entries"
+    }
+  ],
+  "counts": {
+    "learnings": 2,
+    "changes": 3,
+    "research": 6,
+    "tests": 2
+  },
+  "consolidate_every": 25,
+  "tests": {
+    "last_run": "2026-09-29",
+    "harness": "claude plugin eval 2.1.281",
+    "env": "Windows 11 native (trigger, decoy) + WSL2 Ubuntu (Bash cases)",
+    "cases": 7,
+    "passed": 7,
+    "failed": 0,
+    "failing": [],
+    "last_failure": null,
+    "research_after_days": null
+  },
+  "version": "0.1.0"
+}

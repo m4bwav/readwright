@@ -1,0 +1,69 @@
+{
+  "skill": "readwright",
+  "_format": "skill-creator evals.json plus evergreen fields (kind, decoy, evidence, baseline); extra fields are ignored by skill-creator's runner. Rules: protocol/TESTING.md. The runnable copies are the case folders in the repository's root evals/ (claude plugin eval format); fixture: evals/action-1/fixture.sh (outcome-1 has an identical copy).",
+  "evals": [
+    {
+      "id": "trigger-1",
+      "kind": "trigger",
+      "prompt": "can you read chapters 14 and 15 of ~/Books/warrior-prophet.epub and tell me what happens at Anwurat",
+      "expectations": ["the readwright skill is invoked"],
+      "runs": 3
+    },
+    {
+      "id": "trigger-2",
+      "kind": "trigger",
+      "prompt": "what does the lease.docx in my downloads folder say about ending the lease early?",
+      "expectations": ["the readwright skill is invoked"],
+      "runs": 3
+    },
+    {
+      "id": "trigger-3",
+      "kind": "trigger",
+      "prompt": "find every mention of Swazond in this mobi file, it's in ~/Books/series/book2.azw3",
+      "expectations": ["the readwright skill is invoked"],
+      "runs": 3
+    },
+    {
+      "id": "decoy-1",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "write me a Word document summarising our Q3 sales numbers for the board",
+      "expectations": ["the readwright skill is not invoked (writing documents is the docx skill's job)"],
+      "runs": 3
+    },
+    {
+      "id": "decoy-2",
+      "kind": "trigger",
+      "decoy": true,
+      "prompt": "look at screenshot.png on my desktop and tell me what the error dialog says",
+      "expectations": ["the readwright skill is not invoked (images go to the Read tool)"],
+      "runs": 3
+    },
+    {
+      "id": "action-1",
+      "kind": "action",
+      "prompt": "what happens in chapter 3 of ./fixture/lighthouse.epub?",
+      "files": ["evals/action-1/fixture.sh"],
+      "expectations": ["rw.py toc or read ran, proven by the trace, not by the reply", "the answer mentions the storm and the lamp going dark"],
+      "evidence": {
+        "type": "trace",
+        "tool": "Bash|PowerShell",
+        "input_match": "rw\\.(?:py|sh|ps1)[\\s\\S]*\\b(?:toc|read)\\b"
+      },
+      "baseline": "not yet run",
+      "runs": 3
+    },
+    {
+      "id": "outcome-1",
+      "kind": "outcome",
+      "prompt": "somewhere in ./fixture/lighthouse.epub the keeper's dog gets a name. what is it, and which chapter?",
+      "files": ["evals/action-1/fixture.sh"],
+      "expectations": [
+        "the reply names Tamsin and chapter 9",
+        "rw.py grep ran (trace)",
+        "the whole book was never printed to the context: no rw.py read without a selector or --out, no unzip -p, no epr -d"
+      ],
+      "runs": 3
+    }
+  ]
+}

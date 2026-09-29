@@ -16,3 +16,4 @@ Created the public repo m4bwav/readwright, pushed main, CI passed on all six job
 
 ## 2026-09-29 registered and installed
 Registered with `evergreen.py register` and added to the mark-local marketplace (`Ai/.claude-plugin/marketplace.json`); installed as readwright@mark-local 0.1.0 (user scope).
+## [2026-09-29] index | rebuilt (3 entries)

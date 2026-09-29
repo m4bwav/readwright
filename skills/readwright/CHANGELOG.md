@@ -4,6 +4,26 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20260929-7 · 2026-09-29 · Release 0.2.0; no MCP server and no launcher on PATH
+- because: user request (kickoff plan item 4), T-20260929-3, T-20260929-4
+- files: ../../.claude-plugin/plugin.json, ../../plugin.json, scripts/rw.py (VERSION), SKILL.md (metadata), evergreen.json, ../../README.md, ../../ai-docs/decisions
+- Version 0.2.0 across the five places AGENTS.md lists. Decided against an MCP server and a `bin/` launcher: the CLI already runs in every agent with a shell, an MCP server adds tool definitions to every session, and Cowork refuses plugins with a top-level `bin/` (decision entry of 2026-09-29).
+
+### C-20260929-6 · 2026-09-29 · read prints at most 25,000 characters by default
+- because: L-009, T-20260929-4
+- files: scripts/rw.py (DEFAULT_MAX_CHARS), SKILL.md (Step 1, Step 3, Step 5), ../../README.md
+- Claude Code shows 30,000 characters of a command's output and saves the rest to a file, so the old 40,000 default sent long reads to a file the agent then had to open. SKILL.md says to read long chapters one call each, or write them with `--out` and open that.
+
+### C-20260929-5 · 2026-09-29 · Title matching, the next section, and a leaner toc
+- because: L-001, L-006, T-20260929-4 (toc cost), kickoff plan item 4
+- files: scripts/rw.py (select, cmd_read, toc_lines, main), SKILL.md (Step 2, Step 3), ../../tests/test_rw.py (TestRealWorldShapes), ../../README.md
+- `read --title` adds the following section when the match is under 300 words and says so; `--with-next` does it for any selection. A title with no match is tried again with spaces ignored (`CHAPTERXXVII`, `WEST GATE`). `toc` prints ids only with `--ids`: on Moby-Dick they were over half of the toc's 3,829 tokens (1,782 without).
+
+### C-20260929-4 · 2026-09-29 · Every external-tool route run on real files, and what broke fixed
+- because: L-003, L-004, L-005, L-006, L-007, L-008, R-20260929-7, R-20260929-8, R-20260929-9, T-20260929-3
+- files: scripts/rw.py (find_tool, tool_dirs, windows_path_dirs, tools, run, tool_error, load_epub, heading_line, GUTENBERG_RE, HEAD_RE, refine, load_text, xlsx_date_styles, excel_date, load_xlsx, parse_outline, load_via, load_via_calibre, detect), references/formats.md, ../../tests/test_rw.py (TestToolDiscovery, TestRoutes, make_novel, make_outlined_pdf), ../../tests/real_files.py, ../../tests/measure_tokens.py, ../../evals/action-2, evals/evals.json, ../../.github/workflows/tests.yml
+- Tools are found in their install folders and the registry PATH; `RW_HIDE_TOOLS` and `RW_PATH_ONLY` control the search. EPUB text split across files stays in its chapter; bracketed and glued CHAPTER lines and Gutenberg's START and END lines are headings; long or untitled sections split at CHAPTER lines; Markdown with no headings uses CHAPTER lines; the mutool outline keeps its nesting; KFX is detected by `CONT` and its version on any extension; XLSX dates print as dates; tool errors show the exception line; pandoc and markitdown write UTF-8 files and a passthrough is reported. New: route tests that convert invented fixtures with each installed tool, a real-file sweep, a token measurement, the full-size eval case action-2 and a CI job that installs the tools on Linux.
+
 ### C-20260929-3 · 2026-09-29 · Eval suite made runnable: regex flags, grader tool names, deflated fixture
 - because: T-20260929-2, L-002
 - files: ../../evals/*/graders (answer, chapter, ran-rw, searched, no-dump-to-context), ../../evals/*/fixture.sh, evals/evals.json

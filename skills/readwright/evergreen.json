@@ -13,14 +13,15 @@
   "source": null,
   "topic": "Reading text from ebook and document formats for AI agents: EPUB (W3C spec), MOBI/AZW/KFX, FB2, OOXML, ODF, RTF, HTML, EML, PDF text extraction; the converters readwright shells out to (calibre, poppler, MuPDF, LibreOffice, pandoc, markitdown); DRM markers; agent tools for sectioned document reading",
   "tier": "moderate",
-  "interval_days": 30,
+  "interval_days": 30.0,
   "last_checked": "2026-09-29",
-  "next_due": "2026-10-29",
+  "next_due": "2026-11-03",
   "verify_at_use": false,
   "volatile_claims": [
-    "KFX container signature CONT at byte 0 (unverified); calibre reads KFX only with the third-party KFX Input plugin",
-    "mutool show FILE outline output format, parsed best-effort by pdf_outline and untested on a real outline",
-    "Converter versions in RESEARCH.md: calibre 9.15, pandoc 3.12, markitdown 0.1.8, poppler 26.09.0, MuPDF 1.27.2, LibreOffice 26.8 (2026-09-29)"
+    "calibre reads KFX only with the third-party KFX Input plugin (2.34.2 on calibre 9.15, 2026-09-29); KFX DRMION detection never seen on a real file",
+    "mutool show FILE outline format (marker, one tab per level) checked on MuPDF 1.23.0 and 1.23.10 only",
+    "markitdown 0.1.8: extras needed for DOCX/PDF/XLSX/XLS, RTF returned unchanged, ODT and PPT unsupported (2026-09-29)",
+    "Converter versions in RESEARCH.md: calibre 9.15, pandoc 3.12, markitdown 0.1.8, poppler 26.09.0 (winget 25.07), MuPDF 1.27.2 (winget 1.23.0), LibreOffice 26.8 (2026-09-29)"
   ],
   "contradiction": null,
   "events": [
@@ -42,25 +43,31 @@
       "m": null,
       "interval_after": 30,
       "note": "created; research by one subagent pass (about 30 searches and fetches), 6 R- entries"
+    },
+    {
+      "date": "2026-09-29",
+      "m": 0.2,
+      "interval_after": 30.0,
+      "note": "real-file run of every converter route: KFX CONT verified, mutool outline format, markitdown/pandoc behaviour, install locations (R-7 to R-9)"
     }
   ],
   "counts": {
-    "learnings": 2,
-    "changes": 3,
-    "research": 6,
-    "tests": 2
+    "learnings": 10,
+    "changes": 7,
+    "research": 10,
+    "tests": 4
   },
   "consolidate_every": 25,
   "tests": {
-    "last_run": "2026-09-29",
+    "last_run": "2026-09-29T17:56",
     "harness": "claude plugin eval 2.1.281",
     "env": "Windows 11 native (trigger, decoy) + WSL2 Ubuntu (Bash cases)",
-    "cases": 7,
-    "passed": 7,
+    "cases": 8,
+    "passed": 8,
     "failed": 0,
     "failing": [],
     "last_failure": null,
     "research_after_days": null
   },
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

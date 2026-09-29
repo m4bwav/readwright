@@ -52,14 +52,14 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 MB = 1024 * 1024
 MAX_MB = int(os.environ.get("RW_MAX_MB", "512"))       # cap on bytes read from one file or zip member
 MAX_ROWS = 200_000                                      # cap on spreadsheet rows per sheet
 MAX_COLS = 1_000                                        # cap on spreadsheet columns
 CHUNK_WORDS = 3_000                                     # unstructured text is split into parts this size
-DEFAULT_MAX_CHARS = 40_000
+DEFAULT_MAX_CHARS = 25_000    # under Claude Code's 30,000-character inline limit for command output (T-20260929-4)
 SHORT_WORDS = 300                                       # a section this short is probably a chapter's title page
 
 EXIT_OK, EXIT_ERR, EXIT_REFUSED = 0, 1, 2

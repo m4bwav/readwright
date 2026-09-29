@@ -64,6 +64,25 @@
         "the whole book was never printed to the context: no rw.py read without a selector or --out, no unzip -p, no epr -d"
       ],
       "runs": 3
+    },
+    {
+      "id": "action-2",
+      "kind": "action",
+      "prompt": "what happens in chapters 16 and 17 of ./fixture/moby.epub?",
+      "files": ["evals/action-2/fixture.sh"],
+      "note": "full size: Moby-Dick from Project Gutenberg (public domain, about 309,000 tokens), downloaded by the fixture",
+      "expectations": [
+        "rw.py read ran, proven by the trace",
+        "the answer covers both chapters: signing on the Pequod with Peleg and Bildad (16), Queequeg's Ramadan (17)",
+        "the whole book never entered the context: no unzip -p, epr -d, or pandoc or markitdown to stdout"
+      ],
+      "evidence": {
+        "type": "trace",
+        "tool": "Bash",
+        "input_match": "rw\\.(?:py|sh|ps1)[\\s\\S]*\\bread\\b"
+      },
+      "baseline": "not yet run",
+      "runs": 3
     }
   ]
 }

@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # readwright
@@ -17,21 +17,22 @@ Read [evergreen.json](evergreen.json). If `contradiction` is set or today is on 
 
 ## Step 1: size it up
 
-Run `RW info FILE`. It prints the detected format (from the file's bytes, not its extension), title, author, language, section count, words and approximate tokens (characters divided by 4). Under about 10,000 tokens, `RW read FILE` prints the whole text and you can stop here.
+Run `RW info FILE`. It prints the detected format (from the file's bytes, not its extension), title, author, language, section count, words and approximate tokens (characters divided by 4). Under about 6,000 tokens (25,000 characters), `RW read FILE` prints the whole text and you can stop here.
 
 If info reports DRM, say so plainly and stop. readwright never removes DRM, and neither should you: suggest the store's own reader or a DRM-free copy from the seller. If it names a missing tool (pdftotext, calibre's ebook-convert, LibreOffice), pass on the install line it prints. Never install anything without the user's yes. For a PDF, the agent's own Read tool with page ranges is often the better route.
 
 ## Step 2: outline
 
-Run `RW toc FILE`. Each line is `N. title (words w) [id]`, indented by level. EPUB titles come from the book's own navigation (nav document or NCX), DOCX and ODT titles from heading styles, HTML from h1 to h3, plain text and Markdown from headings or CHAPTER lines. Text with no structure is cut into parts of about 3,000 words. For a zip archive, toc lists the members; add `--member NAME` (or its number) to every later command.
+Run `RW toc FILE`. Each line is `N. title (words w)`, indented by level; `--ids` adds each section's id (file and fragment, page, sheet), which you rarely need. EPUB titles come from the book's own navigation (nav document or NCX), DOCX and ODT titles from heading styles, HTML from h1 to h3, plain text and Markdown from headings or CHAPTER lines. Text with no structure is cut into parts of about 3,000 words. For a zip archive, toc lists the members; add `--member NAME` (or its number) to every later command.
 
-Match the user's words to toc lines. "Chapter 14" usually means the line titled CHAPTER FOURTEEN, which in many ebooks holds only the chapter title and an epigraph: its body is the next section. The word counts show this (72 words, then 6,330).
+Match the user's words to toc lines. "Chapter 14" usually means the line titled CHAPTER FOURTEEN, which in many ebooks holds only the chapter title and an epigraph: its body is the next section. The word counts show this (72 words, then 6,330). Section numbers are not chapter numbers: front matter comes first, so chapter 16 of a novel may be section 24.
 
 ## Step 3: read only what is needed
 
-- `RW read FILE --section 43-44` (also `N`, `N-`, `N,M`) or `--title "REGEX"` (case-insensitive, matched against titles and ids).
+- `RW read FILE --section 43-44` (also `N`, `N-`, `N,M`) or `--title "REGEX"` (case-insensitive, matched against titles and ids; when nothing matches, spaces are ignored, so `westgate` finds WEST GATE).
+- When `--title` lands on a section under 300 words, the section after it is added and a note says so. `--with-next` does the same for any selection.
 - Every section starts with a header line: `=== [43/80] title | id ... | words | starts at word N of TOTAL (P%) ===`.
-- Output stops at `--max-chars` (default 40,000). The last line then says where to continue: `--offset N`.
+- Output stops at `--max-chars` (default 25,000). The last line then says where to continue: `--offset N`. Keep each read under your shell tool's output limit: Claude Code shows 30,000 characters of a command's output and saves the rest to a file you would then have to open. For two long chapters, read them one call each. For more than that, write the selection with `--out <scratch>/part.txt` and open it with your own Read tool.
 - A short selection ends with a hint naming the next section, since that is where the text usually continues.
 - `read` without a selector refuses when the text is over the limit (exit code 2) and prints the toc instead. That refusal is the tool working: pick sections.
 - `--format md` keeps headings and lists as Markdown; `--out FILE` writes the selection to a file.
@@ -42,7 +43,7 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 
 ## Step 5: whole book to a scratch file
 
-For work that needs many passes over a long book (every scene with a character, a timeline), run `RW dump FILE --out <scratch>/book.txt` once. Then use your own search and read tools on that file, never `cat`. Section markers are lines starting `=== [N/`; `--format md` writes `<!-- readwright section N/... -->` comments with Markdown headings. Dump writes to stdout only when the text is under 40,000 characters. Put the file in the session's scratch or temp folder, never in the user's repository.
+For work that needs many passes over a long book (every scene with a character, a timeline), run `RW dump FILE --out <scratch>/book.txt` once. Then use your own search and read tools on that file, never `cat`. Section markers are lines starting `=== [N/`; `--format md` writes `<!-- readwright section N/... -->` comments with Markdown headings. Dump writes to stdout only when the text is under 25,000 characters. Put the file in the session's scratch or temp folder, never in the user's repository.
 
 ## Step 6: answer
 

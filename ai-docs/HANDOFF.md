@@ -13,4 +13,4 @@ See [INDEX.md](INDEX.md): readwright as its own stdlib CLI plugin, outline then 
 Eval harness details (JavaScript regex, literal tool names, deflated fixtures, WSL for Bash cases): see the solution entry in INDEX.md and LEARNINGS L-002.
 
 ## Next single action
-Owner decisions still open: register readwright in the evergreen catalog, and add it to the local marketplace to install it. The ai-docs sync mode is `push` like the siblings.
+Nothing owed. Registered in the evergreen catalog (D:/m4bwa/Documents/Evergreen/registry.json, next due 2026-10-29) and installed as readwright@mark-local 0.1.0 on 2026-09-29. Next: exercise the calibre, LibreOffice, mutool and pandoc routes on a machine that has them.

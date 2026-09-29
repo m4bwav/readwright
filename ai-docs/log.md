@@ -13,3 +13,6 @@ Append-only. One line per operation: `## [YYYY-MM-DD] op | title` where op is on
 
 ## 2026-09-29 published
 Created the public repo m4bwav/readwright, pushed main, CI passed on all six jobs, tagged and released v0.1.0. Before publishing, book-specific example names were replaced with neutral ones in the README, evals, LEARNINGS and TESTS.
+
+## 2026-09-29 registered and installed
+Registered with `evergreen.py register` and added to the mark-local marketplace (`Ai/.claude-plugin/marketplace.json`); installed as readwright@mark-local 0.1.0 (user scope).

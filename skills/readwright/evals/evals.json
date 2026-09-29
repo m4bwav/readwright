@@ -5,7 +5,7 @@
     {
       "id": "trigger-1",
       "kind": "trigger",
-      "prompt": "can you read chapters 14 and 15 of ~/Books/warrior-prophet.epub and tell me what happens at Anwurat",
+      "prompt": "can you read chapters 14 and 15 of ~/Books/novel.epub and tell me what happens at the siege",
       "expectations": ["the readwright skill is invoked"],
       "runs": 3
     },
@@ -19,7 +19,7 @@
     {
       "id": "trigger-3",
       "kind": "trigger",
-      "prompt": "find every mention of Swazond in this mobi file, it's in ~/Books/series/book2.azw3",
+      "prompt": "find every mention of Ravenmoor in this mobi file, it's in ~/Books/series/book2.azw3",
       "expectations": ["the readwright skill is invoked"],
       "runs": 3
     },

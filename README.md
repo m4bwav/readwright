@@ -23,8 +23,8 @@ Formats are detected from the file's bytes, not its extension. DRM-protected boo
 python skills/readwright/scripts/rw.py info  book.epub
 python skills/readwright/scripts/rw.py toc   book.epub
 python skills/readwright/scripts/rw.py read  book.epub --section 43-44
-python skills/readwright/scripts/rw.py read  book.epub --title "anwurat" --max-chars 2000
-python skills/readwright/scripts/rw.py grep  book.epub "Swazond" -C 1 --max 3
+python skills/readwright/scripts/rw.py read  book.epub --title "siege" --max-chars 2000
+python skills/readwright/scripts/rw.py grep  book.epub "Ravenmoor" -C 1 --max 3
 python skills/readwright/scripts/rw.py dump  book.epub --out scratch/book.txt
 python skills/readwright/scripts/rw.py formats
 ```

@@ -7,7 +7,7 @@ Write an entry the moment a real signal happens: a user correction, the same err
 ## Active
 
 ### L-001 · 2026-09-29 · A chapter's title page and its body are often separate sections
-- Trigger: smoke test on a real EPUB novel, 2026-09-29: `read --title ANWURAT` returned a 72-word section (chapter number, title, epigraph); the chapter's 6,330 words were the next spine file, titled by its date line in the NCX.
+- Trigger: smoke test on a real EPUB novel, 2026-09-29: `read --title <chapter title>` returned a 72-word section (chapter number, title, epigraph); the chapter's 6,330 words were the next spine file, titled by its date line in the NCX.
 - Hypothesis: publishers and calibre split each chapter's opener into its own XHTML file, and the NCX gives the body its own entry, so a title match lands on the opener.
 - Rule: when a selection is short, read the next section too; rw.py now says so at the end of the output (C-20260929-2).
 - Evidence: T-20260929-1, C-20260929-2, confirmed 2026-09-29

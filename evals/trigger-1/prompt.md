@@ -6,4 +6,4 @@ tags: [trigger]
 allowed_tools: [Skill, Read, Glob, Grep]
 ---
 
-can you read chapters 14 and 15 of ~/Books/warrior-prophet.epub and tell me what happens at Anwurat
+can you read chapters 14 and 15 of ~/Books/novel.epub and tell me what happens at the siege

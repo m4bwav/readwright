@@ -6,4 +6,4 @@ tags: [trigger]
 allowed_tools: [Skill, Read, Glob, Grep]
 ---
 
-find every mention of Swazond in this mobi file, it's in ~/Books/series/book2.azw3
+find every mention of Ravenmoor in this mobi file, it's in ~/Books/series/book2.azw3

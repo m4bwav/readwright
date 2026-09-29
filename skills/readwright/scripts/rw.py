@@ -10,7 +10,7 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
-  toc   FILE [--limit N]            numbered sections with titles, word counts, ids
+  toc   FILE [--limit N] [--ids]    numbered sections with titles and word counts (ids on request)
   read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-chars N] [--offset N] [--out FILE] [--format txt|md]
                                     [--with-next]
   grep  FILE PATTERN [-C N] [-i] [-F] [--max N] [--width N] [--count]
@@ -253,7 +253,10 @@ def find_tool(name: str):
 
 
 def tools() -> dict:
-    return {
+    """Paths of the external tools, None when absent. RW_HIDE_TOOLS=soffice,pdftotext treats the named tools
+    as absent, to use a fallback route (antiword for DOC, mutool for PDF) or to test one."""
+    hide = {t.strip() for t in os.environ.get("RW_HIDE_TOOLS", "").split(",") if t.strip()}
+    found = {
         "pdftotext": find_tool("pdftotext"),
         "pdfinfo": find_tool("pdfinfo"),
         "mutool": find_tool("mutool"),
@@ -263,6 +266,7 @@ def tools() -> dict:
         "pandoc": find_tool("pandoc"),
         "markitdown": find_tool("markitdown"),
     }
+    return {k: (None if k in hide else v) for k, v in found.items()}
 
 
 def run(cmd: list, timeout=600) -> subprocess.CompletedProcess:
@@ -2010,14 +2014,14 @@ def write_out(path: str, text: str):
         f.write(text)
 
 
-def toc_lines(doc: Doc, limit: int) -> list:
+def toc_lines(doc: Doc, limit: int, ids: bool = False) -> list:
     lines = []
     for i, s in enumerate(doc.sections, 1):
         if i > limit:
             lines.append(f"... {len(doc.sections) - limit} more sections (raise --limit)")
             break
         ind = "  " * (s.level - 1)
-        lines.append(f"{i:>4}. {ind}{s.title}  ({fmt_n(s.words())} w)  [{s.sid}]")
+        lines.append(f"{i:>4}. {ind}{s.title}  ({fmt_n(s.words())} w)" + (f"  [{s.sid}]" if ids else ""))
     return lines
 
 
@@ -2085,7 +2089,7 @@ def cmd_toc(a) -> int:
     print(doc_head(doc))
     for n in doc.notes:
         print(f"note: {n}")
-    print("\n".join(toc_lines(doc, a.limit)))
+    print("\n".join(toc_lines(doc, a.limit, a.ids)))
     return 0
 
 
@@ -2284,6 +2288,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("toc", help="numbered sections with titles and word counts")
     common(p)
     p.add_argument("--limit", type=int, default=1000)
+    p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
     p = sub.add_parser("read", help="text of chosen sections")
     common(p, False)
     p.add_argument("--section", "-s", help="N, N-M, N- or N,M (numbers from toc)")

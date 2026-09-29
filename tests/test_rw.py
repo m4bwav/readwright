@@ -638,7 +638,8 @@ class TestCommands(Base):
         code, out, _ = cli("toc", p)
         self.assertIn("   2. Chapter Two", out)
         self.assertIn("   3.   Chapter Three", out)   # nested one level
-        self.assertIn("[text/ch2.xhtml#c3]", out)
+        self.assertNotIn("[text/ch2.xhtml#c3]", out)   # ids cost tokens; they are opt-in
+        self.assertIn("[text/ch2.xhtml#c3]", cli("toc", p, "--ids")[1])
 
     def test_read_refuses_large_without_selector(self):
         t = self.big_text()
@@ -793,10 +794,13 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.tool_error(r), "some.module.MissingDependencyException: install markitdown[docx]")
 
 
-def hidden_path(keep=None):
-    """os.environ patch that hides every external tool, or all but one (by its folder)."""
-    path = os.path.dirname(rw.tools()[keep]) if keep else ""
-    return unittest.mock.patch.dict(os.environ, {"PATH": path, "RW_PATH_ONLY": "1"})
+def hidden_path():
+    """os.environ patch that hides every external tool: an empty PATH and no install-folder search."""
+    return unittest.mock.patch.dict(os.environ, {"PATH": "", "RW_PATH_ONLY": "1"})
+
+
+def hide_tools(*names):
+    return unittest.mock.patch.dict(os.environ, {"RW_HIDE_TOOLS": ",".join(names)})
 
 
 class TestToolDiscovery(Base):
@@ -905,9 +909,10 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual([(s.title, s.level) for s in doc.sections],
                          [("Part One (p. 1-1)", 1), ("Harbour (p. 2-2)", 2), ("Part Two (p. 3-3)", 1), ("Tower (p. 4-4)", 2)])
         self.assertIn("twelve ships", rw.render_paras(doc.sections[1].paras))
-        with hidden_path("mutool"):   # pdftotext hidden: mutool draws the text too
-            doc = rw.load(str(p))
+        with hide_tools("pdftotext", "pdfinfo"), unittest.mock.patch.object(rw, "run", wraps=rw.run) as spy:
+            doc = rw.load(str(p))   # mutool draws the text too
             self.assertIn("tower lamp", rw.render_paras(doc.sections[3].paras))
+        self.assertIn("draw", [a for c in spy.call_args_list for a in c.args[0]])
 
     @unittest.skipUnless(T["soffice"], "no LibreOffice")
     def test_libreoffice_legacy_office(self):
@@ -931,7 +936,7 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(len(doc.sections), 2)
         self.assertIn("Paint the tower", rw.render_paras(doc.sections[1].paras))
         if T["antiword"]:
-            with hidden_path("antiword"):
+            with hide_tools("soffice"):
                 doc = rw.load(str(doc_file))
                 self.assertIn("antiword", doc.notes[-1])
                 self.assertIn("twelve arrivals", rw.render_paras(doc.sections[0].paras))

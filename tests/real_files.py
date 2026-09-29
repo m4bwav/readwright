@@ -188,11 +188,11 @@ def check_refused(path: Path, extra: list, must: list, env=None):
     return ok, {"fresh": fresh, "note": err.strip().replace("readwright: ", "")[:160]}
 
 
-def hidden_env(keep_tool: str | None, tl: dict) -> dict:
-    """PATH holding only one tool's folder (or none), with the install-folder search off."""
-    env = dict(os.environ, RW_PATH_ONLY="1")
-    env["PATH"] = os.path.dirname(tl[keep_tool]) if keep_tool and tl.get(keep_tool) else os.devnull
-    return env
+def hidden_env(hide: str | None) -> dict:
+    """No tools at all (empty PATH, no install-folder search), or the named tools hidden."""
+    if hide:
+        return dict(os.environ, RW_HIDE_TOOLS=hide)
+    return dict(os.environ, RW_PATH_ONLY="1", PATH=os.devnull)
 
 
 def main(argv=None) -> int:
@@ -262,11 +262,11 @@ def main(argv=None) -> int:
             continue
         env = None
         if route.startswith("missing tool"):
-            env = hidden_env(None, tl)
+            env = hidden_env(None)
         elif kind == B and arg == "mutool":
-            env = hidden_env("mutool", tl)
+            env = hidden_env("pdftotext,pdfinfo")
         elif kind == C and arg and arg[0] == "antiword":
-            env = hidden_env("antiword", tl)
+            env = hidden_env("soffice")
         if kind == B:
             ok, info = check_book(path, extra, env)
         elif kind == C:

@@ -12,6 +12,7 @@ Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
   toc   FILE [--limit N]            numbered sections with titles, word counts, ids
   read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-chars N] [--offset N] [--out FILE] [--format txt|md]
+                                    [--with-next]
   grep  FILE PATTERN [-C N] [-i] [-F] [--max N] [--width N] [--count]
   dump  FILE --out FILE [--format txt|md]
   formats                           supported formats and which external tools are present
@@ -59,6 +60,7 @@ MAX_ROWS = 200_000                                      # cap on spreadsheet row
 MAX_COLS = 1_000                                        # cap on spreadsheet columns
 CHUNK_WORDS = 3_000                                     # unstructured text is split into parts this size
 DEFAULT_MAX_CHARS = 40_000
+SHORT_WORDS = 300                                       # a section this short is probably a chapter's title page
 
 EXIT_OK, EXIT_ERR, EXIT_REFUSED = 0, 1, 2
 
@@ -173,20 +175,81 @@ def local(tag) -> str:
     return tag.rsplit("}", 1)[-1] if isinstance(tag, str) else ""
 
 
-def find_tool(name: str, extra: list | None = None):
+def env_dir(var: str, *parts) -> str | None:
+    base = os.environ.get(var)
+    return os.path.join(base, *parts) if base else None
+
+
+def windows_path_dirs() -> list:
+    """PATH as the registry holds it now. A tool installed after the agent's shell started (winget, an MSI) is on
+    this PATH but not on the shell's own, so shutil.which alone misses it."""
+    if os.name != "nt":
+        return []
+    try:
+        import winreg
+    except ImportError:
+        return []
+    out = []
+    for hive, key in ((winreg.HKEY_CURRENT_USER, "Environment"),
+                      (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment")):
+        try:
+            with winreg.OpenKey(hive, key) as k:
+                value = winreg.QueryValueEx(k, "Path")[0]
+        except OSError:
+            continue
+        out += [os.path.expandvars(d) for d in value.split(";") if d.strip()]
+    return out
+
+
+def tool_dirs(name: str) -> list:
+    """Folders searched after PATH, most specific first. RW_PATH_ONLY=1 turns the search off (tests use it to
+    hide installed tools)."""
+    if os.environ.get("RW_PATH_ONLY") == "1":
+        return []
+    pf = [os.environ.get(v) for v in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)")]
+    pf = [p for p in dict.fromkeys(pf) if p] or [r"C:\Program Files"]
+    local = os.environ.get("LOCALAPPDATA", "")
+    dirs = []
+    if name == "ebook-convert":
+        dirs += [os.path.join(p, "Calibre2") for p in pf] + ["/Applications/calibre.app/Contents/MacOS", "/opt/calibre"]
+    elif name == "soffice":
+        dirs += [os.path.join(p, "LibreOffice", "program") for p in pf] + ["/Applications/LibreOffice.app/Contents/MacOS"]
+    elif name == "pandoc":
+        dirs += [env_dir("LOCALAPPDATA", "Pandoc")] + [os.path.join(p, "Pandoc") for p in pf]
+    elif name == "mutool":
+        dirs += [os.path.join(p, "MuPDF") for p in pf]
+    elif name == "markitdown":   # pip --user and virtual environments put scripts beside the interpreter, off PATH
+        import sysconfig
+        for scheme in (f"{os.name}_user", "osx_framework_user", None):
+            try:
+                dirs.append(sysconfig.get_path("scripts", scheme) if scheme else sysconfig.get_path("scripts"))
+            except KeyError:
+                pass
+        dirs.append(os.path.dirname(sys.executable))
+    if name in ("pdftotext", "pdfinfo"):   # winget's poppler package is a portable zip under WinGet\Packages
+        pk = Path(local, "Microsoft", "WinGet", "Packages") if local else None
+        if pk and pk.is_dir():
+            dirs += [str(d) for d in sorted(pk.glob("oschwartz10612.Poppler_*/poppler-*/Library/bin"), reverse=True)]
+    if name in ("pdftotext", "pdfinfo", "antiword"):   # Git for Windows ships these in its MSYS2 tree
+        dirs += [os.path.join(p, "Git", "mingw64", "bin") for p in pf] + [os.path.join(p, "Git", "usr", "bin") for p in pf]
+    dirs += windows_path_dirs()
+    dirs += [env_dir("LOCALAPPDATA", "Microsoft", "WinGet", "Links")] + [os.path.join(p, "WinGet", "Links") for p in pf]
+    dirs += [env_dir("USERPROFILE", "scoop", "shims"), env_dir("ProgramData", "chocolatey", "bin"),
+             os.path.expanduser("~/.local/bin"), "/opt/homebrew/bin", "/usr/local/bin"]
+    return [d for d in dict.fromkeys(dirs) if d]
+
+
+def find_tool(name: str):
     p = shutil.which(name)
     if p:
         return p
-    for c in extra or []:
-        if os.path.isfile(c):
-            return c
+    exts = [""] + (os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").lower().split(";") if os.name == "nt" else [])
+    for d in tool_dirs(name):
+        for e in exts:
+            c = os.path.join(d, name + e)
+            if os.path.isfile(c) and (os.name == "nt" or os.access(c, os.X_OK)):
+                return c
     return None
-
-
-CALIBRE_PATHS = [r"C:\Program Files\Calibre2\ebook-convert.exe", r"C:\Program Files (x86)\Calibre2\ebook-convert.exe",
-                 "/Applications/calibre.app/Contents/MacOS/ebook-convert"]
-SOFFICE_PATHS = [r"C:\Program Files\LibreOffice\program\soffice.exe", r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
-                 "/Applications/LibreOffice.app/Contents/MacOS/soffice"]
 
 
 def tools() -> dict:
@@ -194,8 +257,8 @@ def tools() -> dict:
         "pdftotext": find_tool("pdftotext"),
         "pdfinfo": find_tool("pdfinfo"),
         "mutool": find_tool("mutool"),
-        "ebook-convert": find_tool("ebook-convert", CALIBRE_PATHS),
-        "soffice": find_tool("soffice", SOFFICE_PATHS) or find_tool("libreoffice"),
+        "ebook-convert": find_tool("ebook-convert"),
+        "soffice": find_tool("soffice") or find_tool("libreoffice"),
         "antiword": find_tool("antiword"),
         "pandoc": find_tool("pandoc"),
         "markitdown": find_tool("markitdown"),
@@ -203,10 +266,21 @@ def tools() -> dict:
 
 
 def run(cmd: list, timeout=600) -> subprocess.CompletedProcess:
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")   # Python-based tools (markitdown) print UTF-8
     try:
-        return subprocess.run(cmd, capture_output=True, timeout=timeout)
+        return subprocess.run(cmd, capture_output=True, timeout=timeout, env=env, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         raise RWError(f"{Path(cmd[0]).name} took longer than {timeout} s")
+
+
+def tool_error(r: subprocess.CompletedProcess, limit=400) -> str:
+    """The informative part of a failed tool's output: from the last exception line on, else the last lines.
+    The first lines of a Python traceback say nothing (L-004)."""
+    lines = [ln.rstrip() for ln in (r.stderr + r.stdout).decode("utf-8", "replace").splitlines() if ln.strip()]
+    lines = [ln for ln in lines if "platform independent libraries" not in ln]   # LibreOffice's harmless warning
+    exc = [i for i, ln in enumerate(lines) if re.match(r"^[\w.]*(Error|Exception)\b.*:", ln.strip())]
+    text = " ".join(ln.strip() for ln in (lines[exc[-1]:] if exc else lines[-3:]))
+    return (text[:limit] + " ...") if len(text) > limit else (text or f"exit code {r.returncode}, no message")
 
 
 CACHE_OFF = False
@@ -263,7 +337,7 @@ def detect(path: str) -> str:
         return "mobi" if head[60:68] == b"BOOKMOBI" else "pdb"
     if head.startswith(b"\xeaDRMION\xee"):
         return "kfx-drm"
-    if head.startswith(b"CONT") and ext in (".kfx", ".azw", ".azw8", ""):
+    if head.startswith(b"CONT") and head[4:6] in (b"\x01\x00", b"\x02\x00"):   # KFX container, version 1 or 2 (R-20260929-7)
         return "kfx"
     if head.startswith(b"ITOLITLS"):
         return "lit"
@@ -655,6 +729,14 @@ def load_epub(path) -> Doc:
         for f, frag, title, depth in entries:
             by_file.setdefault(f.lower(), []).append((frag, title, depth))
 
+        def carry_on(paras) -> bool:
+            """Text the toc does not point at and with no heading of its own continues the previous section:
+            converters split long chapters across files at arbitrary points (L-003)."""
+            if entries and doc.sections and paras and not any(p.kind == "h" for p in paras):
+                doc.sections[-1].paras.extend(paras)
+                return True
+            return False
+
         seen = set()
         for idref, linear in spine:
             item = manifest.get(idref)
@@ -677,13 +759,15 @@ def load_epub(path) -> Doc:
                 elif title not in cuts[idx][0]:
                     cuts[idx][0].append(title)
             if not cuts:
+                if carry_on(h.paras):
+                    continue
                 first_h = next((p.text for p in h.paras if p.kind == "h"), "")
                 doc.sections.append(Section(first_h, h.paras, 1, item[0]))
                 continue
             points = sorted(cuts)
             if points[0] > 0:
                 lead = h.paras[:points[0]]
-                if lead:
+                if lead and not carry_on(lead):
                     first_h = next((p.text for p in lead if p.kind == "h"), "")
                     doc.sections.append(Section(first_h, lead, cuts[points[0]][1], item[0]))
             for k, idx in enumerate(points):
@@ -918,6 +1002,47 @@ def col_index(ref: str) -> int:
     return max(0, n - 1)
 
 
+XLSX_DATE_IDS = set(range(14, 18)) | {22} | set(range(27, 37)) | set(range(50, 59))   # built-in date formats
+XLSX_TIME_IDS = {18, 19, 20, 21, 45, 46, 47}
+
+
+def xlsx_date_styles(z, S) -> dict:
+    """cellXfs index -> 'date' or 'time' for cells whose number format shows a date or time. Excel stores
+    dates as day serials; without this a LibreOffice-written XLS shows 46294 for 2026-09-29 (L-007)."""
+    if "xl/styles.xml" not in z.namelist():
+        return {}
+    root = xml_root(zread(z, "xl/styles.xml"))
+    custom = {}
+    for nf in root.iter(S + "numFmt"):
+        code = re.sub(r'"[^"]*"|\[[^\]]*\]|\\.', "", nf.get("formatCode", "")).lower()
+        if "y" in code or "d" in code:
+            custom[nf.get("numFmtId")] = "date"
+        elif "h" in code or "s" in code:
+            custom[nf.get("numFmtId")] = "time"
+    out = {}
+    xfs = root.find(S + "cellXfs")
+    for i, xf in enumerate(xfs if xfs is not None else []):
+        fid = xf.get("numFmtId", "0")
+        kind = custom.get(fid) or ("date" if fid.isdigit() and int(fid) in XLSX_DATE_IDS else
+                                   "time" if fid.isdigit() and int(fid) in XLSX_TIME_IDS else None)
+        if kind:
+            out[i] = kind
+    return out
+
+
+def excel_date(serial: float, kind: str, d1904: bool) -> str:
+    import datetime
+    base = datetime.datetime(1904, 1, 1) if d1904 else datetime.datetime(1899, 12, 30)
+    if not d1904 and serial < 60:
+        base += datetime.timedelta(days=1)   # Excel's 1900 leap-year bug shifts serials before 1900-03-01
+    dt = base + datetime.timedelta(seconds=round(serial * 86400))
+    if kind == "time" and serial < 1:
+        return dt.strftime("%H:%M:%S")
+    if dt.hour == dt.minute == dt.second == 0:
+        return dt.date().isoformat()
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def load_xlsx(path) -> Doc:
     doc = Doc(path, "xlsx")
     S = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
@@ -927,7 +1052,10 @@ def load_xlsx(path) -> Doc:
         if "xl/sharedStrings.xml" in z.namelist():
             for si in xml_root(zread(z, "xl/sharedStrings.xml")).iter(S + "si"):
                 shared.append("".join(t.text or "" for t in si.iter(S + "t")))
+        dates = xlsx_date_styles(z, S)
         wb = xml_root(zread(z, "xl/workbook.xml"))
+        pr = wb.find(S + "workbookPr")
+        d1904 = pr is not None and pr.get("date1904") in ("1", "true")
         rel = rels(z, "xl/workbook.xml")
         for sh in wb.iter(S + "sheet"):
             target = rel.get(sh.get(R + "id"))
@@ -951,6 +1079,12 @@ def load_xlsx(path) -> Doc:
                             val = "TRUE" if v.text == "1" else "FALSE"
                         else:
                             val = v.text if v is not None and v.text else ""
+                            st = el.get("s")
+                            if val and typ in (None, "n") and st and st.isdigit() and int(st) in dates:
+                                try:
+                                    val = excel_date(float(val), dates[int(st)], d1904)
+                                except (ValueError, OverflowError):
+                                    pass
                         ci = col_index(el.get("r", "")) if el.get("r") else len(row_cells)
                         if ci < MAX_COLS and val != "":
                             row_cells[ci] = clean(val)
@@ -1150,7 +1284,22 @@ def load_fb2(path, data: bytes | None = None) -> Doc:
 
 # ---------------------------------------------------------------- plain text family
 
-HEAD_RE = re.compile(r"^\s*(chapter|part|book|prologue|epilogue|interlude|appendix|introduction|preface|afterword)\b[\w .:'-]{0,60}$", re.I)
+# "CHAPTERXXVII" happens when a converter drops the line break between word and number (L-006).
+HEAD_RE = re.compile(r"^\s*(chapter|part|book|prologue|epilogue|interlude|appendix|introduction|preface|afterword)"
+                     r"(?:\b|(?-i:(?=[IVXLCDM]+\b|\d)))[\w .:'-]{0,60}$", re.I)
+
+
+def heading_line(s: str) -> str | None:
+    """The heading text when a line reads like CHAPTER 12. Brackets around it are dropped: Project Gutenberg
+    texts end an illustration caption with the heading, as in 'Chapter I.]' (L-003)."""
+    t = s.strip().strip("[]").strip()
+    if HEAD_RE.match(t):
+        return t
+    m = GUTENBERG_RE.match(t)   # the licence after the book's end becomes its own section
+    return m.group(1).strip() if m else None
+
+
+GUTENBERG_RE = re.compile(r"^\*{3}\s*((?:START|END) OF (?:THE|THIS) PROJECT GUTENBERG E-?BOOK\b.{0,120}?)\s*\*{3}$", re.I)
 
 
 def text_paras(text: str, fmt: str) -> list:
@@ -1200,9 +1349,9 @@ def text_paras(text: str, fmt: str) -> list:
             continue
         elif fmt == "rst" and re.match(r"^([=\-~^\"'`#*+])\1{2,}\s*$", s):
             pass   # overline
-        elif fmt == "txt" and not buf and HEAD_RE.match(s) and (i + 1 >= len(lines) or not lines[i + 1].strip()):
+        elif fmt == "txt" and not buf and heading_line(s) and (i + 1 >= len(lines) or not lines[i + 1].strip()):
             flush()
-            paras.append(Para("h", clean(s), 1))
+            paras.append(Para("h", clean(heading_line(s)), 1))
         else:
             buf.append(s)
         i += 1
@@ -1248,7 +1397,12 @@ def load_text(path, fmt, data: bytes | None = None) -> Doc:
             lines = json.dumps(v, indent=1, ensure_ascii=False).split("\n")
             doc.sections.append(Section(k, [Para("row", ln) for ln in lines], 1, k))
         return doc
-    doc.sections = structure(text_paras(text, "md" if fmt == "md" else ("rst" if fmt == "rst" else "txt")))
+    paras = text_paras(text, "md" if fmt == "md" else ("rst" if fmt == "rst" else "txt"))
+    if fmt in ("md", "rst") and not any(p.kind == "h" for p in paras):   # pandoc's Markdown of a heading-less FB2
+        for p in paras:
+            if p.kind == "p" and len(p.text) <= 80 and heading_line(p.text):
+                p.kind, p.level, p.text = "h", 1, heading_line(p.text)
+    doc.sections = structure(paras)
     return doc
 
 
@@ -1393,8 +1547,8 @@ def load_rtf(path, data: bytes | None = None) -> Doc:
         elif clean(block):
             paras.append(Para("p", clean(block)))
     for p in paras:
-        if p.kind == "p" and HEAD_RE.match(p.text):
-            p.kind, p.level = "h", 1
+        if p.kind == "p" and heading_line(p.text):
+            p.kind, p.level, p.text = "h", 1, heading_line(p.text)
     doc.sections = structure(paras, info.get("title", ""))
     return doc
 
@@ -1471,19 +1625,20 @@ def load_pdf(path) -> Doc:
         if CACHE_OFF or not cp.exists():
             r = run([tl["pdftotext"], "-enc", "UTF-8", path, str(cp)])
             if r.returncode != 0 or not cp.exists():
-                raise RWError("pdftotext failed: " + r.stderr.decode("utf-8", "replace").strip()[:300])
+                raise RWError("pdftotext failed: " + tool_error(r))
         text = cp.read_bytes().decode("utf-8", "replace")
     elif tl["mutool"]:
         cp = cache_path(path, "mutool", ".txt")
         if CACHE_OFF or not cp.exists():
             r = run([tl["mutool"], "draw", "-q", "-F", "txt", "-o", str(cp), path])
             if r.returncode != 0 or not cp.exists():
-                raise RWError("mutool failed: " + r.stderr.decode("utf-8", "replace").strip()[:300])
+                raise RWError("mutool failed: " + tool_error(r))
         text = cp.read_bytes().decode("utf-8", "replace")
     else:
         raise RWError("PDF needs pdftotext (poppler-utils; Windows: `choco install poppler` or `scoop install poppler`, "
                       "macOS: `brew install poppler`, Linux: `apt install poppler-utils`) or mutool (MuPDF). "
-                      "An agent with a Read tool that takes PDF page ranges can read it directly instead.")
+                      "Nothing was installed. An agent with a Read tool that takes PDF page ranges can read it "
+                      "directly instead.")
     pages = text.split("\f")
     if pages and not pages[-1].strip():
         pages.pop()
@@ -1514,11 +1669,17 @@ def pdf_outline(path, mutool) -> list:
         r = run([mutool, "show", path, "outline"], 60)
     except RWError:
         return []
+    return parse_outline(r.stdout.decode("utf-8", "replace"))
+
+
+def parse_outline(text: str) -> list:
     out = []
-    for line in r.stdout.decode("utf-8", "replace").splitlines():
-        m = re.match(r'^(\s*)[|+\-]?\s*"(.*)"\s+#?(?:page=)?(\d+)', line)
+    # MuPDF 1.23: a marker (| leaf, + closed, - open), one tab per level, the quoted title, a tab, then
+    # #page=N&zoom=... (checked on real files, L-005). Older builds indented with spaces.
+    for line in text.splitlines():
+        m = re.match(r'^( *)[|+\-]?(\t*) *"(.*)"\s+#?(?:page=)?(\d+)', line)
         if m:
-            out.append((m.group(2), int(m.group(3)), 1 + len(m.group(1)) // 2))
+            out.append((m.group(3), int(m.group(4)), max(1, len(m.group(2))) + len(m.group(1)) // 2))
     return out
 
 
@@ -1530,7 +1691,7 @@ def load_via_calibre(path, fmt) -> Doc:
         if drm:
             raise RWError(f"DRM-protected Kindle/Mobipocket book ({drm}). readwright does not remove DRM; "
                           "read it in a Kindle app or ask the seller for a DRM-free copy.")
-    exe = need("ebook-convert", f"{fmt.upper()} files", "calibre's ebook-convert (https://calibre-ebook.com/download; "
+    exe = need("ebook-convert", f"Reading a {fmt.upper()} file", "calibre's ebook-convert (https://calibre-ebook.com/download; "
                "macOS: `brew install --cask calibre`, Linux: `apt install calibre`)" +
                ("; KFX also needs the KFX Input calibre plugin" if fmt == "kfx" else ""))
     out = cache_path(path, "calibre", ".epub")
@@ -1541,7 +1702,7 @@ def load_via_calibre(path, fmt) -> Doc:
             err = (r.stdout + r.stderr).decode("utf-8", "replace")
             if "DRM" in err:
                 raise RWError("calibre reports this book is DRM-protected. readwright does not remove DRM.")
-            raise RWError("ebook-convert failed: " + err.strip()[-400:])
+            raise RWError("ebook-convert failed: " + tool_error(r))
         os.replace(tmp, out)
     doc = load_epub(str(out))
     doc.path, doc.fmt = path, fmt
@@ -1571,7 +1732,8 @@ def load_via_office(path, fmt) -> Doc:
         raise RWError("password-protected Office file (an encrypted OOXML package). Open it in Office with the "
                       "password and save an unprotected copy.")
     if fmt == "msg":
-        raise RWError("Outlook .msg files are not supported; save the message as .eml from the mail program.")
+        raise RWError("Outlook .msg files are not read directly; save the message as .eml from the mail program, or use "
+                      "--via markitdown with the markitdown[outlook] extra installed.")
     tl = tools()
     target = {"doc": "docx", "xls": "xlsx", "ppt": "pptx"}[fmt]
     if tl["soffice"]:
@@ -1583,7 +1745,7 @@ def load_via_office(path, fmt) -> Doc:
                          "--convert-to", target, "--outdir", td, path], 600)
                 made = next(Path(td).glob("*." + target), None)
                 if not made:
-                    raise RWError("LibreOffice conversion failed: " + (r.stdout + r.stderr).decode("utf-8", "replace").strip()[-300:])
+                    raise RWError("LibreOffice conversion failed: " + tool_error(r))
                 shutil.copyfile(made, out)
         doc = {"docx": load_docx, "xlsx": load_xlsx, "pptx": load_pptx}[target](str(out))
         doc.path, doc.fmt = path, fmt
@@ -1592,7 +1754,7 @@ def load_via_office(path, fmt) -> Doc:
     if fmt == "doc" and tl["antiword"]:
         r = run([tl["antiword"], "-w", "0", path], 120)
         if r.returncode != 0:
-            raise RWError("antiword failed: " + r.stderr.decode("utf-8", "replace").strip()[:300])
+            raise RWError("antiword failed: " + tool_error(r))
         doc = load_text(path, "txt", r.stdout)
         doc.fmt = "doc"
         doc.notes.append("text from antiword (headings are not kept)")
@@ -1602,20 +1764,31 @@ def load_via_office(path, fmt) -> Doc:
 
 
 def load_via(path, via) -> Doc:
+    cp = cache_path(path, via, ".md")
+    tmp = cp.with_suffix(".tmp.md")
     if via == "pandoc":
         exe = need("pandoc", "--via pandoc", "pandoc (https://pandoc.org/installing.html)")
-        cmd = [exe, path, "-t", "markdown", "--wrap=none"]
+        cmd = [exe, path, "-t", "markdown", "--wrap=none", "-o", str(tmp)]
     else:
-        exe = need("markitdown", "--via markitdown", "markitdown (`pipx install 'markitdown[all]'`)")
-        cmd = [exe, path]
-    cp = cache_path(path, via, ".md")
+        exe = need("markitdown", "--via markitdown", "markitdown (`pipx install 'markitdown[all]'` or "
+                   "`pip install --user 'markitdown[all]'`)")
+        cmd = [exe, path, "-o", str(tmp)]   # -o writes UTF-8; its stdout uses the console code page on Windows
     if CACHE_OFF or not cp.exists():
         r = run(cmd, 600)
-        if r.returncode != 0:
-            raise RWError(f"{via} failed: " + r.stderr.decode("utf-8", "replace").strip()[:300])
-        cp.write_bytes(r.stdout)
-    doc = load_text(path, "md", cp.read_bytes())
+        if r.returncode != 0 or not tmp.exists():
+            hint = " (markitdown reads most formats only with its extras: `markitdown[all]`)" \
+                if via == "markitdown" and b"MissingDependency" in r.stderr else ""
+            raise RWError(f"{via} failed on {Path(path).name}: {tool_error(r)}{hint}")
+        os.replace(tmp, cp)
+    out = cp.read_bytes()
+    with open(path, "rb") as f:
+        head = f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n")
+    if len(head) >= 16 and out.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(head):
+        raise RWError(f"{via} does not read this format: it returned {Path(path).name} unchanged. "
+                      "Drop --via to use readwright's own reader.")
+    doc = load_text(path, "md", out)
     doc.fmt = f"{detect(path)} via {via}"
+    doc.notes.append(f"converted to Markdown with {via}")
     return doc
 
 
@@ -1635,7 +1808,41 @@ def zip_members(path) -> list:
     return out
 
 
+BIG_SECTION = CHUNK_WORDS * 4
+
+
+def refine(doc: Doc) -> Doc:
+    """Split a section of more than BIG_SECTION words at the headings or CHAPTER-style lines inside it. Converters
+    often lose the outline: calibre's FB2 writes chapter titles as plain paragraphs, and its PDB round trip keeps
+    three toc entries for a whole novel (L-006). Runs after every loader; well-structured files are untouched."""
+    out = []
+    for s in doc.sections:
+        cuts = []
+        untitled_ = s.title.startswith("(untitled")
+        if s.words() > BIG_SECTION or untitled_:
+            cuts = [j for j, p in enumerate(s.paras) if (j > 0 or untitled_) and p.kind in ("h", "p")
+                    and len(p.text) <= 80 and (p.kind == "h" or heading_line(p.text))]
+        if len(cuts) < (1 if untitled_ else 2):
+            out.append(s)
+            continue
+        lead = s.paras[:cuts[0]]
+        if untitled_ and out and not any(p.kind == "h" for p in lead):
+            out[-1].paras.extend(lead)   # an untitled block's opening lines finish the chapter before it
+        elif lead:
+            out.append(Section(s.title, lead, s.level, s.sid))
+        for k, j in enumerate(cuts):
+            end = cuts[k + 1] if k + 1 < len(cuts) else len(s.paras)
+            title = heading_line(s.paras[j].text) or s.paras[j].text
+            out.append(Section(title, s.paras[j:end], s.level, f"{s.sid}@p{j + 1}"))
+    doc.sections = [s for s in out if s.paras or s.title]
+    return doc
+
+
 def load(path: str, member: str | None = None, via: str | None = None) -> Doc:
+    return refine(load_raw(path, member, via))
+
+
+def load_raw(path: str, member: str | None = None, via: str | None = None) -> Doc:
     if not os.path.isfile(path):
         raise RWError(f"no such file: {path}")
     if via:
@@ -1745,6 +1952,12 @@ def select(doc: Doc, section: str | None, title: str | None) -> list:
         except re.error as e:
             raise RWError(f"bad --title regex: {e}")
         hits = [i for i, s in enumerate(doc.sections, 1) if rx.search(s.title) or rx.search(s.sid)]
+        if not hits:   # "ANWUR AT" and "CHAPTERXXVII" in real tables of contents: retry with spaces ignored
+            try:
+                rx = re.compile(re.sub(r"\s+", "", title), re.I)
+            except re.error:
+                rx = None
+            hits = [i for i, s in enumerate(doc.sections, 1) if rx and rx.search(re.sub(r"\s+", "", s.title))]
         if not hits:
             raise RWError(f"no section title matches {title!r}; run toc to see the titles, or grep for the text")
         idx = [i for i in idx if i in hits] if section else hits
@@ -1884,6 +2097,12 @@ def cmd_read(a) -> int:
         print(f"{doc_head(doc)}\n(no text found)")
         return 0
     idx = select(doc, a.section, a.title) if (a.section or a.title) else list(range(1, len(doc.sections) + 1))
+    added = []
+    for i in list(idx):   # a chapter's title page and its body are often separate sections (L-001)
+        short = a.title and not a.section and doc.sections[i - 1].words() < SHORT_WORDS
+        if (a.with_next or short) and i < len(doc.sections) and i + 1 not in idx:
+            idx.insert(idx.index(i) + 1, i + 1)
+            added.append(i + 1)
     text = compose(doc, idx, a.format)
     if a.out:
         if a.offset:
@@ -1911,8 +2130,11 @@ def cmd_read(a) -> int:
             sys.stdout.write("\n")
         print(f"[readwright: shown chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(len(text))}; continue with "
               f"--offset {end} or write it all with --out FILE]")
+    if added and not a.with_next:
+        print(f"[readwright: the title matched a short section, so the section after it was added ({', '.join(map(str, added))}): "
+              f"a chapter's body often follows its title page. Use --section to read exactly one section]")
     last = idx[-1]
-    if sum(doc.sections[i - 1].words() for i in idx) < 300 and last < len(doc.sections) and last + 1 not in idx:
+    if sum(doc.sections[i - 1].words() for i in idx) < SHORT_WORDS and last < len(doc.sections) and last + 1 not in idx:
         nxt = doc.sections[last]   # chapter-opener pages often hold only a title and an epigraph
         print(f"[readwright: the selection is short; the text may continue in section {last + 1}: "
               f"{nxt.title} ({fmt_n(nxt.words())} words). Read it with --section {last + 1} or --section {idx[0]}-{last + 1}]")
@@ -2070,6 +2292,7 @@ def main(argv=None) -> int:
     p.add_argument("--offset", type=int, default=0, help="start this many characters into the selection")
     p.add_argument("--out", help="write the selection to this file instead of stdout")
     p.add_argument("--format", choices=["txt", "md"], default="txt")
+    p.add_argument("--with-next", action="store_true", help="also read the section after each selected one")
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)
     p.add_argument("pattern")

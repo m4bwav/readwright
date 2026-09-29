@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 import zipfile
 from pathlib import Path
 
@@ -269,6 +270,104 @@ def make_mobi(path, encryption=0):
     Path(path).write_bytes(bytes(head) + rec_list + bytes(rec0))
 
 
+NUMBERS = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN", "TWELVE"]
+
+
+def make_novel(path):
+    """An invented novel shaped like real ebooks: one file per chapter with a nav entry each, chapter FIVE split
+    across two files (the second has no nav entry and no heading, as converters leave long chapters), chapter
+    TWELVE's title page and body as separate nav entries (L-001), and chapter ELEVEN titled 'WEST GATE' in the nav
+    while its heading reads WESTGATE. Chapter NINE holds the marker 'the Quillmere lamp'."""
+    files, nav = [], []
+
+    def xhtml(body):
+        return ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><head><title>x</title>"
+                f"</head><body>{body}</body></html>")
+
+    for i, n in enumerate(NUMBERS, 1):
+        paras = "".join(f"<p>{lorem(60, 'keeper')} {n.lower()} paragraph {k}.</p>" for k in range(6))
+        if n == "NINE":
+            paras += "<p>That night the Quillmere lamp burned green.</p>"
+        head = f"<h2 id='c{i}'>CHAPTER {n}</h2>" if n != "ELEVEN" else f"<h2 id='c{i}'>CHAPTER ELEVEN: WESTGATE</h2>"
+        if n == "TWELVE":
+            files.append((f"ch{i}.xhtml", xhtml(head + "<p>An epigraph of six short words.</p>")))
+            nav.append((f"ch{i}.xhtml", f"CHAPTER {n}"))
+            files.append((f"ch{i}b.xhtml", xhtml("<p>Midsummer.</p>" + paras)))
+            nav.append((f"ch{i}b.xhtml", "Midsummer"))
+            continue
+        files.append((f"ch{i}.xhtml", xhtml(head + paras)))
+        nav.append((f"ch{i}.xhtml", f"CHAPTER {n}" if n != "ELEVEN" else "CHAPTER ELEVEN: WEST GATE"))
+        if n == "FIVE":
+            files.append((f"ch{i}x.xhtml", xhtml("<p>The fifth chapter goes on after the file break.</p>" + paras)))
+    manifest = "".join(f"<item id='f{k}' href='{f}' media-type='application/xhtml+xml'/>" for k, (f, _) in enumerate(files))
+    spine = "".join(f"<itemref idref='f{k}'/>" for k in range(len(files)))
+    navdoc = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml' "
+              "xmlns:epub='http://www.idpf.org/2007/ops'><body><nav epub:type='toc'><ol>"
+              + "".join(f"<li><a href='{f}'>{t}</a></li>" for f, t in nav) + "</ol></nav></body></html>")
+    opf = ("<?xml version='1.0' encoding='utf-8'?><package xmlns='http://www.idpf.org/2007/opf' version='3.0' "
+           "unique-identifier='id'><metadata xmlns:dc='http://purl.org/dc/elements/1.1/'>"
+           "<dc:identifier id='id'>urn:uuid:12345678-1234-1234-1234-123456789abc</dc:identifier>"
+           "<dc:title>The Lamp at Quillmere</dc:title><dc:creator>A. Nonymous</dc:creator><dc:language>en</dc:language>"
+           "<meta property='dcterms:modified'>2026-09-29T00:00:00Z</meta></metadata>"
+           f"<manifest>{manifest}<item id='nav' href='nav.xhtml' media-type='application/xhtml+xml' properties='nav'/>"
+           f"</manifest><spine>{spine}</spine></package>")
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip")
+        z.writestr("META-INF/container.xml", "<?xml version='1.0'?><container version='1.0' "
+                   "xmlns='urn:oasis:names:tc:opendocument:xmlns:container'><rootfiles><rootfile "
+                   "full-path='OEBPS/content.opf' media-type='application/oebps-package+xml'/></rootfiles></container>")
+        z.writestr("OEBPS/content.opf", opf)
+        z.writestr("OEBPS/nav.xhtml", navdoc)
+        for f, data in files:
+            z.writestr("OEBPS/" + f, data)
+
+
+def make_outlined_pdf(path):
+    """Four pages with an outline: Part One (p1) > Harbour (p2); Part Two (p3) > Tower (p4)."""
+    pages = ["Part One begins here", "The harbour held twelve ships", "Part Two begins here", "The tower lamp was lit"]
+    objs = {1: "<< /Type /Catalog /Pages 2 0 R /Outlines 3 0 R >>", 4: "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"}
+    page_ids = []
+    for k, text in enumerate(pages):
+        cid, pid = 5 + 2 * k, 6 + 2 * k
+        stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET"
+        objs[cid] = f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream"
+        objs[pid] = f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents {cid} 0 R >>"
+        page_ids.append(pid)
+    objs[2] = f"<< /Type /Pages /Kids [{' '.join(f'{p} 0 R' for p in page_ids)}] /Count {len(pages)} >>"
+    o = 13   # outline items: 13 Part One, 14 Harbour, 15 Part Two, 16 Tower
+    objs[3] = f"<< /Type /Outlines /First {o} 0 R /Last {o + 2} 0 R /Count 4 >>"
+    objs[o] = f"<< /Title (Part One) /Parent 3 0 R /Next {o + 2} 0 R /First {o + 1} 0 R /Last {o + 1} 0 R /Count 1 /Dest [{page_ids[0]} 0 R /XYZ 0 792 0] >>"
+    objs[o + 1] = f"<< /Title (Harbour) /Parent {o} 0 R /Dest [{page_ids[1]} 0 R /XYZ 0 792 0] >>"
+    objs[o + 2] = f"<< /Title (Part Two) /Parent 3 0 R /Prev {o} 0 R /First {o + 3} 0 R /Last {o + 3} 0 R /Count 1 /Dest [{page_ids[2]} 0 R /XYZ 0 792 0] >>"
+    objs[o + 3] = f"<< /Title (Tower) /Parent {o + 2} 0 R /Dest [{page_ids[3]} 0 R /XYZ 0 792 0] >>"
+    out = bytearray(b"%PDF-1.4\n")
+    offs = {}
+    for i in sorted(objs):
+        offs[i] = len(out)
+        out += f"{i} 0 obj\n{objs[i]}\nendobj\n".encode("latin-1")
+    xref = len(out)
+    n = max(objs) + 1
+    out += f"xref\n0 {n}\n0000000000 65535 f \n".encode()
+    for i in range(1, n):
+        out += f"{offs[i]:010d} 00000 n \n".encode() if i in offs else b"0000000000 65535 f \n"
+    out += f"trailer\n<< /Size {n} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    Path(path).write_bytes(bytes(out))
+
+
+def convert(tool, *args, timeout=600):
+    r = subprocess.run([str(a) for a in (tool, *args)], capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL)
+    return r.returncode == 0
+
+
+def soffice_convert(src, fmt, outdir, extra=()):
+    so = rw.tools()["soffice"]
+    with tempfile.TemporaryDirectory() as td:
+        convert(so, f"-env:UserInstallation={Path(td).as_uri()}", "--headless", "--norestore", *extra,
+                "--convert-to", fmt, "--outdir", outdir, src)
+    made = Path(outdir) / (Path(src).stem + "." + fmt.split(":")[0])
+    return made if made.exists() else None
+
+
 # ---------------------------------------------------------------- helpers
 
 def cli(*args):
@@ -498,14 +597,6 @@ class TestFormats(Base):
         self.assertEqual(code, 1)
         self.assertIn("DRM", err)
 
-    @unittest.skipIf(rw.tools()["ebook-convert"], "calibre installed")
-    def test_mobi_without_calibre_names_the_tool(self):
-        p = self.f("open.mobi")
-        make_mobi(p, encryption=0)
-        code, _, err = cli("info", p)
-        self.assertEqual(code, 1)
-        self.assertIn("ebook-convert", err)
-        self.assertIn("calibre", err)
 
     def test_outlook_msg_and_unknown_binary(self):
         p = self.f("mail.msg")
@@ -523,13 +614,6 @@ class TestFormats(Base):
         self.assertEqual(len(doc.sections), 2)
         self.assertIn("Second page text", rw.render_paras(doc.sections[1].paras))
 
-    @unittest.skipIf(rw.tools()["pdftotext"] or rw.tools()["mutool"], "a PDF tool is installed")
-    def test_pdf_without_tool_names_it(self):
-        p = self.f("two.pdf")
-        make_pdf(p)
-        err = cli("info", p)[2]
-        self.assertIn("pdftotext", err)
-        self.assertIn("Read tool", err)
 
 
 class TestCommands(Base):
@@ -623,6 +707,253 @@ class TestCommands(Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("Снег шёл всю ночь.".encode("utf-8"), r.stdout)
         self.assertNotIn(b"\r\n", r.stdout)
+
+
+class TestRealWorldShapes(Base):
+    """Shapes seen in real files on 2026-09-29 (LEARNINGS L-001, L-003, L-005, L-006), rebuilt from invented text."""
+
+    def novel(self):
+        p = self.f("novel.epub")
+        make_novel(p)
+        return p
+
+    def test_chapter_split_across_files_is_one_section(self):
+        doc = rw.load(str(self.novel()))
+        titles = [s.title for s in doc.sections]
+        self.assertEqual(len(titles), 13, titles)
+        five = doc.sections[titles.index("CHAPTER FIVE")]
+        self.assertIn("goes on after the file break", rw.render_paras(five.paras))
+
+    def test_title_match_ignores_spaces(self):
+        p = self.novel()
+        code, out, _ = cli("read", p, "--title", "westgate", "--max-chars", "300")
+        self.assertEqual(code, 0)
+        self.assertIn("WEST GATE", out.splitlines()[0])
+
+    def test_short_title_match_adds_the_next_section(self):
+        p = self.novel()
+        code, out, _ = cli("read", p, "--title", "chapter twelve")
+        self.assertEqual(code, 0)
+        self.assertIn("Midsummer.", out)
+        self.assertIn("the section after it was added (13)", out)
+        code, out, _ = cli("read", p, "--section", "12")
+        self.assertNotIn("Midsummer.", out)
+        self.assertIn("may continue in section 13", out)
+        code, out, _ = cli("read", p, "--section", "3", "--with-next")
+        self.assertIn("=== [4/13] CHAPTER FOUR", out)
+
+    def test_bracketed_heading_and_gutenberg_markers(self):
+        t = self.f("pg.txt")
+        t.write_text("Title: An Invented Book\n\n*** START OF THE PROJECT GUTENBERG EBOOK AN INVENTED BOOK ***\n\n"
+                     "[Illustration: THE COVER\n\n\n\nChapter I.]\n\n\n" + lorem(200) + "\n\nCHAPTER II.\n\n" + lorem(200)
+                     + "\n\n*** END OF THE PROJECT GUTENBERG EBOOK AN INVENTED BOOK ***\n\n" + lorem(50, "licence"),
+                     encoding="utf-8")
+        titles = [s.title for s in rw.load(str(t)).sections]
+        self.assertIn("Chapter I.", titles)
+        self.assertIn("CHAPTER II.", titles)
+        self.assertIn("END OF THE PROJECT GUTENBERG EBOOK AN INVENTED BOOK", titles)
+
+    def test_glued_chapter_number_is_a_heading(self):
+        self.assertEqual(rw.heading_line("CHAPTERXXVII."), "CHAPTERXXVII.")
+        self.assertIsNone(rw.heading_line("Chapterhouse"))
+        self.assertIsNone(rw.heading_line("chapterize this"))
+
+    def test_untitled_blocks_split_at_chapter_lines(self):
+        body = lambda n: "".join(f"<p>{lorem(80)} {n} {k}.</p>" for k in range(4))   # noqa: E731
+        fb2 = ("<?xml version='1.0' encoding='utf-8'?><FictionBook xmlns='http://www.gribuser.ru/xml/fictionbook/2.0'>"
+               "<description><title-info><book-title>Converted</book-title></title-info></description><body>"
+               f"<section><p>CHAPTER I.</p>{body('one')}<p>CHAPTER II.</p>{body('two')}</section>"
+               f"<section><p>The second chapter carries on here.</p>{body('two-b')}<p>CHAPTER III.</p>{body('three')}</section>"
+               "</body></FictionBook>")
+        p = self.f("conv.fb2")
+        p.write_text(fb2, encoding="utf-8")
+        doc = rw.load(str(p))
+        self.assertEqual([s.title for s in doc.sections], ["CHAPTER I.", "CHAPTER II.", "CHAPTER III."])
+        self.assertIn("carries on here", rw.render_paras(doc.sections[1].paras))
+
+    def test_kfx_detected_by_container_header(self):
+        p = self.f("book.bin")
+        p.write_bytes(b"CONT\x02\x00\x1a\x00" + b"\x00" * 64)
+        self.assertEqual(rw.detect(str(p)), "kfx")
+        q = self.f("contents")
+        q.write_text("CONTENTS\n\nOne\n", encoding="utf-8")
+        self.assertEqual(rw.detect(str(q)), "txt")
+
+    def test_mutool_outline_format(self):
+        sample = ('|\t"PRIDE. and PREJUDICE"\t#page=6&zoom=100,4.5,102\r\n'
+                  '-\t"Table of Contents"\t#page=2&zoom=100,219.25,95.4\r\n'
+                  '|\t\t"The Project"\t#page=4&zoom=100,172.95,102.7\r\n'
+                  '  "Old style" #12\n')
+        self.assertEqual(rw.parse_outline(sample), [("PRIDE. and PREJUDICE", 6, 1), ("Table of Contents", 2, 1),
+                                                   ("The Project", 4, 2), ("Old style", 12, 2)])
+
+    def test_tool_error_keeps_the_exception_line(self):
+        err = b"Traceback (most recent call last):\n  File x, line 1\n    boom()\nsome.module.MissingDependencyException: install markitdown[docx]\n"
+        r = subprocess.CompletedProcess([], 1, b"", err)
+        self.assertEqual(rw.tool_error(r), "some.module.MissingDependencyException: install markitdown[docx]")
+
+
+def hidden_path(keep=None):
+    """os.environ patch that hides every external tool, or all but one (by its folder)."""
+    path = os.path.dirname(rw.tools()[keep]) if keep else ""
+    return unittest.mock.patch.dict(os.environ, {"PATH": path, "RW_PATH_ONLY": "1"})
+
+
+class TestToolDiscovery(Base):
+    def test_missing_tools_are_named(self):
+        pdf, mobi, doc, epub = self.f("a.pdf"), self.f("a.mobi"), self.f("a.doc"), self.f("a.epub")
+        make_pdf(pdf)
+        make_mobi(mobi)
+        doc.write_bytes(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 600)
+        make_epub(epub)
+        with hidden_path():
+            for args, needles in (([pdf], ["pdftotext", "Read tool", "Nothing was installed"]),
+                                  ([mobi], ["ebook-convert", "calibre"]),
+                                  ([doc], ["LibreOffice", "antiword"]),
+                                  ([epub, "--via", "pandoc"], ["pandoc"]),
+                                  ([epub, "--via", "markitdown"], ["markitdown"])):
+                with self.subTest(args=args[1:] or args[0].suffix):
+                    code, _, err = cli("info", *args)
+                    self.assertEqual(code, 1)
+                    for n in needles:
+                        self.assertIn(n, err)
+
+    def test_install_folder_found_when_not_on_path(self):
+        folder = self.tmp / "Pandoc"
+        folder.mkdir()
+        exe = folder / ("pandoc.exe" if os.name == "nt" else "pandoc")
+        exe.write_bytes(b"")
+        exe.chmod(0o755)
+        with unittest.mock.patch.dict(os.environ, {"PATH": "", "LOCALAPPDATA": str(self.tmp)}):
+            os.environ.pop("RW_PATH_ONLY", None)
+            self.assertEqual(os.path.normcase(rw.find_tool("pandoc")), os.path.normcase(str(exe)))
+
+
+T = rw.tools()
+
+
+class TestRoutes(unittest.TestCase):
+    """Every route through an external tool, on files the tool itself writes from invented text. Skipped when
+    the tool is absent; CI installs them on Linux (.github/workflows/tests.yml)."""
+
+    @classmethod
+    def setUpClass(cls):
+        if os.environ.get("RW_REQUIRE_TOOLS") == "1":   # CI's routes job: a missing tool fails instead of skipping
+            absent = [k for k, v in T.items() if not v]
+            if absent:
+                raise AssertionError(f"RW_REQUIRE_TOOLS=1 but these tools are missing: {', '.join(absent)}")
+        cls.tmp = Path(tempfile.mkdtemp(prefix="rw-routes-"))
+        cls.novel = cls.tmp / "novel.epub"
+        make_novel(cls.novel)
+        rw.CACHE_OFF = True
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def assert_novel(self, doc, min_chapters=11):
+        titles = [s.title for s in doc.sections]
+        chapters = [t for t in titles if "CHAPTER" in t.upper()]
+        self.assertGreaterEqual(len(chapters), min_chapters, titles)
+        words = sum(s.words() for s in doc.sections)
+        self.assertGreater(words, 4000)
+        hit = [s.title for s in doc.sections if "Quillmere lamp" in rw.render_paras(s.paras)]
+        self.assertTrue(hit and "NINE" in hit[0].upper(), (hit, titles))
+
+    @unittest.skipUnless(T["ebook-convert"], "no calibre")
+    def test_calibre_kindle_formats(self):
+        for ext in ("azw3", "mobi", "lit"):
+            with self.subTest(ext=ext):
+                out = self.tmp / f"novel.{ext}"
+                self.assertTrue(convert(T["ebook-convert"], self.novel, out, timeout=900), ext)
+                doc = rw.load(str(out))
+                self.assertIn("calibre", doc.notes[-1])
+                self.assert_novel(doc)
+        prc = self.tmp / "novel.prc"
+        shutil.copyfile(self.tmp / "novel.mobi", prc)
+        self.assert_novel(rw.load(str(prc)))
+
+    @unittest.skipUnless(T["ebook-convert"], "no calibre")
+    def test_calibre_fb2_and_pdb_keep_the_text(self):
+        for ext in ("fb2", "pdb"):
+            with self.subTest(ext=ext):
+                out = self.tmp / f"novel.{ext}"
+                self.assertTrue(convert(T["ebook-convert"], self.novel, out, timeout=900), ext)
+                doc = rw.load(str(out))
+                self.assertIn("Quillmere lamp", "".join(rw.render_paras(s.paras) for s in doc.sections))
+                self.assertGreater(sum(s.words() for s in doc.sections), 4000)
+
+    @unittest.skipUnless(T["ebook-convert"], "no calibre")
+    def test_calibre_conversion_is_cached(self):
+        out = self.tmp / "cached.azw3"
+        self.assertTrue(convert(T["ebook-convert"], self.novel, out, timeout=900))
+        rw.CACHE_OFF = False
+        try:
+            with unittest.mock.patch.object(rw, "run", wraps=rw.run) as spy:
+                rw.load(str(out))
+                rw.load(str(out))
+            self.assertEqual(sum(1 for c in spy.call_args_list if "ebook-convert" in Path(c.args[0][0]).name.lower()), 1)
+        finally:
+            rw.CACHE_OFF = True
+            rw.cache_path(str(out), "calibre", ".epub").unlink(missing_ok=True)
+
+    @unittest.skipUnless(T["mutool"], "no mutool")
+    def test_pdf_outline_from_mutool(self):
+        p = self.tmp / "outlined.pdf"
+        make_outlined_pdf(p)
+        doc = rw.load(str(p))
+        self.assertEqual([(s.title, s.level) for s in doc.sections],
+                         [("Part One (p. 1-1)", 1), ("Harbour (p. 2-2)", 2), ("Part Two (p. 3-3)", 1), ("Tower (p. 4-4)", 2)])
+        self.assertIn("twelve ships", rw.render_paras(doc.sections[1].paras))
+        with hidden_path("mutool"):   # pdftotext hidden: mutool draws the text too
+            doc = rw.load(str(p))
+            self.assertIn("tower lamp", rw.render_paras(doc.sections[3].paras))
+
+    @unittest.skipUnless(T["soffice"], "no LibreOffice")
+    def test_libreoffice_legacy_office(self):
+        src = self.tmp / "notes.html"
+        src.write_text("<html><body><h1>Harbour</h1><p>The harbour master logged twelve arrivals.</p>"
+                       f"<p>{lorem(400)}</p><h1>Weather</h1><p>Fog every morning in March.</p>"   # antiword refuses tiny files
+                       "</body></html>", encoding="utf-8")
+        doc_file = soffice_convert(src, "doc:MS Word 97", self.tmp)
+        self.assertIsNotNone(doc_file)
+        doc = rw.load(str(doc_file))
+        self.assertEqual(doc.fmt, "doc")
+        self.assertEqual([s.title for s in doc.sections], ["Harbour", "Weather"])
+        csv_file = self.tmp / "tides.csv"
+        csv_file.write_text("date,height\n2026-09-29,4.2\n", encoding="utf-8")
+        xls = soffice_convert(csv_file, "xls", self.tmp)
+        self.assertIn("2026-09-29\t4.2", rw.render_paras(rw.load(str(xls)).sections[0].paras))
+        pdf = self.tmp / "deck.pdf"
+        make_pdf(pdf, pages=("Quarterly plan", "Paint the tower"))
+        ppt = soffice_convert(pdf, "ppt", self.tmp, ["--infilter=impress_pdf_import"])
+        doc = rw.load(str(ppt))
+        self.assertEqual(len(doc.sections), 2)
+        self.assertIn("Paint the tower", rw.render_paras(doc.sections[1].paras))
+        if T["antiword"]:
+            with hidden_path("antiword"):
+                doc = rw.load(str(doc_file))
+                self.assertIn("antiword", doc.notes[-1])
+                self.assertIn("twelve arrivals", rw.render_paras(doc.sections[0].paras))
+
+    @unittest.skipUnless(T["pandoc"], "no pandoc")
+    def test_via_pandoc(self):
+        doc = rw.load(str(self.novel), via="pandoc")
+        self.assertEqual(doc.fmt, "epub via pandoc")
+        self.assert_novel(doc)
+        rtf = self.tmp / "tides.rtf"
+        make_rtf(rtf)
+        self.assertIn("Café at the pier", "".join(rw.render_paras(s.paras) for s in rw.load(str(rtf), via="pandoc").sections))
+
+    @unittest.skipUnless(T["markitdown"], "no markitdown")
+    def test_via_markitdown(self):
+        doc = rw.load(str(self.novel), via="markitdown")
+        self.assertEqual(doc.fmt, "epub via markitdown")
+        self.assert_novel(doc)
+        rtf = self.tmp / "tides2.rtf"
+        make_rtf(rtf)
+        with self.assertRaisesRegex(rw.RWError, "unchanged"):
+            rw.load(str(rtf), via="markitdown")
 
 
 if __name__ == "__main__":

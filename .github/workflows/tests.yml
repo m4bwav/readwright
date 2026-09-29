@@ -1,5 +1,7 @@
 # Runs the test suite on the three operating systems the tool promises, on the oldest and newest Python it
-# supports, so a change that only works on the author's machine cannot land unnoticed.
+# supports, so a change that only works on the author's machine cannot land unnoticed. The routes job installs
+# the free external tools on Linux so every conversion route (calibre, poppler, MuPDF, LibreOffice, antiword,
+# pandoc, markitdown) runs on each push instead of being skipped.
 name: tests
 on:
   push:
@@ -22,3 +24,23 @@ jobs:
         run: python tests/test_rw.py
       - name: the tool answers from a clean checkout
         run: python skills/readwright/scripts/rw.py formats
+  routes:
+    runs-on: ubuntu-latest
+    env:
+      RW_REQUIRE_TOOLS: "1"
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: install the external tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends calibre poppler-utils mupdf-tools antiword pandoc \
+            libreoffice-writer libreoffice-calc libreoffice-impress
+          python -m pip install "markitdown[docx,pdf,pptx,xlsx,xls]"
+      - name: tools found
+        run: python skills/readwright/scripts/rw.py formats
+      - name: test suite with every route
+        run: python tests/test_rw.py

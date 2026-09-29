@@ -17,7 +17,7 @@ readwright 0.2.0 with every advertised external-tool route run on real files and
 Done 2026-09-29: released as 0.2.0 (see ../HANDOFF.md). Before that: readwright 0.1.0 is public (github.com/m4bwav/readwright), registered in the evergreen catalog and installed as readwright@mark-local. The stdlib formats are tested: 34 unit tests, 7/7 evals, CI green on Linux, macOS and Windows. Every route through an external tool is written but has never run against the real tool. See [../HANDOFF.md](../HANDOFF.md).
 
 ## Next single action
-Paste the prompt below into a fresh Claude Code session started in `D:\m4bwa\Claude\Projects\Ai\readwright`.
+Paste the prompt below into a fresh Claude Code session started in the repository's root folder.
 
 ## Prompt
 
@@ -50,5 +50,5 @@ Finish readwright (this repo: an evergreen skill plus the stdlib CLI `skills/rea
    - Run the unit tests, the evals, skill-tidy lint and the everwrite check.
    - Bump plugin.json to 0.2.0, push, let CI pass, then tag v0.2.0 and create a GitHub release.
    - Run `claude plugin marketplace update mark-local`, then `claude plugin update readwright@mark-local`. If the update keeps a stale cache, uninstall and reinstall.
-   - Record the refresh: `python D:\m4bwa\Claude\Projects\Ai\evergreen\scripts\evergreen.py checked readwright --m <magnitude>`.
+   - Record the refresh: `python <evergreen plugin>/scripts/evergreen.py checked readwright --m <magnitude>`.
    - Finish: rewrite `ai-docs/HANDOFF.md`, append to `ai-docs/log.md`, run `everlast.py index .`, commit and push.

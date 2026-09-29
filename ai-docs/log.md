@@ -10,3 +10,6 @@ Append-only. One line per operation: `## [YYYY-MM-DD] op | title` where op is on
 ## [2026-09-29] index | rebuilt (1 entries)
 ## [2026-09-29] add | decision: readwright as its own stdlib CLI plugin: outline, then sections, then search
 ## [2026-09-29] index | rebuilt (2 entries)
+
+## 2026-09-29 published
+Created the public repo m4bwav/readwright, pushed main, CI passed on all six jobs, tagged and released v0.1.0. Before publishing, book-specific example names were replaced with neutral ones in the README, evals, LEARNINGS and TESTS.

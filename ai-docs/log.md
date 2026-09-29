@@ -17,3 +17,12 @@ Created the public repo m4bwav/readwright, pushed main, CI passed on all six job
 ## 2026-09-29 registered and installed
 Registered with `evergreen.py register` and added to the mark-local marketplace (`Ai/.claude-plugin/marketplace.json`); installed as readwright@mark-local 0.1.0 (user scope).
 ## [2026-09-29] index | rebuilt (3 entries)
+## [2026-09-29] add | decision: No MCP server and no launcher on PATH for readwright
+## [2026-09-29] add | solution: Test every converter route on real files, including KFX
+## [2026-09-29] update | solution: Run the readwright eval suite on Windows (full-size case, saving traces)
+## [2026-09-29] update | plan: Kickoff prompt: finish readwright, marked done
+
+## 2026-09-29 released 0.2.0
+Installed calibre, LibreOffice, poppler, mutool, pandoc, markitdown and Kindle Previewer with the KFX plugins; ran every route on real public-domain books and fixed what broke (tool discovery off PATH, chapters split across files, lost outlines, mutool nesting, XLSX dates, tool errors, markitdown quirks). Added route unit tests, a Linux CI job with the tools, tests/real_files.py, tests/measure_tokens.py and the full-size eval case action-2. Tagged v0.2.0, released, updated readwright@mark-local.
+## [2026-09-29] handoff | rewritten for 0.2.0
+## [2026-09-29] index | rebuilt (5 entries)

@@ -35,6 +35,6 @@ claude plugin eval . --ablation none --no-publish -j 4 --tag trigger --trust-plu
 wsl -e bash -lc 'rm -rf ~/rw-eval && mkdir -p ~/rw-eval && cd "$REPO" && tar --exclude=evals/results -cf - . | tar -xf - -C ~/rw-eval && cd ~/rw-eval && claude plugin eval . --ablation none --no-publish -j 2 --tag bash --scaffold --allow-tools Bash Write Edit --trust-plugin'
 ```
 
-`REPO` is the repository as WSL sees it (`/mnt/<drive>/...`). 2026-09-29: 5/5 native, 2/2 in WSL2 (TESTS.md T-20260929-2). Add `--ablation with-without` for the no-skill baseline arm. Clean up after `--keep-temp` runs: `chmod -R u+rwx /tmp/claude-eval-*; rm -rf /tmp/claude-eval-*` in WSL, and remove `%TEMP%\claude-eval-*` folders on Windows.
+`REPO` is the repository as WSL sees it (`/mnt/<drive>/...`). 2026-09-29: 5/5 native, 2/2 in WSL2 (TESTS.md T-20260929-2); later 8/8 with the full-size case action-2 (T-20260929-4), whose fixture downloads Moby-Dick unless `RW_EVAL_BOOKS` names a folder holding `moby.epub` (export it before the eval). `--tag fullsize` runs only that case. Add `--ablation with-without` for the no-skill baseline arm. To read the traces, copy `/tmp/claude-eval-*/out/trace.jsonl` in the same `wsl` call that ran the eval (after `chmod 700` on the folder and its `sealed` subfolder); a later call finds them gone. Clean up after `--keep-temp` runs: `chmod -R u+rwx /tmp/claude-eval-*; rm -rf /tmp/claude-eval-*` in WSL, and remove `%TEMP%\claude-eval-*` folders on Windows.
 
 Related: builds on [../../skills/readwright/LEARNINGS.md](../../skills/readwright/LEARNINGS.md)

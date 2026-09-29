@@ -1,7 +1,7 @@
 ---
 title: "Kickoff prompt: finish readwright (external-tool routes, real-file tests, token-saving evidence, 0.2.0)"
 kind: plan
-status: active
+status: done
 date: 2026-09-29
 tags: [readwright, plan, prompt, testing, release]
 entities: [readwright, rw.py, calibre, LibreOffice, poppler, MuPDF, pandoc, markitdown]
@@ -10,8 +10,11 @@ summary: Paste into a fresh session to take readwright from 0.1.0 (stdlib format
 
 # Kickoff prompt: finish readwright (2026-09-29)
 
+## Goal
+readwright 0.2.0 with every advertised external-tool route run on real files and the token saving measured on a full-size book.
+
 ## Status
-Active, not started. readwright 0.1.0 is public (github.com/m4bwav/readwright), registered in the evergreen catalog and installed as readwright@mark-local. The stdlib formats are tested: 34 unit tests, 7/7 evals, CI green on Linux, macOS and Windows. Every route through an external tool is written but has never run against the real tool. See [../HANDOFF.md](../HANDOFF.md).
+Done 2026-09-29: released as 0.2.0 (see ../HANDOFF.md). Before that: readwright 0.1.0 is public (github.com/m4bwav/readwright), registered in the evergreen catalog and installed as readwright@mark-local. The stdlib formats are tested: 34 unit tests, 7/7 evals, CI green on Linux, macOS and Windows. Every route through an external tool is written but has never run against the real tool. See [../HANDOFF.md](../HANDOFF.md).
 
 ## Next single action
 Paste the prompt below into a fresh Claude Code session started in `D:\m4bwa\Claude\Projects\Ai\readwright`.

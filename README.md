@@ -77,6 +77,12 @@ Other agents that read Agent Skills (`SKILL.md`): link or copy `skills/readwrigh
 
 `python tests/test_rw.py` runs the unit tests. They build every fixture (EPUB, DOCX, ODT, FB2, RTF, HTML, EML, zip and more) from invented text at test time, so no book or document is stored in the repository. The route tests convert those fixtures with each external tool that is installed and skip the rest; the CI job `routes` installs the free tools on Linux and runs them all. `python tests/real_files.py` downloads Pride and Prejudice from Project Gutenberg, builds every format with calibre and LibreOffice, and checks each route on it; `python tests/measure_tokens.py` makes the table above. The eval suite in `evals/` (trigger prompts, decoys, and cases proven by the `rw.py` calls in the trace) runs with `claude plugin eval`; the latest results are in [TESTS.md](skills/readwright/TESTS.md).
 
+## Privacy
+
+readwright runs on your machine and sends nothing anywhere. `rw.py` uses only the Python standard library and makes no network connections. It reads the file you name, prints text to the agent, and writes a file only when asked to (`dump`, `--out`). For PDF, MOBI, AZW3, KFX and old Office files it runs converters you installed yourself (poppler, MuPDF, calibre, LibreOffice, antiword, pandoc, markitdown) as local programs and gives them the file path. Their output is cached under the system temp folder so the next command is fast. It reads no credentials. The environment variables it reads are its own settings (`RW_MAX_MB`, `RW_PATH_ONLY`, `RW_HIDE_TOOLS`) and the standard install folders it searches for those converters.
+
+The only network use is in the developer tests, never in the skill: `tests/real_files.py`, `tests/measure_tokens.py` and the `action-2` eval fixture download public-domain books from Project Gutenberg when you run them. What you read with readwright goes into your agent's context, so it reaches whatever model provider your agent already uses, as any file the agent opens would.
+
 ## Credits
 
 [epr](https://github.com/wustho/epr) by wustho (MIT) is a good terminal EPUB reader for people, and `epr -d` dumps a whole book as text. That dump, sent into an agent's context, is the problem readwright was written to avoid. Its successor is [epy](https://github.com/wustho/epy). readwright shares no code with either.

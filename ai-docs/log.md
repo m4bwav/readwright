@@ -26,3 +26,6 @@ Registered with `evergreen.py register` and added to the mark-local marketplace 
 Installed calibre, LibreOffice, poppler, mutool, pandoc, markitdown and Kindle Previewer with the KFX plugins; ran every route on real public-domain books and fixed what broke (tool discovery off PATH, chapters split across files, lost outlines, mutool nesting, XLSX dates, tool errors, markitdown quirks). Added route unit tests, a Linux CI job with the tools, tests/real_files.py, tests/measure_tokens.py and the full-size eval case action-2. Tagged v0.2.0, released, updated readwright@mark-local.
 ## [2026-09-29] handoff | rewritten for 0.2.0
 ## [2026-09-29] index | rebuilt (5 entries)
+
+## 2026-10-03 prepared for the Claude plugin directory
+Checked the directory's pre-submission list (manifest fields, validate, file sizes and types, names, .gitattributes): all met. Added documentationUrl, supportUrl and privacyPolicyUrl to `.claude-plugin/plugin.json` and a Privacy section to the README (no network calls in the skill, no credentials read; the developer tests download from Project Gutenberg). No launcher packages to pin. Version unchanged at 0.2.0; submission is done by another session.

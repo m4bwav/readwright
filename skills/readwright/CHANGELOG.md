@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261003-1 · 2026-10-03 · Prepared for the Claude plugin directory
+- because: user request (directory submission)
+- files: ../../.claude-plugin/plugin.json, ../../README.md (Privacy)
+- plugin.json gains documentationUrl, supportUrl and privacyPolicyUrl. The README gains a Privacy section: the skill makes no network calls and reads no credentials; only the developer tests download public-domain books from Project Gutenberg. No code changed, so the version stays 0.2.0.
+
 ### C-20260929-7 · 2026-09-29 · Release 0.2.0; no MCP server and no launcher on PATH
 - because: user request (kickoff plan item 4), T-20260929-3, T-20260929-4
 - files: ../../.claude-plugin/plugin.json, ../../plugin.json, scripts/rw.py (VERSION), SKILL.md (metadata), evergreen.json, ../../README.md, ../../ai-docs/decisions

@@ -17,5 +17,8 @@
   ],
   "skills": "./skills",
   "repository": "https://github.com/m4bwav/readwright",
-  "homepage": "https://github.com/m4bwav/readwright"
+  "homepage": "https://github.com/m4bwav/readwright",
+  "documentationUrl": "https://github.com/m4bwav/readwright#readme",
+  "supportUrl": "https://github.com/m4bwav/readwright/issues",
+  "privacyPolicyUrl": "https://github.com/m4bwav/readwright#privacy"
 }

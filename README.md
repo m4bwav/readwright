@@ -1,5 +1,7 @@
 # readwright
 
+![A girl reading at a lamp-lit desk while pages float up out of the book, a magnifying glass beside her](https://raw.githubusercontent.com/m4bwav/readwright/main/.github/images/banner.jpg)
+
 An agent skill and a small command-line tool for reading text out of ebooks and documents a section at a time. The agent asks for an outline first, then only the chapters it needs, then searches, and the whole book never lands in its context.
 
 A novel runs to 150,000 to 300,000 tokens. Converters that turn a book into text in one go are built for people or pipelines, so an agent that uses them loads the entire book to answer a question about two chapters. readwright answers the same question with a table of contents, two sections and a search.

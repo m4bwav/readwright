@@ -86,6 +86,14 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Scope: skill
 - Status: active · helpful 1 · harmful 0 · last_confirmed 2026-09-29
 
+### L-011 · 2026-10-22 · Scanned books report 0 words with no hint why
+- Trigger: book dump, 2026-10-22: `info` on Gurney's *Color and Light* (226 pages), *Imaginative Realism*, Framed Ink 1 and 2 and Roberts' *Mastering Composition* printed `words: 0` and nothing else. The Mascelli EPUB was page images as well. With no OCR installed, the agents worked it out and rendered pages with `mutool draw -r 50` to read as images. The DjVu copy next to Mascelli had a text layer, and calibre extracted it.
+- Hypothesis: these are image-only scans; info cannot tell a scan from an empty file.
+- Rule: when a PDF or EPUB has pages but almost no words, info, toc and read say "no text layer" and name the ways in: a same-name copy in another format beside it (DjVu often carries OCR), OCR if installed, or page images (`mutool draw -r 60` or `pdftoppm -r 60`) read with the agent's image reader.
+- Evidence: 2026-10-23, 83 real PDFs and EPUBs: the 6 scans had 0 words a page, the thinnest text book 132, so the floor of 10 words a page fires on exactly the 6. Eval outcome-2 (scanned EPUB, text copy beside it): with the skill 3 of 3 answered from the copy, without 0 of 3 (T-20261023-1). Applied: C-20261023-1.
+- Scope: skill
+- Status: active · helpful 1 · harmful 0 · last_confirmed 2026-10-23
+
 <!-- Example (delete once you have a real entry):
 ### L-001 · 2026-09-29 · One-line lesson in plain words
 - Trigger: what happened, with dates or counts

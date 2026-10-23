@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261023-1 · 2026-10-23 · Scanned books say so and name the ways in
+- because: L-011, T-20261023-1
+- files: scripts/rw.py (load, scan_note, cmd_info, cmd_read, tool_dirs), SKILL.md (Step 1), references/formats.md (External tools), ../../tests/test_rw.py, ../../evals/outcome-2, evals/evals.json
+- A PDF or EPUB under 10 words a page (an EPUB counts sections) gets a `no text layer` note in info, toc and read. The note names a same-name copy in another format beside the file, ocrmypdf when installed, and a `mutool draw` or `pdftoppm` line for the first pages. `read` on such a file prints the note instead of empty sections, and info's next line says there is no text to read. pdftoppm is looked for in poppler's usual folders. The threshold comes from 83 real books (6 scans at 0, the thinnest text book 132). New eval outcome-2; outcome-1 is now the suite's held-out case. Version unchanged.
+
 ### C-20261003-1 · 2026-10-03 · Prepared for the Claude plugin directory
 - because: user request (directory submission)
 - files: ../../.claude-plugin/plugin.json, ../../README.md (Privacy)

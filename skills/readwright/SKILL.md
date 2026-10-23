@@ -21,7 +21,7 @@ Run `RW info FILE`. It prints the detected format (from the file's bytes, not it
 
 If info reports DRM, say so plainly and stop. readwright never removes DRM, and neither should you: suggest the store's own reader or a DRM-free copy from the seller. If it names a missing tool (pdftotext, calibre's ebook-convert, LibreOffice), pass on the install line it prints. Never install anything without the user's yes. For a PDF, the agent's own Read tool with page ranges is often the better route.
 
-If info prints `note: no text layer`, the book is page images (a scan) and readwright has nothing to read. Take the routes the note names, in its order: a copy of the same book in another format beside it (a DjVu copy often carries OCR text), OCR when installed, or a few pages rendered at 50 to 80 dpi and viewed with your own image reader. Ask before installing an OCR tool.
+If info prints `note: no text layer`, the book is page images (a scan) and readwright has nothing to read. Take the routes the note names, in its order. First, a copy of the same book in another format beside it; a DjVu copy often carries OCR text. Then OCR, when installed. Last, a few pages rendered at 50 to 80 dpi and viewed with your own image reader. Ask before installing an OCR tool.
 
 ## Step 2: outline
 

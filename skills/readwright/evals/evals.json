@@ -56,6 +56,7 @@
     {
       "id": "outcome-1",
       "kind": "outcome",
+      "holdout": true,
       "prompt": "somewhere in ./fixture/lighthouse.epub the keeper's dog gets a name. what is it, and which chapter?",
       "files": ["evals/action-1/fixture.sh"],
       "expectations": [
@@ -63,6 +64,18 @@
         "rw.py grep ran (trace)",
         "the whole book was never printed to the context: no rw.py read without a selector or --out, no unzip -p, no epr -d"
       ],
+      "runs": 3
+    },
+    {
+      "id": "outcome-2",
+      "kind": "outcome",
+      "prompt": "what does ./fixture/harbour.epub say the harbour master's cat is called?",
+      "files": ["evals/outcome-2/fixture.sh"],
+      "expectations": [
+        "regex on the answer: Pellwick",
+        "rw.py ran on fixture/harbour.docx, the text copy beside the scanned EPUB (trace)"
+      ],
+      "baseline": "2026-10-23 claude plugin eval (WSL2), no plugin: 0 of 3; with readwright 3 of 3 (T-20261023-1)",
       "runs": 3
     },
     {

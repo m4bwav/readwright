@@ -226,11 +226,11 @@ def tool_dirs(name: str) -> list:
             except KeyError:
                 pass
         dirs.append(os.path.dirname(sys.executable))
-    if name in ("pdftotext", "pdfinfo"):   # winget's poppler package is a portable zip under WinGet\Packages
+    if name in ("pdftotext", "pdfinfo", "pdftoppm"):   # winget's poppler package is a portable zip under WinGet\Packages
         pk = Path(local, "Microsoft", "WinGet", "Packages") if local else None
         if pk and pk.is_dir():
             dirs += [str(d) for d in sorted(pk.glob("oschwartz10612.Poppler_*/poppler-*/Library/bin"), reverse=True)]
-    if name in ("pdftotext", "pdfinfo", "antiword"):   # Git for Windows ships these in its MSYS2 tree
+    if name in ("pdftotext", "pdfinfo", "pdftoppm", "antiword"):   # Git for Windows ships these in its MSYS2 tree
         dirs += [os.path.join(p, "Git", "mingw64", "bin") for p in pf] + [os.path.join(p, "Git", "usr", "bin") for p in pf]
     dirs += windows_path_dirs()
     dirs += [env_dir("LOCALAPPDATA", "Microsoft", "WinGet", "Links")] + [os.path.join(p, "WinGet", "Links") for p in pf]
@@ -1843,7 +1843,41 @@ def refine(doc: Doc) -> Doc:
 
 
 def load(path: str, member: str | None = None, via: str | None = None) -> Doc:
-    return refine(load_raw(path, member, via))
+    doc = refine(load_raw(path, member, via))
+    if doc.fmt in ("pdf", "epub") and not member and not via:
+        scan_note(doc, path)
+    return doc
+
+
+SCAN_WORDS_PER_PAGE = 10   # 82 real PDFs and EPUBs: the 6 scans had 0 words a page, the thinnest text book 132 (L-011)
+SIBLING_EXTS = (".djvu", ".epub", ".pdf", ".mobi", ".azw3", ".fb2", ".docx", ".txt", ".html")
+
+
+def scan_note(doc: Doc, path: str) -> None:
+    """A PDF or EPUB with pages but almost no words is page images. Say so and name the ways in, or the reader sees
+    `words: 0` and has to work it out (L-011)."""
+    n = str(doc.meta.get("pages") or "")
+    pages = int(n) if n.isdigit() else len(doc.sections)
+    words = sum(s.words() for s in doc.sections)
+    if not pages or words >= SCAN_WORDS_PER_PAGE * pages:
+        return
+    p = Path(path)
+    sibs = [q.name for q in sorted(p.parent.iterdir()) if q != p and q.is_file()
+            and q.stem.lower() == p.stem.lower() and q.suffix.lower() in SIBLING_EXTS]
+    djvu = " (DjVu copies often carry OCR text)" if any(s.lower().endswith(".djvu") for s in sibs) else ""
+    routes = [f"read the copy beside it: {', '.join(sibs)}{djvu}"] if sibs else []
+    routes.append("add a text layer with `ocrmypdf --skip-text IN OUT` (installed)" if find_tool("ocrmypdf")
+                  else "OCR it (ocrmypdf or tesseract; neither is installed)")
+    if doc.fmt == "pdf":
+        mt, pp = tools()["mutool"], find_tool("pdftoppm")
+        routes.append("render pages and view them with the agent's image reader: "
+                      + (f"`mutool draw -r 60 -o page-%d.png \"{p.name}\" 1-5`" if mt
+                         else f"`pdftoppm -r 60 -f 1 -l 5 -png \"{p.name}\" page`" if pp else "mutool or pdftoppm at 50-80 dpi"))
+    else:
+        routes.append("the page images are inside the EPUB (a zip): extract a few and view them with the agent's image reader")
+    unit = "pages" if doc.fmt == "pdf" else "sections"
+    doc.notes.append(f"no text layer: {fmt_n(words)} words in {fmt_n(pages)} {unit}, so this is probably a scan. "
+                     "Ways in: " + "; ".join(routes))
 
 
 def load_raw(path: str, member: str | None = None, via: str | None = None) -> Doc:
@@ -2065,7 +2099,8 @@ def cmd_info(a) -> int:
                 print(f"note: {n}")
         else:
             print(f"{k}: {fmt_n(v) if isinstance(v, int) and k not in ('bytes',) else v}")
-    print("next: toc, then read --section N" if sm["chars"] > DEFAULT_MAX_CHARS else "next: read (small enough to read whole)")
+    print("next: toc, then read --section N" if sm["chars"] > DEFAULT_MAX_CHARS
+          else "next: no text to read; see the note" if not sm["words"] and doc.notes else "next: read (small enough to read whole)")
     return 0
 
 
@@ -2097,8 +2132,11 @@ def cmd_read(a) -> int:
     doc = load(a.file, a.member, a.via)
     if doc.fmt == "zip":
         raise RWError("this is a zip archive; list it with toc and pick a member with --member NAME")
-    if not doc.sections:
-        print(f"{doc_head(doc)}\n(no text found)")
+    if not any(s.words() for s in doc.sections):   # a scan's pages are sections with no words (L-011)
+        print(doc_head(doc))
+        for n in doc.notes:
+            print(f"note: {n}")
+        print("(no text found)")
         return 0
     idx = select(doc, a.section, a.title) if (a.section or a.title) else list(range(1, len(doc.sections) + 1))
     added = []

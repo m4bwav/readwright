@@ -8,6 +8,13 @@ Entry shape: `### T-YYYYMMDD-n · date · harness · env · passed/total`, then 
 
 ## Runs
 
+### T-20261023-1 · 2026-10-23 · claude plugin eval 2.1.307 (sonnet judge, --scaffold, --allow-tools Bash Write Edit) · WSL2 Ubuntu · 3/3
+- New case outcome-2: "what does ./fixture/harbour.epub say the harbour master's cat is called?" The fixture is a three-page EPUB of images only, with `harbour.docx` beside it holding the text (both deflated, so plain Grep reads neither). Graders: the name Pellwick in the reply, and `rw.py ... harbour.docx` in a Bash call. `--ablation with-without`: with 3 of 3, without 0 of 3 (no plugin: the reply never found the name).
+- First run 2 of 3 on the trace grader: two runs called rw.py through a shell variable (`RW="python3 .../rw.py"; $RW grep ./fixture/harbour.docx ...`) and the pattern wanted whitespace after `rw.py`. All three had read the note and used the copy. Class harness; the pattern is now `rw\.(?:py|sh|ps1)[\s\S]*harbour\.docx`, tested on two wrong commands and two right ones.
+- Regression: action-1 1/1, outcome-1 1/1. `python tests/test_rw.py`: 52 tests. Six mutations of the new code (no note, floor at 0, floor at 10,000, no sibling lookup, the old empty check in read, the old next line in info) each failed a test.
+- Real files: info on 83 PDFs and EPUBs in a book folder; the note fired on the 6 scans and nothing else.
+led to: L-011, C-20261023-1
+
 ### T-20260929-4 · 2026-09-29 · claude plugin eval 2.1.281 (default model) · Windows 11 native for trigger and decoy, WSL2 Ubuntu for the Bash cases · 8/8
 - New case action-2 (full size): "what happens in chapters 16 and 17 of ./fixture/moby.epub?". The fixture downloads Moby-Dick from Project Gutenberg (215,845 words, about 309,000 tokens); graders: Skill called, `rw.py ... read` in the trace, the answer names the Pequod or Peleg or Bildad and the Ramadan, and no whole-book dump (unzip -p, epr -d, pandoc or markitdown to stdout). Tagged `bash, fullsize`.
 - Baseline, `--ablation with-without`, 3 runs per arm after C-20260929-6: with 1.00 in 3 of 3 (4 to 5 tool calls, 12.1k to 12.2k tokens of tool output, $0.29 to $0.30); without 0.67 in 3 of 3, failing only the rw.py grader. Without the skill the model listed the zip, wrote a zipfile-and-regex extractor, pulled the two XHTML files and answered correctly (12.9k to 13.1k tokens, $0.29 to $0.31). No arm dumped the book. On EPUB the skill costs about what a capable model's own code costs (L-010).

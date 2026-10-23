@@ -52,18 +52,18 @@
     }
   ],
   "counts": {
-    "learnings": 10,
-    "changes": 7,
+    "learnings": 11,
+    "changes": 8,
     "research": 10,
-    "tests": 4
+    "tests": 5
   },
   "consolidate_every": 25,
   "tests": {
-    "last_run": "2026-09-29T17:56",
-    "harness": "claude plugin eval 2.1.281",
-    "env": "Windows 11 native (trigger, decoy) + WSL2 Ubuntu (Bash cases)",
-    "cases": 8,
-    "passed": 8,
+    "last_run": "2026-10-23T10:10",
+    "harness": "claude plugin eval 2.1.307",
+    "env": "WSL2 Ubuntu (Bash cases)",
+    "cases": 3,
+    "passed": 3,
     "failed": 0,
     "failing": [],
     "last_failure": null,

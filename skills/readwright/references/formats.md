@@ -42,6 +42,8 @@ Conversions are cached in the system temp folder (`readwright-cache`), keyed by 
 
 Tools are looked for on PATH, then in their usual install folders: `Calibre2` and `LibreOffice\program` under Program Files, `%LOCALAPPDATA%\Pandoc`, winget's poppler package under `%LOCALAPPDATA%\Microsoft\WinGet\Packages`, winget's `Links` folders, Git for Windows' `mingw64\bin` (pdftotext, pdfinfo, antiword), scoop shims, Chocolatey's `bin`, pip's user scripts folder (markitdown), `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin` and the macOS application bundles. On Windows the PATH stored in the registry is searched too, since a tool installed after the agent's shell started is on that PATH and not the shell's. Two environment variables change this: `RW_HIDE_TOOLS=soffice,pdftotext` treats the named tools as absent (to force antiword for DOC, or mutool for PDF), and `RW_PATH_ONLY=1` looks on PATH only.
 
+A PDF or EPUB with fewer than 10 words a page (an EPUB counts sections) gets a `no text layer` note from `info`, `toc` and `read`: it is page images. The note names a same-name copy in another format in the same folder, ocrmypdf when installed, and a `mutool draw` or `pdftoppm` line that renders the first pages as pictures. On 83 real PDFs and EPUBs, the 6 scans had 0 words a page and the thinnest text book 132, so the note fired on exactly the 6.
+
 ## DRM and safety
 
 - EPUB: `META-INF/rights.xml` (Adobe ADEPT), `META-INF/license.lcpl` (Readium LCP) or `META-INF/sinf.xml` (Apple FairPlay) together with encrypted resources in `encryption.xml`; or any encrypted resource whose algorithm is not font obfuscation.

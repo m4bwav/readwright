@@ -614,6 +614,45 @@ class TestFormats(Base):
         self.assertEqual(len(doc.sections), 2)
         self.assertIn("Second page text", rw.render_paras(doc.sections[1].paras))
 
+    @unittest.skipUnless(rw.tools()["pdftotext"] or rw.tools()["mutool"], "no pdftotext or mutool")
+    def test_scanned_pdf_says_so(self):   # L-011: page images gave `words: 0` and no hint
+        p = self.f("plates.pdf")
+        make_pdf(p, pages=("", "", ""))
+        self.f("plates.djvu").write_bytes(b"AT&TFORM")
+        code, out, _ = cli("info", p)
+        self.assertIn("no text layer", out)
+        self.assertIn("plates.djvu", out)
+        self.assertIn("next: no text to read", out)
+        code, out, _ = cli("read", p)
+        self.assertIn("no text layer", out)
+        self.assertIn("(no text found)", out)
+        q = self.f("prose.pdf")
+        make_pdf(q, pages=(lorem(30), lorem(30)))
+        self.assertNotIn("no text layer", cli("info", q)[1])
+
+    def test_image_only_epub_says_so(self):
+        p = self.f("pictures.epub")
+        page = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+                "<img src='p1.jpg'/><img src='p2.jpg'/></body></html>")
+        with zipfile.ZipFile(p, "w") as z:
+            z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip")
+            z.writestr("META-INF/container.xml", "<?xml version='1.0'?><container version='1.0' "
+                       "xmlns='urn:oasis:names:tc:opendocument:xmlns:container'><rootfiles><rootfile "
+                       "full-path='content.opf' media-type='application/oebps-package+xml'/></rootfiles></container>")
+            z.writestr("content.opf", "<?xml version='1.0'?><package xmlns='http://www.idpf.org/2007/opf' version='3.0'>"
+                       "<metadata/><manifest><item id='a' href='a.xhtml' media-type='application/xhtml+xml'/></manifest>"
+                       "<spine><itemref idref='a'/></spine></package>")
+            z.writestr("a.xhtml", page)
+        code, out, _ = cli("info", p)
+        self.assertIn("no text layer", out)
+        self.assertIn("inside the EPUB", out)
+        self.assertNotIn("no text layer", cli("info", self.epub_with_text())[1])
+
+    def epub_with_text(self):
+        q = self.f("book.epub")
+        make_epub(q)
+        return q
+
 
 
 class TestCommands(Base):

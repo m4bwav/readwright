@@ -7,7 +7,7 @@ Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (ID
 ### C-20261101-1 · 2026-11-01 · Release 0.3.0: grep offsets, read --at-para, giant-section note
 - because: L-012
 - files: scripts/rw.py (para_offsets, big_section_notes, cmd_grep, cmd_read, cmd_toc, main), SKILL.md (grep), ../../tests/test_rw.py, version in the five places AGENTS.md lists
-- grep hit lines end `| offset N` (JSON hits gain `offset`), counted the way `read --section S --offset N` counts, with `--format` for md offsets. `read --at-para P` with `--section` starts at paragraph P. toc prints a note when one section holds over 200k chars and over a quarter of the text. A test now runs the script under a cp1252 console encoding with arrows in the text (stdout was already reconfigured to UTF-8 with errors replaced).
+- grep hit lines end `| offset N` (JSON hits gain `offset`), counted the way `read --section S --offset N` counts, with `--format` for md offsets. `read --at-para P` with `--section` starts at paragraph P. toc prints a note when one section holds over 200k chars and over a quarter of the text. A test now runs the script under a cp1252 console encoding with arrows in the text (stdout was already reconfigured to UTF-8 with errors replaced). The calibre route test now prints calibre's error and passes over PDB when calibre's own PDB writer crashes (`use_alt_text_for_images`, the Ubuntu calibre package on CI, 2026-11-01).
 
 ### C-20261023-1 · 2026-10-23 · Scanned books say so and name the ways in
 - because: L-011, T-20261023-1

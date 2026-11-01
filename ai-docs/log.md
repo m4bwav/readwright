@@ -38,3 +38,6 @@ L-011 built: info, toc and read print a `no text layer` note on a PDF or EPUB un
 
 ## 2026-11-01 grep offsets for giant sections (0.3.0)
 A 1,600-page PDF whose bookmarks stop early left one 1.85M-char section; grep gave no offset to read from. Added `| offset N` to grep hits, `read --at-para P`, and a toc note on giant sections (L-012, C-20261101-1). Verified on the real PDF: the grep offset for a chapter heading reads back as that heading.
+
+## 2026-11-01 context for generic titles, read --max-words (0.4.0)
+A recipe cookbook (EPUB from mobi) split each recipe into sections titled only "Getting ready", "How to do it...", "There's more..."; the reader could not tell which recipe a section belonged to, and a loop over ~60 of them printed 50 KB. Titles repeating 3+ times now carry `(in: <nearest distinctive title>)` in read headers, md comments, toc and toc JSON; `read --max-words N` caps each section in a range. C-20261101-2.

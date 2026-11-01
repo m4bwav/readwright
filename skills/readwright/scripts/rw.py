@@ -11,7 +11,7 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
   toc   FILE [--limit N] [--ids]    numbered sections with titles and word counts (ids on request)
-  read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
+  read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-words N] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
                                     [--with-next]
   grep  FILE PATTERN [-C N] [-i] [-F] [--max N] [--width N] [--count]
   dump  FILE --out FILE [--format txt|md]
@@ -46,13 +46,13 @@ import sys
 import tempfile
 import zipfile
 import posixpath
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2013,10 +2013,57 @@ def summary(doc: Doc) -> dict:
     return {"words": words, "chars": chars, "tokens": chars // 4}
 
 
+GENERIC_REPEATS = 3   # a title used this often ("How to do it...", "There's more...") says nothing on its own
+
+
+def context_titles(doc: Doc) -> dict:
+    """Section number -> nearest earlier distinctive title, for sections whose title repeats GENERIC_REPEATS+ times."""
+    def key(t):
+        return re.sub(r"\W+", " ", t).strip().lower()
+    counts = {}
+    for sec in doc.sections:
+        counts[key(sec.title)] = counts.get(key(sec.title), 0) + 1
+    out, last = {}, None
+    for i, sec in enumerate(doc.sections, 1):
+        if counts[key(sec.title)] >= GENERIC_REPEATS:
+            if last:
+                out[i] = last
+        else:
+            last = sec.title
+    return out
+
+
+def in_context(doc: Doc, i: int) -> str:
+    """' (in: Recipe title)' for a section with a generic title, else ''. Computed once per Doc."""
+    ctx = doc.__dict__.get("_ctx")
+    if ctx is None:
+        ctx = doc.__dict__["_ctx"] = context_titles(doc)
+    return f" (in: {ctx[i]})" if i in ctx else ""
+
+
+def md_head(doc: Doc, i: int, s: Section) -> str:
+    ctx = in_context(doc, i)
+    return (f"<!-- readwright section {i}/{len(doc.sections)} id={s.sid} words={s.words()}"
+            + (f" in={ctx[6:-1]!r}" if ctx else "") + " -->")
+
+
+def cap_words(paras: list, n: int) -> tuple:
+    """The first n words of paras (whole paragraphs, the last one cut), and how many words were left out."""
+    out, left = [], n
+    total = sum(len(p.text.split()) for p in paras)
+    for p in paras:
+        if left <= 0:
+            break
+        w = p.text.split()
+        out.append(p if len(w) <= left else replace(p, text=" ".join(w[:left]) + " ..."))
+        left -= len(w)
+    return out, max(0, total - n)
+
+
 def header_line(doc: Doc, i: int, s: Section, offsets: list, total_words: int) -> str:
     start = offsets[i - 1]
     pct = 100 * start // total_words if total_words else 0
-    return (f"=== [{i}/{len(doc.sections)}] {s.title} | id {s.sid} | {fmt_n(s.words())} words | "
+    return (f"=== [{i}/{len(doc.sections)}] {s.title}{in_context(doc, i)} | id {s.sid} | {fmt_n(s.words())} words | "
             f"starts at word {fmt_n(start + 1)} of {fmt_n(total_words)} ({pct}%) ===")
 
 
@@ -2028,18 +2075,25 @@ def word_offsets(doc: Doc) -> list:
     return out
 
 
-def compose(doc: Doc, idx: list, fmt: str) -> str:
+def compose(doc: Doc, idx: list, fmt: str, max_words: int | None = None) -> str:
     offs = word_offsets(doc)
     total = offs[-1] + doc.sections[-1].words() if doc.sections else 0
     blocks = []
     for i in idx:
         s = doc.sections[i - 1]
         if fmt == "md":
-            head = f"<!-- readwright section {i}/{len(doc.sections)} id={s.sid} words={s.words()} -->"
+            head = md_head(doc, i, s)
             paras = s.paras if (s.paras and s.paras[0].kind == "h") else [Para("h", s.title, min(6, s.level + 1))] + s.paras
-            blocks.append(head + "\n\n" + render_paras(paras, "md"))
+            body = paras
         else:
-            blocks.append(header_line(doc, i, s, offs, total) + "\n\n" + render_paras(s.paras, "txt"))
+            head, body = header_line(doc, i, s, offs, total), s.paras
+        cut = 0
+        if max_words:
+            body, cut = cap_words(body, max_words)
+        text = render_paras(body, fmt)
+        if cut:
+            text += f"\n[readwright: {fmt_n(cut)} more words; read all with --section {i}]"
+        blocks.append(head + "\n\n" + text)
     return "\n\n".join(blocks) + "\n"
 
 
@@ -2047,7 +2101,7 @@ def para_offsets(doc: Doc, i: int, fmt: str = "txt") -> list:
     """Character offset of each paragraph's text in `read --section i` output (what --offset counts)."""
     s = doc.sections[i - 1]
     if fmt == "md":
-        head = f"<!-- readwright section {i}/{len(doc.sections)} id={s.sid} words={s.words()} -->"
+        head = md_head(doc, i, s)
         paras = s.paras if (s.paras and s.paras[0].kind == "h") else [Para("h", s.title, min(6, s.level + 1))] + s.paras
     else:
         offs = word_offsets(doc)
@@ -2095,7 +2149,7 @@ def toc_lines(doc: Doc, limit: int, ids: bool = False) -> list:
             lines.append(f"... {len(doc.sections) - limit} more sections (raise --limit)")
             break
         ind = "  " * (s.level - 1)
-        lines.append(f"{i:>4}. {ind}{s.title}  ({fmt_n(s.words())} w)" + (f"  [{s.sid}]" if ids else ""))
+        lines.append(f"{i:>4}. {ind}{s.title}{in_context(doc, i)}  ({fmt_n(s.words())} w)" + (f"  [{s.sid}]" if ids else ""))
     return lines
 
 
@@ -2157,8 +2211,10 @@ def cmd_toc(a) -> int:
         return 0
     if a.json:
         offs = word_offsets(doc)
+        ctx = context_titles(doc)
         print(json.dumps({"file": doc.path, "format": doc.fmt, "meta": doc.meta, "sections": [
-            {"n": i, "title": s.title, "level": s.level, "id": s.sid, "words": s.words(), "start_word": offs[i - 1]}
+            {"n": i, "title": s.title, "level": s.level, "id": s.sid, "words": s.words(), "start_word": offs[i - 1],
+             **({"in": ctx[i]} if i in ctx else {})}
             for i, s in enumerate(doc.sections, 1)]}, ensure_ascii=False, indent=1))
         return 0
     print(doc_head(doc))
@@ -2187,7 +2243,9 @@ def cmd_read(a) -> int:
         if (a.with_next or short) and i < len(doc.sections) and i + 1 not in idx:
             idx.insert(idx.index(i) + 1, i + 1)
             added.append(i + 1)
-    text = compose(doc, idx, a.format)
+    if a.max_words is not None and a.max_words < 1:
+        raise RWError("--max-words must be 1 or more")
+    text = compose(doc, idx, a.format, a.max_words)
     if a.out:
         if a.offset:
             text = text[a.offset:]
@@ -2392,6 +2450,7 @@ def main(argv=None) -> int:
     p.add_argument("--out", help="write the selection to this file instead of stdout")
     p.add_argument("--format", choices=["txt", "md"], default="txt")
     p.add_argument("--with-next", action="store_true", help="also read the section after each selected one")
+    p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)
     p.add_argument("pattern")

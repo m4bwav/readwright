@@ -8,6 +8,7 @@ import io
 import json
 import os
 import shutil
+import re
 import subprocess
 import sys
 import tempfile
@@ -747,6 +748,54 @@ class TestCommands(Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("Снег шёл всю ночь.".encode("utf-8"), r.stdout)
         self.assertNotIn(b"\r\n", r.stdout)
+
+
+    def test_grep_offset_matches_read_offset(self):
+        t = self.big_text()
+        for fmt in ("txt", "md"):
+            code, out, _ = cli("grep", t, "Brannoch", "--max", "3", "--format", fmt)
+            m = re.search(r"--- \[7\] CHAPTER 7 \| para (\d+)/\d+ \| offset (\d+)", out)
+            self.assertTrue(m, out)
+            code, got, _ = cli("read", t, "--section", "7", "--offset", m.group(2), "--max-chars", "8", "--format", fmt)
+            self.assertTrue(got.startswith("Brannoch"), (fmt, got[:40]))
+            code, got, _ = cli("grep", t, "Brannoch", "--json", "--max", "1", "--format", fmt)
+            self.assertEqual(json.loads(got)["hits"][0]["offset"], int(m.group(2)))
+
+    def test_read_at_para(self):
+        t = self.big_text()
+        code, out, _ = cli("grep", t, "Brannoch", "--max", "2")
+        para = re.findall(r"\| para (\d+)/\d+ \| offset (\d+)", out)[1]
+        code, got, _ = cli("read", t, "--section", "7", "--at-para", para[0], "--max-chars", "8")
+        self.assertEqual(code, 0)
+        self.assertTrue(got.startswith("Brannoch"), got[:40])
+        self.assertIn(f"chars {rw.fmt_n(int(para[1]))}-", got)
+        self.assertEqual(cli("read", t, "--section", "7", "--at-para", "999")[0], 1)
+        self.assertEqual(cli("read", t, "--title", "CHAPTER 7", "--at-para", "2")[0], 1)
+
+    def test_toc_flags_giant_section(self):
+        doc = rw.Doc("x.pdf", "pdf", sections=[
+            rw.Section("One", [rw.Para("p", "short text")]),
+            rw.Section("Two", [rw.Para("p", lorem(300)) for _ in range(150)])])
+        old = rw.BIG_SECTION_CHARS
+        try:
+            rw.BIG_SECTION_CHARS = 10_000
+            notes = rw.big_section_notes(doc)
+        finally:
+            rw.BIG_SECTION_CHARS = old
+        self.assertEqual(len(notes), 1)
+        self.assertIn("section 2 holds", notes[0])
+        self.assertIn("--at-para", notes[0])
+        self.assertNotIn("note: section", cli("toc", self.big_text())[1])
+
+    def test_subprocess_cp1252_console(self):
+        t = self.f("arrow.txt")
+        t.write_text("Go left \u2192 then right \u2190 and on.", encoding="utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        env.pop("PYTHONUTF8", None)
+        for args in (["read", str(t)], ["grep", str(t), "left"]):
+            r = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, env=env)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertNotIn(b"UnicodeEncodeError", r.stderr)
 
 
 class TestRealWorldShapes(Base):

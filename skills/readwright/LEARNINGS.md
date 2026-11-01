@@ -86,6 +86,13 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Scope: skill
 - Status: active · helpful 1 · harmful 0 · last_confirmed 2026-09-29
 
+### L-012 · 2026-11-01 · Early-stopping bookmarks leave one giant section with no way in
+- Trigger: reading a 1,600-page technical PDF, 2026-11-01: the bookmarks stop in chapter 3, so toc showed 51 sections and the last held 1.85M chars (87% of the text). grep gave only `para 1070/1354`, so the reader binary-searched `read --offset` by hand.
+- Rule: grep prints each hit's character offset in `read --section` terms, `read --at-para P` jumps to a paragraph, and toc notes any section over 200k chars and a quarter of the text.
+- Evidence: on that PDF, `grep "8.4.4 GENERATE AND TEST"` printed `offset 1236036` and `read -s 51 --offset 1236036` began on the heading. Applied: C-20261101-1.
+- Scope: skill
+- Status: active · helpful 1 · harmful 0 · last_confirmed 2026-11-01
+
 ### L-011 · 2026-10-22 · Scanned books report 0 words with no hint why
 - Trigger: book dump, 2026-10-22: `info` on Gurney's *Color and Light* (226 pages), *Imaginative Realism*, Framed Ink 1 and 2 and Roberts' *Mastering Composition* printed `words: 0` and nothing else. The Mascelli EPUB was page images as well. With no OCR installed, the agents worked it out and rendered pages with `mutool draw -r 50` to read as images. The DjVu copy next to Mascelli had a text layer, and calibre extracted it.
 - Hypothesis: these are image-only scans; info cannot tell a scan from an empty file.

@@ -772,6 +772,43 @@ class TestCommands(Base):
         self.assertEqual(cli("read", t, "--section", "7", "--at-para", "999")[0], 1)
         self.assertEqual(cli("read", t, "--title", "CHAPTER 7", "--at-para", "2")[0], 1)
 
+    def cookbook(self):
+        """Recipes split into sections with the same generic titles, as Packt-style cookbooks are."""
+        t = self.f("cookbook.md")
+        parts = []
+        for r in ("Following a path", "Baking the map", "Tuning the swarm"):
+            parts.append(f"## {r}\n\n{lorem(20, 'intro')}")
+            for g in ("Getting ready", "How to do it...", "There's more..."):
+                parts.append(f"### {g}\n\n{lorem(120, 'step')}")
+        t.write_text("\n\n".join(parts), encoding="utf-8")
+        return t
+
+    def test_generic_titles_get_context(self):
+        t = self.cookbook()
+        doc = rw.load(str(t))
+        ctx = rw.context_titles(doc)
+        n = next(i for i, s in enumerate(doc.sections, 1) if s.title == "There's more..." and ctx.get(i) == "Tuning the swarm")
+        self.assertNotIn(n - 3, ctx)   # the recipe heading itself is distinctive
+        code, out, _ = cli("read", t, "--section", str(n))
+        self.assertEqual(code, 0)
+        self.assertIn("There's more... (in: Tuning the swarm) |", out.splitlines()[0])
+        _, md, _ = cli("read", t, "--section", str(n), "--format", "md")
+        self.assertIn("in='Tuning the swarm'", md.splitlines()[0])
+        _, toc, _ = cli("toc", t)
+        self.assertIn("How to do it... (in: Following a path)", toc)
+        _, js, _ = cli("toc", t, "--json")
+        self.assertEqual(json.loads(js)["sections"][n - 1]["in"], "Tuning the swarm")
+
+    def test_read_max_words_per_section(self):
+        t = self.cookbook()
+        _, full, _ = cli("read", t, "--section", "1-")
+        code, out, _ = cli("read", t, "--section", "1-", "--max-words", "10")
+        self.assertEqual(code, 0)
+        self.assertLess(len(out), len(full) // 3)
+        self.assertEqual(out.count("=== ["), full.count("=== ["))
+        self.assertRegex(out, r"[0-9]+ more words; read all with --section 2]")
+        self.assertEqual(cli("read", t, "--section", "1", "--max-words", "0")[0], 1)
+
     def test_toc_flags_giant_section(self):
         doc = rw.Doc("x.pdf", "pdf", sections=[
             rw.Section("One", [rw.Para("p", "short text")]),

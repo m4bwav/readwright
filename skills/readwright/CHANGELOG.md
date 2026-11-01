@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-2 · 2026-11-01 · Release 0.4.0: context for generic section titles, read --max-words
+- because: user request (reading a recipe cookbook whose sections are all "Getting ready", "How to do it...", "There's more...")
+- files: scripts/rw.py (context_titles, in_context, md_head, cap_words, header_line, compose, toc_lines, cmd_toc, cmd_read, main), SKILL.md (read), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- A title that repeats 3 or more times in the book counts as generic; such a section's read header, md comment, toc line and toc JSON (`in`) name the nearest earlier distinctive title, so a "There's more..." section says which recipe it belongs to. `read --max-words N` caps every selected section at N words and notes the words left out, so a batch range read stays lean (ranges `N-M` already existed).
+
 ### C-20261101-1 · 2026-11-01 · Release 0.3.0: grep offsets, read --at-para, giant-section note
 - because: L-012
 - files: scripts/rw.py (para_offsets, big_section_notes, cmd_grep, cmd_read, cmd_toc, main), SKILL.md (grep), ../../tests/test_rw.py, version in the five places AGENTS.md lists

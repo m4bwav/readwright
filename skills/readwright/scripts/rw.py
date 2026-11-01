@@ -52,7 +52,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1657,15 +1657,56 @@ def load_pdf(path) -> Doc:
         starts = sorted({(pg, t, d) for t, pg, d in outline if 1 <= pg <= len(pages)}, key=lambda x: x[0])
         if starts and starts[0][0] > 1:
             doc.sections.append(Section(f"pages 1-{starts[0][0] - 1}", sum(page_paras[:starts[0][0] - 1], []), 1, "page1"))
+        # a section starts at its heading line, not at the top of its page: the page's first lines end the section before
+        local, prev = [], (0, 0)
+        for pg, t, d in starts:
+            j = heading_at(page_paras[pg - 1], t, prev[1] if prev[0] == pg else 0)
+            local.append(j)
+            prev = (pg, j)
+        flat, first = [], []
+        for pp in page_paras:
+            first.append(len(flat))
+            flat += pp
+        cuts = [first[pg - 1] + j for (pg, _, _), j in zip(starts, local)]
+        if doc.sections:
+            doc.sections[0].paras = flat[:cuts[0]]
+        elif cuts[0]:
+            doc.sections.append(Section("page 1 (before the first heading)", flat[:cuts[0]], 1, "page1"))
         for k, (pg, t, d) in enumerate(starts):
             end = starts[k + 1][0] - 1 if k + 1 < len(starts) else len(pages)
             end = max(end, pg)
-            doc.sections.append(Section(f"{t} (p. {pg}-{end})", sum(page_paras[pg - 1:end], []), d, f"page{pg}"))
+            stop = cuts[k + 1] if k + 1 < len(starts) else len(flat)
+            doc.sections.append(Section(f"{t} (p. {pg}-{end})", flat[cuts[k]:stop], d, f"page{pg}"))
     else:
         for n, pp in enumerate(page_paras, 1):
             first = pp[0].text[:50] if pp else ""
             doc.sections.append(Section(f"page {n}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
     return doc
+
+
+def heading_at(paras, title, lo=0) -> int:
+    """Index of the paragraph on a page that carries an outline title (from lo on); lo when none matches.
+    A numbered title run into a paragraph ("... checklist. 10.2.1 Signs of Life To know ...") splits that paragraph in place."""
+    def norm(x):
+        return " ".join(re.findall(r"[a-z0-9]+", x.lower()))
+    t = norm(re.sub(r"^\s*(chapter\s+)?[\divxlc]+(\.\d+)*\.?\s+", "", title, flags=re.I)) or norm(title)
+    if len(t) < 3:
+        return lo
+    for j in range(lo, len(paras)):
+        q = norm(paras[j].text)
+        if t in q and len(q) <= len(t) + 40:
+            return j
+    if re.match(r"\s*\d+(\.\d+)+\s", title):  # only a numbered title is safe to find inside running text
+        rx = re.compile(r"\s+".join(re.escape(w) for w in title.split()), re.I)  # headings are often in capitals
+        for j in range(lo, len(paras)):
+            m = rx.search(paras[j].text)
+            if m and m.start() > 0:
+                p = paras[j]
+                paras[j:j + 1] = [Para(p.kind, p.text[:m.start()].rstrip(), p.level), Para(p.kind, p.text[m.start():], p.level)]
+                return j + 1
+            if m:
+                return j
+    return lo
 
 
 def pdf_outline(path, mutool) -> list:
@@ -2386,7 +2427,7 @@ def cmd_grep(a) -> int:
                 print("  " + (t if len(t) <= a.width // 2 else t[:a.width // 2] + " ..."))
     shown = min(len(hits), a.max)
     print(f"[{total} matches in {len(hits)} paragraphs across {len(per)} sections; showed {shown}"
-          + (f"; raise --max or use --count" if len(hits) > a.max else "") + "]")
+          + (f"; raise --max, use --count, or narrow with --section N-M" if len(hits) > a.max else "") + "]")
     return 0 if hits else 1
 
 

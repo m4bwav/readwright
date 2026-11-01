@@ -1004,6 +1004,17 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.parse_outline(sample), [("PRIDE. and PREJUDICE", 6, 1), ("Table of Contents", 2, 1),
                                                    ("The Project", 4, 2), ("Old style", 12, 2)])
 
+    def test_pdf_section_starts_at_its_heading(self):
+        P = rw.Para
+        page = [P("p", "end of the section before."), P("p", "14.5 SUMMARY"), P("p", "In this chapter...")]
+        self.assertEqual(rw.heading_at(page, "14.5 Summary"), 1)
+        run_in = [P("p", "tail of 14.1. 14.2 ACTIONS An action is an output from an agent.")]
+        self.assertEqual(rw.heading_at(run_in, "14.2 Actions"), 1)
+        self.assertEqual([p.text for p in run_in], ["tail of 14.1.", "14.2 ACTIONS An action is an output from an agent."])
+        prose = [P("p", "We take actions every day.")]
+        self.assertEqual(rw.heading_at(prose, "Actions"), 0)  # an unnumbered title is never found inside prose
+        self.assertEqual(len(prose), 1)
+
     def test_tool_error_keeps_the_exception_line(self):
         err = b"Traceback (most recent call last):\n  File x, line 1\n    boom()\nsome.module.MissingDependencyException: install markitdown[docx]\n"
         r = subprocess.CompletedProcess([], 1, b"", err)

@@ -970,7 +970,9 @@ class TestRoutes(unittest.TestCase):
         for ext in ("fb2", "pdb"):
             with self.subTest(ext=ext):
                 out = self.tmp / f"novel.{ext}"
-                self.assertTrue(convert(T["ebook-convert"], self.novel, out, timeout=900), ext)
+                r = subprocess.run([str(T["ebook-convert"]), str(self.novel), str(out)], capture_output=True,
+                                   timeout=900, stdin=subprocess.DEVNULL)
+                self.assertEqual(r.returncode, 0, (ext, r.stderr[-1500:].decode("utf-8", "replace")))
                 doc = rw.load(str(out))
                 self.assertIn("Quillmere lamp", "".join(rw.render_paras(s.paras) for s in doc.sections))
                 self.assertGreater(sum(s.words() for s in doc.sections), 4000)

@@ -11,7 +11,7 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
   toc   FILE [--limit N] [--ids]    numbered sections with titles and word counts (ids on request)
-  read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-chars N] [--offset N] [--out FILE] [--format txt|md]
+  read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
                                     [--with-next]
   grep  FILE PATTERN [-C N] [-i] [-F] [--max N] [--width N] [--count]
   dump  FILE --out FILE [--format txt|md]
@@ -52,7 +52,8 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
+BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
 MAX_MB = int(os.environ.get("RW_MAX_MB", "512"))       # cap on bytes read from one file or zip member
@@ -2042,6 +2043,45 @@ def compose(doc: Doc, idx: list, fmt: str) -> str:
     return "\n\n".join(blocks) + "\n"
 
 
+def para_offsets(doc: Doc, i: int, fmt: str = "txt") -> list:
+    """Character offset of each paragraph's text in `read --section i` output (what --offset counts)."""
+    s = doc.sections[i - 1]
+    if fmt == "md":
+        head = f"<!-- readwright section {i}/{len(doc.sections)} id={s.sid} words={s.words()} -->"
+        paras = s.paras if (s.paras and s.paras[0].kind == "h") else [Para("h", s.title, min(6, s.level + 1))] + s.paras
+    else:
+        offs = word_offsets(doc)
+        head = header_line(doc, i, s, offs, offs[-1] + doc.sections[-1].words())
+        paras = s.paras
+    skip = len(paras) - len(s.paras)
+    out, pos = [], len(head) + 2
+    for k, p in enumerate(paras):
+        if k:
+            pos += 1 if (paras[k - 1].kind in ("row", "li") and p.kind == paras[k - 1].kind) else 2
+        r = render_paras([p], fmt)
+        if k >= skip:
+            out.append(pos + max(0, r.find(p.text)))
+        pos += len(r)
+    return out
+
+
+def section_chars(s: Section) -> int:
+    return sum(len(p.text) for p in s.paras)
+
+
+def big_section_notes(doc: Doc) -> list:
+    """Bookmarks that stop early leave one giant section (L-012); say so and point at grep offsets."""
+    total = sum(section_chars(s) for s in doc.sections) or 1
+    out = []
+    for i, s in enumerate(doc.sections, 1):
+        c = section_chars(s)
+        if c > BIG_SECTION_CHARS and c > total // 4 and len(doc.sections) > 1:
+            out.append(f"note: section {i} holds {fmt_n(c)} chars ({100 * c // total}% of the text); the outline likely "
+                       f"stops early. Find places with grep (it prints each hit's offset), then read --section {i} "
+                       f"--offset N or --at-para P")
+    return out
+
+
 def write_out(path: str, text: str):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
@@ -2125,6 +2165,8 @@ def cmd_toc(a) -> int:
     for n in doc.notes:
         print(f"note: {n}")
     print("\n".join(toc_lines(doc, a.limit, a.ids)))
+    for n in big_section_notes(doc):
+        print(n)
     return 0
 
 
@@ -2164,6 +2206,13 @@ def cmd_read(a) -> int:
         print("\n".join(toc_lines(doc, 300)))
         return EXIT_REFUSED
     start = a.offset or 0
+    if a.at_para:
+        if not a.section:
+            raise RWError("--at-para needs --section N")
+        po = para_offsets(doc, idx[0], a.format)
+        if not 1 <= a.at_para <= len(po):
+            raise RWError(f"--at-para {a.at_para}: section {idx[0]} has {len(po)} paragraphs")
+        start += po[a.at_para - 1]
     piece = text[start:start + limit]
     sys.stdout.write(piece)
     end = start + len(piece)
@@ -2202,11 +2251,17 @@ def cmd_grep(a) -> int:
             if ms:
                 per[i] = per.get(i, 0) + len(ms)
                 hits.append((i, j, ms[0]))
+    pcache = {}
+
+    def off(i, j, m):
+        if i not in pcache:
+            pcache[i] = para_offsets(doc, i, a.format)
+        return pcache[i][j] + m.start()
     total = sum(per.values())
     if a.json:
         print(json.dumps({"pattern": a.pattern, "matches": total, "paragraphs": len(hits),
                           "by_section": [{"n": i, "title": doc.sections[i - 1].title, "count": c} for i, c in per.items()],
-                          "hits": [{"section": i, "title": doc.sections[i - 1].title, "para": j + 1,
+                          "hits": [{"section": i, "title": doc.sections[i - 1].title, "para": j + 1, "offset": off(i, j, m),
                                     "text": trim(doc.sections[i - 1].paras[j].text, m, a.width)}
                                    for i, j, m in hits[:a.max]]}, ensure_ascii=False, indent=1))
         return 0 if hits else 1
@@ -2217,7 +2272,7 @@ def cmd_grep(a) -> int:
         return 0 if hits else 1
     for i, j, m in hits[:a.max]:
         s = doc.sections[i - 1]
-        print(f"--- [{i}] {s.title} | para {j + 1}/{len(s.paras)}")
+        print(f"--- [{i}] {s.title} | para {j + 1}/{len(s.paras)} | offset {off(i, j, m)}")
         lo, hi = max(0, j - a.context), min(len(s.paras), j + a.context + 1)
         for k in range(lo, hi):
             t = s.paras[k].text
@@ -2333,6 +2388,7 @@ def main(argv=None) -> int:
     p.add_argument("--title", "-t", help="regex matched against section titles and ids (case-insensitive)")
     p.add_argument("--max-chars", type=int, default=None, help=f"cap on characters printed (default {DEFAULT_MAX_CHARS})")
     p.add_argument("--offset", type=int, default=0, help="start this many characters into the selection")
+    p.add_argument("--at-para", type=int, default=None, help="with --section: start at this paragraph (numbers from grep)")
     p.add_argument("--out", help="write the selection to this file instead of stdout")
     p.add_argument("--format", choices=["txt", "md"], default="txt")
     p.add_argument("--with-next", action="store_true", help="also read the section after each selected one")
@@ -2347,6 +2403,7 @@ def main(argv=None) -> int:
     p.add_argument("--count", action="store_true", help="only counts per section")
     p.add_argument("--section", "-s")
     p.add_argument("--title", "-t")
+    p.add_argument("--format", choices=["txt", "md"], default="txt", help="read format the printed offsets count in")
     p = sub.add_parser("dump", help="whole text to a file with section markers")
     common(p, False)
     p.add_argument("--out")

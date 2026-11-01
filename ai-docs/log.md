@@ -35,3 +35,6 @@ Checked the directory's pre-submission list (manifest fields, validate, file siz
 ## 2026-10-23 scanned books say so (books track 10)
 L-011 built: info, toc and read print a `no text layer` note on a PDF or EPUB under 10 words a page, naming a same-name copy beside it, OCR and page-image commands. Calibrated on 83 real books (6 scans at 0 words a page, the next 132). Eval outcome-2 3/3 with, 0/3 without (T-20261023-1); outcome-1 marked held out. Decision: [decisions/2026-10-23-scan-note-threshold-and-routes.md](decisions/2026-10-23-scan-note-threshold-and-routes.md).
 ## [2026-10-23] index | rebuilt (6 entries)
+
+## 2026-11-01 grep offsets for giant sections (0.3.0)
+A 1,600-page PDF whose bookmarks stop early left one 1.85M-char section; grep gave no offset to read from. Added `| offset N` to grep hits, `read --at-para P`, and a toc note on giant sections (L-012, C-20261101-1). Verified on the real PDF: the grep offset for a chapter heading reads back as that heading.

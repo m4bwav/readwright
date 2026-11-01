@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # readwright
@@ -41,7 +41,7 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 
 ## Step 4: search
 
-`RW grep FILE "PATTERN" -C 1 --max 5` prints each matching paragraph with its section number and title, paragraph number and one paragraph of context on each side. Long paragraphs are trimmed around the match (`--width`). Use `-i` for case-insensitive and `-F` for a plain string; `--count` gives matches per section, the quickest way to find where a character or term appears. Exit code 1 means no match. Search before reading when the user asks where or whether something is mentioned.
+`RW grep FILE "PATTERN" -C 1 --max 5` prints each matching paragraph with its section number and title, paragraph number and one paragraph of context on each side. Long paragraphs are trimmed around the match (`--width`). Use `-i` for case-insensitive and `-F` for a plain string; `--count` gives matches per section, the quickest way to find where a character or term appears. Each hit line ends `| offset N`, the character offset `read --section S --offset N` starts at; `read --section S --at-para P` starts at a paragraph. Use them when toc notes one giant section (bookmarks that stop early). Exit code 1 means no match. Search before reading when the user asks where or whether something is mentioned.
 
 ## Step 5: whole book to a scratch file
 

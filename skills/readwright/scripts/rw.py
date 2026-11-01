@@ -10,7 +10,7 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
-  toc   FILE [--limit N] [--ids]    numbered sections with titles and word counts (ids on request)
+  toc   FILE [--limit N] [--ids] [--depth N]    numbered sections with titles and word counts (ids on request)
   read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-words N] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
                                     [--with-next]
   grep  FILE PATTERN [-C N] [-i] [-F] [--max N] [--width N] [--count]
@@ -52,7 +52,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2142,14 +2142,58 @@ def write_out(path: str, text: str):
         f.write(text)
 
 
-def toc_lines(doc: Doc, limit: int, ids: bool = False) -> list:
+BARE_NUMBER = re.compile(r"^(?:chapter\s+)?(\d{1,3})\.?$", re.I)
+BARE_NUMBER_WORDS = 3   # a number-only section holds at most this many words (Packt-style chapter openers)
+
+
+def chapter_numbers(doc: Doc) -> dict:
+    """{title section number: (chapter number, number section number)} where a bare "12" or "Chapter 12" section
+    (0-3 words) is followed by a titled section of the same level. Section numbers are never changed."""
+    out, secs = {}, doc.sections
+    for i in range(len(secs) - 1):
+        m = BARE_NUMBER.match(secs[i].title.strip())
+        nxt = secs[i + 1]
+        if (m and secs[i].words() <= BARE_NUMBER_WORDS and nxt.level == secs[i].level
+                and not BARE_NUMBER.match(nxt.title.strip()) and not nxt.title.startswith("(untitled")):
+            out[i + 2] = (int(m.group(1)), i + 1)
+    return out
+
+
+def rolled_words(doc: Doc) -> list:
+    """Words of each section plus all deeper sections that follow it (its subtree)."""
+    secs = doc.sections
+    own = [s.words() for s in secs]
+    out = []
+    for i, s in enumerate(secs):
+        t, j = own[i], i + 1
+        while j < len(secs) and secs[j].level > s.level:
+            t += own[j]
+            j += 1
+        out.append(t)
+    return out
+
+
+def toc_lines(doc: Doc, limit: int, ids: bool = False, depth: int | None = None) -> list:
+    """One line per section. A bare chapter-number section is merged into the titled section after it
+    ("Ch. 12: Title", printed under the title's number; the number section stays readable). depth keeps
+    sections at indent depth <= depth, with word counts rolled up from the sections below."""
     lines = []
-    for i, s in enumerate(doc.sections, 1):
-        if i > limit:
-            lines.append(f"... {len(doc.sections) - limit} more sections (raise --limit)")
+    chap = chapter_numbers(doc)
+    skip = {n for _, n in chap.values()}
+    roll = rolled_words(doc) if depth else None
+    keep = [i for i, s in enumerate(doc.sections, 1) if i not in skip and not (depth and s.level > depth)]
+    for k, i in enumerate(keep):
+        if k >= limit:
+            lines.append(f"... {len(keep) - limit} more sections (raise --limit)")
             break
+        s = doc.sections[i - 1]
+        title = s.title
+        w = roll[i - 1] if roll else s.words()
+        if i in chap:
+            title = f"Ch. {chap[i][0]}: {title}"
+            w += doc.sections[chap[i][1] - 1].words()
         ind = "  " * (s.level - 1)
-        lines.append(f"{i:>4}. {ind}{s.title}{in_context(doc, i)}  ({fmt_n(s.words())} w)" + (f"  [{s.sid}]" if ids else ""))
+        lines.append(f"{i:>4}. {ind}{title}{in_context(doc, i)}  ({fmt_n(w)} w)" + (f"  [{s.sid}]" if ids else ""))
     return lines
 
 
@@ -2212,15 +2256,17 @@ def cmd_toc(a) -> int:
     if a.json:
         offs = word_offsets(doc)
         ctx = context_titles(doc)
+        chap, roll = chapter_numbers(doc), rolled_words(doc)
         print(json.dumps({"file": doc.path, "format": doc.fmt, "meta": doc.meta, "sections": [
             {"n": i, "title": s.title, "level": s.level, "id": s.sid, "words": s.words(), "start_word": offs[i - 1],
-             **({"in": ctx[i]} if i in ctx else {})}
-            for i, s in enumerate(doc.sections, 1)]}, ensure_ascii=False, indent=1))
+             "words_total": roll[i - 1],
+             **({"in": ctx[i]} if i in ctx else {}), **({"chapter": chap[i][0]} if i in chap else {})}
+            for i, s in enumerate(doc.sections, 1) if not a.depth or s.level <= a.depth]}, ensure_ascii=False, indent=1))
         return 0
     print(doc_head(doc))
     for n in doc.notes:
         print(f"note: {n}")
-    print("\n".join(toc_lines(doc, a.limit, a.ids)))
+    print("\n".join(toc_lines(doc, a.limit, a.ids, a.depth)))
     for n in big_section_notes(doc):
         print(n)
     return 0
@@ -2440,6 +2486,7 @@ def main(argv=None) -> int:
     common(p)
     p.add_argument("--limit", type=int, default=1000)
     p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
+    p.add_argument("--depth", type=int, default=None, help="only sections at indent depth N or less (1 = parts and chapters); word counts include the sections below")
     p = sub.add_parser("read", help="text of chosen sections")
     common(p, False)
     p.add_argument("--section", "-s", help="N, N-M, N- or N,M (numbers from toc)")

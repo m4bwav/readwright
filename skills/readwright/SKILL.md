@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # readwright
@@ -26,6 +26,8 @@ If info prints `note: no text layer`, the book is page images (a scan) and readw
 ## Step 2: outline
 
 Run `RW toc FILE`. Each line is `N. title (words w)`, indented by level; `--ids` adds each section's id (file and fragment, page, sheet), which you rarely need. EPUB titles come from the book's own navigation (nav document or NCX), DOCX and ODT titles from heading styles, HTML from h1 to h3, plain text and Markdown from headings or CHAPTER lines. Text with no structure is cut into parts of about 3,000 words. For a zip archive, toc lists the members; add `--member NAME` (or its number) to every later command.
+
+Books that list each chapter number as its own near-empty section (Packt, some O'Reilly) are shown merged: `Ch. 12: Title`, printed under the title's section number (the number-only section is hidden but keeps its number and can still be read). `RW toc FILE --depth 1` prints only the top level (parts and chapters) with each line's words rolled up from the sections below it (`--depth 2` adds the next level; JSON gets `chapter` and `words_total`). Use it to count chapters instead of counting by hand.
 
 Match the user's words to toc lines. "Chapter 14" usually means the line titled CHAPTER FOURTEEN, which in many ebooks holds only the chapter title and an epigraph: its body is the next section. The word counts show this (72 words, then 6,330). Section numbers are not chapter numbers: front matter comes first, so chapter 16 of a novel may be section 24.
 
@@ -52,6 +54,14 @@ For work that needs many passes over a long book (every scene with a character, 
 ## Step 6: answer
 
 Quote briefly. For a copyrighted book, summarise and quote a sentence or two at a time, never whole pages or chapters, even when the user owns the copy. Cite where each point came from (section number and title) so the user can check it. When a conversion note was printed (calibre, LibreOffice, pdftotext), mention that the text came through a converter if the wording matters.
+
+## Distilling a book
+
+- Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.
+- Read the introduction, each chapter summary and any results or comparison sections first (`grep -i "summary|conclusion|results"` with `--count` finds them), and grep the rest for the terms you need.
+- Over about 150k words, split by part across parallel reader agents. Each returns principles in its own words with a citation and quotes of 25 words or fewer.
+- Cite by chapter number (`ch. 12`) or a toc section title, not by section number alone.
+- Note where the book is dated (library versions, prices, APIs that have since changed).
 
 ## Formats
 

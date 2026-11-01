@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-4 · 2026-11-01 · Release 0.5.1: PDF sections start at their heading; grep points to --section
+- because: L-014 `pdf-sections-start-a-page-early`
+- files: scripts/rw.py (load_pdf, heading_at, grep footer), tests/test_rw.py.
+A PDF outline section now starts at its heading line on the start page (a numbered heading run into a paragraph splits it), so the previous section's tail stays with it; a cut-off grep suggests `--section N-M`.
+
 ### C-20261101-3 · 2026-11-01 · Release 0.5.0: toc --depth, chapter numbers merged, "Distilling a book" tips
 - because: L-013 `toc-lists-bare-chapter-numbers`
 - files: scripts/rw.py (chapter_numbers, rolled_words, toc_lines, cmd_toc, main), SKILL.md (Step 2, Distilling a book), ../../README.md, ../../tests/test_rw.py (TestTocChapters), version in the five places AGENTS.md lists

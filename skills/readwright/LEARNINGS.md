@@ -118,3 +118,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Scope: skill | repo:<slug> | env:<name> | global
 - Status: active · helpful 1 · harmful 0 · last_confirmed 2026-09-29
 -->
+
+### L-014 · 2026-11-01 · pdf-sections-start-a-page-early: each PDF section opened with the end of the one before
+- Trigger: distilling Graesser & Keng, Foundations of Deep RL (PDF): `read --section 116` (14.5) mostly held the end of 14.4, and a reader missed that `grep --section` exists.
+- Hypothesis: outline entries give a page, and sections were cut at page tops; headings sit mid-page, often in capitals and run into the paragraph text.
+- Rule: cut at the heading paragraph on the start page; a numbered title is matched case-insensitively inside running text and splits the paragraph; an unnumbered title is never searched inside prose. When grep fills up, narrow with `--section`.
+- Evidence: C-20261101-4, 63 tests; on the real file sections 90, 113 and 116 open with 10.2 DEBUGGING TIPS, 14.2 ACTIONS and 14.5 SUMMARY.

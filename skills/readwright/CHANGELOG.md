@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-3 · 2026-11-01 · Release 0.5.0: toc --depth, chapter numbers merged, "Distilling a book" tips
+- because: L-013 `toc-lists-bare-chapter-numbers`
+- files: scripts/rw.py (chapter_numbers, rolled_words, toc_lines, cmd_toc, main), SKILL.md (Step 2, Distilling a book), ../../README.md, ../../tests/test_rw.py (TestTocChapters), version in the five places AGENTS.md lists
+- A section that is only a number or "Chapter N" (0-3 words) followed by a titled section of the same level prints as `Ch. N: Title` under the title's section number; section numbers are unchanged and the number section stays readable. `toc --depth N` keeps sections at indent depth N or less with word counts rolled up from the sections below; toc JSON gains `chapter` and `words_total`. SKILL.md gains a short section on distilling a book.
+
 ### C-20261101-2 · 2026-11-01 · Release 0.4.0: context for generic section titles, read --max-words
 - because: user request (reading a recipe cookbook whose sections are all "Getting ready", "How to do it...", "There's more...")
 - files: scripts/rw.py (context_titles, in_context, md_head, cap_words, header_line, compose, toc_lines, cmd_toc, cmd_read, main), SKILL.md (read), ../../tests/test_rw.py, version in the five places AGENTS.md lists

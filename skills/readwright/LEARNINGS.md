@@ -101,6 +101,14 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Scope: skill
 - Status: active · helpful 1 · harmful 0 · last_confirmed 2026-10-23
 
+### L-013 · 2026-11-01 · toc-lists-bare-chapter-numbers: Packt chapters show as "12. 1 (1 w)" then the title
+- Trigger: distilling "Deep Reinforcement Learning Hands-On" (3rd ed., Packt EPUB): each chapter number is its own one-word nav entry before the title, so the agent counted numbers by hand to cite chapters.
+- Hypothesis: the nav lists the number and the title as separate entries at the same level.
+- Rule: toc merges a 0-3 word number-only section into the next titled section as `Ch. N: Title`, and `toc --depth 1` lists only parts and chapters; plan a book from that, cite by chapter number.
+- Evidence: C-20261101-3, 62 tests; on the real file `toc --depth 1` gives 22 chapters, 4 parts, front and back matter.
+- Scope: skill
+- Status: active · helpful 1 · harmful 0 · last_confirmed 2026-11-01
+
 <!-- Example (delete once you have a real entry):
 ### L-001 · 2026-09-29 · One-line lesson in plain words
 - Trigger: what happened, with dates or counts

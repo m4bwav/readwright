@@ -835,6 +835,97 @@ class TestCommands(Base):
             self.assertNotIn(b"UnicodeEncodeError", r.stderr)
 
 
+def make_packt_epub(path):
+    """Packt layout: a Part heading, then per chapter a bare-number nav entry, the chapter title and nested sections."""
+    chapters = [("Part 1 Foundations", 2, None), ("1", 0, None),
+                ("Chapter Title Alpha", 20, [("Alpha one", 30), ("Alpha two", 40)]),
+                ("2", 0, None), ("Chapter Title Beta", 25, [("Beta one", 50)]), ("Index", 10, None)]
+    body, nav = [], []
+    for k, (title, n, subs) in enumerate(chapters):
+        hid = f"s{k}"
+        body.append(f"<h1 id='{hid}'>{title}</h1>" + (f"<p>{lorem(n)}</p>" if n else ""))
+        li = f"<li><a href='c.xhtml#{hid}'>{title}</a>"
+        if subs:
+            li += "<ol>"
+            for j, (st, sn) in enumerate(subs):
+                body.append(f"<h2 id='{hid}_{j}'>{st}</h2><p>{lorem(sn)}</p>")
+                li += f"<li><a href='c.xhtml#{hid}_{j}'>{st}</a></li>"
+            li += "</ol>"
+        nav.append(li + "</li>")
+    xh = "<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>" + "".join(body) + "</body></html>"
+    navdoc = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml' "
+              "xmlns:epub='http://www.idpf.org/2007/ops'><body><nav epub:type='toc'><ol>" + "".join(nav) + "</ol></nav></body></html>")
+    opf = ("<?xml version='1.0' encoding='utf-8'?><package xmlns='http://www.idpf.org/2007/opf' version='3.0'>"
+           "<metadata xmlns:dc='http://purl.org/dc/elements/1.1/'><dc:title>Invented Handbook</dc:title><dc:language>en</dc:language></metadata>"
+           "<manifest><item id='c' href='c.xhtml' media-type='application/xhtml+xml'/>"
+           "<item id='nav' href='nav.xhtml' media-type='application/xhtml+xml' properties='nav'/></manifest>"
+           "<spine><itemref idref='c'/></spine></package>")
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip")
+        z.writestr("META-INF/container.xml", "<?xml version='1.0'?><container version='1.0' "
+                   "xmlns='urn:oasis:names:tc:opendocument:xmlns:container'><rootfiles><rootfile "
+                   "full-path='OEBPS/content.opf' media-type='application/oebps-package+xml'/></rootfiles></container>")
+        z.writestr("OEBPS/content.opf", opf)
+        z.writestr("OEBPS/c.xhtml", xh)
+        z.writestr("OEBPS/nav.xhtml", navdoc)
+
+
+class TestTocChapters(Base):
+    def book(self):
+        p = self.f("packt.epub")
+        make_packt_epub(p)
+        return p
+
+    def wcount(self, line):
+        return int(re.search(r"\(([\d,]+) w\)", line).group(1).replace(",", ""))
+
+    def test_bare_number_merges_with_title(self):
+        p = self.book()
+        titles = [s.title for s in rw.load(str(p)).sections]
+        n1 = titles.index("1") + 1          # the number section keeps its number
+        _, out, _ = cli("toc", p)
+        self.assertIn(f"{n1 + 1:>4}. Ch. 1: Chapter Title Alpha", out)
+        self.assertIn("Ch. 2: Chapter Title Beta", out)
+        self.assertNotRegex(out, r"(?m)^\s*%d\. 1 " % n1)
+        self.assertIn("Alpha one", out)     # subsections still listed without --depth
+        self.assertIn("Part 1 Foundations", out)
+        self.assertNotIn("Ch. 3", out)
+        self.assertEqual(cli("read", p, "--section", str(n1))[0], 0)   # still addressable
+
+    def test_depth_one_lists_chapters_with_rolled_up_words(self):
+        p = self.book()
+        _, out, _ = cli("toc", p, "--depth", "1")
+        self.assertNotIn("Alpha one", out)
+        self.assertNotIn("Beta one", out)
+        lines = [l for l in out.splitlines() if re.match(r"\s*\d+\. ", l)]
+        self.assertEqual(len(lines), 4)     # part, two chapters, index
+        words = self.wcount(next(l for l in lines if "Chapter Title Alpha" in l))
+        self.assertGreaterEqual(words, 20 + 30 + 40)
+        _, full, _ = cli("toc", p)
+        own = self.wcount(next(l for l in full.splitlines() if "Chapter Title Alpha" in l))
+        self.assertLess(own, words)         # without --depth the line shows only its own text
+
+    def test_depth_json_and_limit(self):
+        p = self.book()
+        secs = json.loads(cli("toc", p, "--json", "--depth", "1")[1])["sections"]
+        self.assertTrue(all(s["level"] == 1 for s in secs))
+        self.assertEqual([s["chapter"] for s in secs if "chapter" in s], [1, 2])
+        self.assertTrue(all(s["words_total"] >= s["words"] for s in secs))
+        self.assertIn("2 more sections", cli("toc", p, "--depth", "1", "--limit", "2")[1])
+
+    def test_numbers_that_are_not_chapter_openers_stay(self):
+        doc = rw.Doc("x.txt", "txt", sections=[
+            rw.Section("7", [rw.Para("p", lorem(400))]),    # a long section titled "7": real content
+            rw.Section("Next", [rw.Para("p", "words")]),
+            rw.Section("Chapter 9", []),
+            rw.Section("12", []),                            # number followed by number: no merge
+            rw.Section("Real Title", [rw.Para("p", "words")])])
+        self.assertEqual(rw.chapter_numbers(doc), {5: (12, 4)})
+        lines = rw.toc_lines(doc, 100)
+        self.assertTrue(any("Ch. 12: Real Title" in l for l in lines))
+        self.assertTrue(any(l.strip().startswith("1. 7") for l in lines))
+
+
 class TestRealWorldShapes(Base):
     """Shapes seen in real files on 2026-09-29 (LEARNINGS L-001, L-003, L-005, L-006), rebuilt from invented text."""
 

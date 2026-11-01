@@ -41,3 +41,6 @@ A 1,600-page PDF whose bookmarks stop early left one 1.85M-char section; grep ga
 
 ## 2026-11-01 context for generic titles, read --max-words (0.4.0)
 A recipe cookbook (EPUB from mobi) split each recipe into sections titled only "Getting ready", "How to do it...", "There's more..."; the reader could not tell which recipe a section belonged to, and a loop over ~60 of them printed 50 KB. Titles repeating 3+ times now carry `(in: <nearest distinctive title>)` in read headers, md comments, toc and toc JSON; `read --max-words N` caps each section in a range. C-20261101-2.
+
+## 2026-11-01 toc --depth and chapter numbers (0.5.0)
+Distilling a Packt EPUB showed every chapter number as its own empty toc section. toc now merges bare numbers into `Ch. N: Title`, `toc --depth N` rolls up words, SKILL.md has a Distilling a book section. C-20261101-3, L-013.

@@ -631,6 +631,40 @@ class TestFormats(Base):
         make_pdf(q, pages=(lorem(30), lorem(30)))
         self.assertNotIn("no text layer", cli("info", q)[1])
 
+    @unittest.skipUnless(rw.tools()["pdftotext"] or rw.tools()["mutool"], "no pdftotext or mutool")
+    def test_ocr_text_replaces_an_empty_layer(self):   # L-018 `scans-need-ocr`: a kept OCR text is read like a text layer
+        p = self.f("plates.pdf")
+        make_pdf(p, pages=("", ""))
+        with unittest.mock.patch.dict(os.environ, {"READWRIGHT_OCR_DIR": str(self.f("ocr"))}):
+            c = rw.ocr_cache(str(p))
+            c.parent.mkdir(parents=True)
+            c.write_bytes(("Warm light casts cool shadows " * 3 + "\f" + "Value matters more than hue " * 3).encode())
+            code, out, _ = cli("info", p)
+            self.assertNotIn("no text layer", out)
+            self.assertIn("text from OCR", out)
+            self.assertIn("Value matters more", cli("read", p, "--section", "2")[1])
+
+    def test_ocr_without_an_engine_says_how(self):
+        p = self.f("plates.pdf")
+        make_pdf(p, pages=("",))
+        with hide_tools("windows-ocr", "tesseract"):
+            code, _, err = cli("ocr", p)
+        self.assertEqual(code, rw.EXIT_ERR)
+        self.assertIn("no OCR engine", err)
+
+    @unittest.skipUnless(rw.ocr_engine() and (rw.tools()["mutool"] or rw.find_tool("pdftoppm")), "no OCR engine or renderer")
+    def test_ocr_reads_a_rendered_page(self):
+        p = self.f("scan.pdf")
+        make_pdf(p, pages=("", ""))
+        with unittest.mock.patch.dict(os.environ, {"READWRIGHT_OCR_DIR": str(self.f("ocr"))}):
+            self.assertIn("rw.py ocr", cli("info", p)[1])
+            q = self.f("text.pdf")
+            make_pdf(q)
+            code, out, _ = cli("ocr", q)
+            self.assertEqual(code, rw.EXIT_OK, out)
+            self.assertIn("Hello", rw.ocr_cache(str(q)).read_text(encoding="utf-8"))
+            self.assertIn("already OCR'd", cli("ocr", q)[1])
+
     def test_image_only_epub_says_so(self):
         p = self.f("pictures.epub")
         page = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"

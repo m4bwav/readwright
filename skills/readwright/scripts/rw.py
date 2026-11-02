@@ -52,7 +52,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.5.1"
+VERSION = "0.6.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -101,6 +101,7 @@ class Doc:
     sections: list = field(default_factory=list)
     notes: list = field(default_factory=list)      # things the reader should know (conversions, caps)
     members: list = field(default_factory=list)    # zip listing: (name, size, fmt)
+    furniture: set = field(default_factory=set)    # furniture_key() of lines repeated on most pages (PDF)
 
 
 def clean(s: str) -> str:
@@ -1648,31 +1649,37 @@ def load_pdf(path) -> Doc:
     if pages and not pages[-1].strip():
         pages.pop()
     outline = pdf_outline(path, tl["mutool"]) if tl["mutool"] else []
-    page_paras = [text_paras(p, "txt") for p in pages]
+    on_page = {}
+    for t, pg, _ in outline:
+        if 1 <= pg <= len(pages):
+            on_page.setdefault(pg, []).append(t)
+    page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
     for pp in page_paras:
         for p in pp:
             if p.kind == "h":
                 p.kind = "p"
+    doc.furniture = page_furniture(page_paras)
     if outline:
-        starts = sorted({(pg, t, d) for t, pg, d in outline if 1 <= pg <= len(pages)}, key=lambda x: x[0])
+        seen, starts = set(), []
+        for t, pg, d in outline:   # outline order is kept within a page; a set lost it (L-015 `same-page-outline-entries`)
+            if 1 <= pg <= len(pages) and (pg, t, d) not in seen:
+                seen.add((pg, t, d))
+                starts.append((pg, t, d))
+        starts.sort(key=lambda x: x[0])
+        starts = place_on_pages(starts, page_paras)
         if starts and starts[0][0] > 1:
             doc.sections.append(Section(f"pages 1-{starts[0][0] - 1}", sum(page_paras[:starts[0][0] - 1], []), 1, "page1"))
         # a section starts at its heading line, not at the top of its page: the page's first lines end the section before
-        local, prev = [], (0, 0)
-        for pg, t, d in starts:
-            j = heading_at(page_paras[pg - 1], t, prev[1] if prev[0] == pg else 0)
-            local.append(j)
-            prev = (pg, j)
         flat, first = [], []
         for pp in page_paras:
             first.append(len(flat))
             flat += pp
-        cuts = [first[pg - 1] + j for (pg, _, _), j in zip(starts, local)]
+        cuts = [first[pg - 1] + j for pg, _, _, j in starts]
         if doc.sections:
             doc.sections[0].paras = flat[:cuts[0]]
         elif cuts[0]:
             doc.sections.append(Section("page 1 (before the first heading)", flat[:cuts[0]], 1, "page1"))
-        for k, (pg, t, d) in enumerate(starts):
+        for k, (pg, t, d, _) in enumerate(starts):
             end = starts[k + 1][0] - 1 if k + 1 < len(starts) else len(pages)
             end = max(end, pg)
             stop = cuts[k + 1] if k + 1 < len(starts) else len(flat)
@@ -1684,17 +1691,132 @@ def load_pdf(path) -> Doc:
     return doc
 
 
-def heading_at(paras, title, lo=0) -> int:
+def isolate_headings(text: str, titles) -> str:
+    """Put blank lines around each line (or run of up to three wrapped lines) that spells an outline title, so the
+    heading becomes its own paragraph: pdftotext runs a heading into the paragraph above it (L-015). Matching ignores
+    case, punctuation and spacing; wrapped heading lines are joined with a space."""
+    def key(x):
+        return "".join(re.findall(r"[a-z0-9]+", x.lower()))
+    want = {key(t) for t in titles if len(key(t)) >= 3}
+    if not want:
+        return text
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    out, i = [], 0
+    while i < len(lines):
+        for span in (1, 2, 3):
+            chunk = lines[i:i + span]
+            if len(chunk) == span and all(c.strip() for c in chunk) and key(" ".join(chunk)) in want:
+                out += ["", " ".join(c.strip() for c in chunk), ""]
+                i += span
+                break
+        else:
+            out.append(lines[i])
+            i += 1
+    return "\n".join(out)
+
+
+def place_on_pages(starts, page_paras) -> list:
+    """(page, title, depth, paragraph index) for each outline entry. Entries that share a page are each looked up on
+    the whole page and ordered by where their heading sits, so siblings get their own text (L-015); an entry whose
+    heading is not found starts where the entry before it does. Titles with spaces lost at a line join take the
+    spacing of the heading line on the page ("approachto" -> "approach to", L-015)."""
+    out, k = [], 0
+    while k < len(starts):
+        pg = starts[k][0]
+        group = []
+        while k < len(starts) and starts[k][0] == pg:
+            group.append(starts[k])
+            k += 1
+        paras = page_paras[pg - 1]
+        for _, t, _ in group:   # the first pass may split a run-in heading; the second reads stable indices
+            heading_at(paras, t, 0, None)
+        found, used = [], set()
+        for g, (_, t, _) in enumerate(group):
+            j = heading_at(paras, t, 0, None)
+            if j is not None and j in used:   # one line carries one heading: look further on
+                j = heading_at(paras, t, j + 1, None)
+            if j is not None:
+                used.add(j)
+            found.append((j, g))
+        placed, last = [], 0
+        for j, g in found:
+            if j is not None:
+                last = j
+            placed.append((j if j is not None else last, g))
+        placed.sort()
+        for j, g in placed:
+            _, t, d = group[g]
+            if j < len(paras):
+                t = respace_title(t, paras[j].text)
+            out.append((pg, t, d, j))
+    return out
+
+
+def respace_title(title: str, line: str) -> str:
+    """The title with the spaces of the heading line when the two differ only in spacing (letters kept from the title)."""
+    a, b = re.sub(r"\s+", "", title), re.sub(r"\s+", "", line)
+    if not a or a.lower() != b.lower() or title == line:
+        return title
+    out, i = [], 0
+    for ch in clean(line):
+        if ch == " ":
+            out.append(" ")
+        else:
+            out.append(a[i])
+            i += 1
+    return "".join(out)
+
+
+def furniture_key(text: str) -> str:
+    return re.sub(r"\d+", "#", clean(text).lower())
+
+
+def page_furniture(page_paras) -> set:
+    """Lines that repeat across pages (footers, bare page numbers, running headers), found by frequency, not by
+    wording: a short line on 40% of the pages, or one among a page's top or bottom two lines on 5 or more pages."""
+    n = len(page_paras)
+    if n < 4:
+        return set()
+    anywhere, edge = {}, {}
+    for pp in page_paras:
+        for key in {furniture_key(p.text) for p in pp if len(p.text) <= 120}:
+            anywhere[key] = anywhere.get(key, 0) + 1
+        for key in {furniture_key(p.text) for p in pp[:2] + pp[-2:] if len(p.text) <= 100}:
+            edge[key] = edge.get(key, 0) + 1
+    out = {key for key, c in anywhere.items() if c >= max(3, 0.4 * n)}
+    out |= {key for key, c in edge.items() if c >= 5}
+    return {key for key in out if key.strip()}
+
+
+def strip_furniture(doc: Doc) -> int:
+    """Drop page furniture from every section; returns how many paragraphs went. A section's first paragraph stays:
+    it is usually the heading, and a running header repeats exactly that heading."""
+    gone = 0
+    for s in doc.sections if doc.furniture else []:
+        keep = s.paras[:1] + [p for p in s.paras[1:] if furniture_key(p.text) not in doc.furniture]
+        gone += len(s.paras) - len(keep)
+        s.paras = keep
+    return gone
+
+
+def heading_at(paras, title, lo=0, missing=-1) -> int:
     """Index of the paragraph on a page that carries an outline title (from lo on); lo when none matches.
     A numbered title run into a paragraph ("... checklist. 10.2.1 Signs of Life To know ...") splits that paragraph in place."""
     def norm(x):
         return " ".join(re.findall(r"[a-z0-9]+", x.lower()))
     t = norm(re.sub(r"^\s*(chapter\s+)?[\divxlc]+(\.\d+)*\.?\s+", "", title, flags=re.I)) or norm(title)
+    if missing == -1:
+        missing = lo
     if len(t) < 3:
-        return lo
+        return missing
     for j in range(lo, len(paras)):
         q = norm(paras[j].text)
         if t in q and len(q) <= len(t) + 40:
+            return j
+    tn = t.replace(" ", "")
+    for j in range(lo, len(paras)):   # spaces lost or moved at a line join in the outline ("approachto", L-015)
+        q = norm(paras[j].text).replace(" ", "")
+        if tn in q and len(q) <= len(tn) + 35:
             return j
     if re.match(r"\s*\d+(\.\d+)+\s", title):  # only a numbered title is safe to find inside running text
         rx = re.compile(r"\s+".join(re.escape(w) for w in title.split()), re.I)  # headings are often in capitals
@@ -1706,7 +1828,7 @@ def heading_at(paras, title, lo=0) -> int:
                 return j + 1
             if m:
                 return j
-    return lo
+    return missing
 
 
 def pdf_outline(path, mutool) -> list:
@@ -1725,7 +1847,8 @@ def parse_outline(text: str) -> list:
     for line in text.splitlines():
         m = re.match(r'^( *)[|+\-]?(\t*) *"(.*)"\s+#?(?:page=)?(\d+)', line)
         if m:
-            out.append((m.group(3), int(m.group(4)), max(1, len(m.group(2))) + len(m.group(1)) // 2))
+            title = re.sub(r'\\(["\\])', r"\1", m.group(3))   # MuPDF escapes quotes and backslashes (L-015)
+            out.append((title, int(m.group(4)), max(1, len(m.group(2))) + len(m.group(1)) // 2))
     return out
 
 
@@ -2315,6 +2438,8 @@ def cmd_toc(a) -> int:
 
 def cmd_read(a) -> int:
     doc = load(a.file, a.member, a.via)
+    if getattr(a, "strip_boilerplate", False):
+        strip_furniture(doc)
     if doc.fmt == "zip":
         raise RWError("this is a zip archive; list it with toc and pick a member with --member NAME")
     if not any(s.words() for s in doc.sections):   # a scan's pages are sections with no words (L-011)
@@ -2379,6 +2504,8 @@ def cmd_read(a) -> int:
 
 def cmd_grep(a) -> int:
     doc = load(a.file, a.member, a.via)
+    if getattr(a, "strip_boilerplate", False):
+        strip_furniture(doc)
     if doc.fmt == "zip":
         raise RWError("this is a zip archive; pick a member with --member NAME")
     pat = re.escape(a.pattern) if a.fixed else a.pattern
@@ -2419,6 +2546,13 @@ def cmd_grep(a) -> int:
         s = doc.sections[i - 1]
         print(f"--- [{i}] {s.title} | para {j + 1}/{len(s.paras)} | offset {off(i, j, m)}")
         lo, hi = max(0, j - a.context), min(len(s.paras), j + a.context + 1)
+        if a.context:   # a boxed callout gives one paragraph per PDF line: widen context over short lines
+            budget = 8
+            while budget and lo > 0 and len(s.paras[lo].text) < SHORT_LINE:
+                lo, budget = lo - 1, budget - 1
+            budget = 8
+            while budget and hi < len(s.paras) and len(s.paras[hi - 1].text) < SHORT_LINE:
+                hi, budget = hi + 1, budget - 1
         for k in range(lo, hi):
             t = s.paras[k].text
             if k == j:
@@ -2429,6 +2563,9 @@ def cmd_grep(a) -> int:
     print(f"[{total} matches in {len(hits)} paragraphs across {len(per)} sections; showed {shown}"
           + (f"; raise --max, use --count, or narrow with --section N-M" if len(hits) > a.max else "") + "]")
     return 0 if hits else 1
+
+
+SHORT_LINE = 60   # grep -C: context grows past paragraphs shorter than this, up to 8 more each side
 
 
 def trim(t: str, m, width: int) -> str:
@@ -2530,7 +2667,7 @@ def main(argv=None) -> int:
     p.add_argument("--depth", type=int, default=None, help="only sections at indent depth N or less (1 = parts and chapters); word counts include the sections below")
     p = sub.add_parser("read", help="text of chosen sections")
     common(p, False)
-    p.add_argument("--section", "-s", help="N, N-M, N- or N,M (numbers from toc)")
+    p.add_argument("--section", "-s", action="append", help="N, N-M, N- or N,M (numbers from toc); repeat to add more")
     p.add_argument("--title", "-t", help="regex matched against section titles and ids (case-insensitive)")
     p.add_argument("--max-chars", type=int, default=None, help=f"cap on characters printed (default {DEFAULT_MAX_CHARS})")
     p.add_argument("--offset", type=int, default=0, help="start this many characters into the selection")
@@ -2539,6 +2676,7 @@ def main(argv=None) -> int:
     p.add_argument("--format", choices=["txt", "md"], default="txt")
     p.add_argument("--with-next", action="store_true", help="also read the section after each selected one")
     p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")
+    p.add_argument("--strip-boilerplate", action="store_true", help="drop lines repeated on most pages (PDF footers, page numbers, running headers)")
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)
     p.add_argument("pattern")
@@ -2548,9 +2686,10 @@ def main(argv=None) -> int:
     p.add_argument("--max", type=int, default=20, help="paragraphs shown (default 20)")
     p.add_argument("--width", type=int, default=600, help="characters shown per matching paragraph")
     p.add_argument("--count", action="store_true", help="only counts per section")
-    p.add_argument("--section", "-s")
+    p.add_argument("--section", "-s", action="append", help="as for read; repeat to add more")
     p.add_argument("--title", "-t")
     p.add_argument("--format", choices=["txt", "md"], default="txt", help="read format the printed offsets count in")
+    p.add_argument("--strip-boilerplate", action="store_true", help="as for read; use it on both so paragraph numbers agree")
     p = sub.add_parser("dump", help="whole text to a file with section markers")
     common(p, False)
     p.add_argument("--out")
@@ -2558,6 +2697,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("formats", help="supported formats and installed tools")
     p.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
+    if isinstance(getattr(a, "section", None), list):   # --section 23 --section 24 means 23,24
+        a.section = ",".join(a.section)
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
         return {"info": cmd_info, "toc": cmd_toc, "read": cmd_read, "grep": cmd_grep, "dump": cmd_dump,

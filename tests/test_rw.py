@@ -1015,6 +1015,63 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.heading_at(prose, "Actions"), 0)  # an unnumbered title is never found inside prose
         self.assertEqual(len(prose), 1)
 
+    def test_outline_title_unescapes_quotes(self):   # L-015: MuPDF prints \" inside a quoted title
+        sample = '|\t\t"What is a \\"good\\" lamp? A\\\\B"\t#page=3&view=FitH,1\n'
+        self.assertEqual(rw.parse_outline(sample), [('What is a "good" lamp? A\\B', 3, 2)])
+
+    def test_outline_title_takes_spacing_from_the_page(self):   # L-015: "approachto" from a wrapped heading
+        text = "Running head\n\nThe lighthouse keeper is a careful\nwatcher of ships\nbody text follows here.\n"
+        t = rw.isolate_headings(text, ["The lighthouse keeper is a carefulwatcher of ships"])
+        paras = rw.text_paras(t, "txt")
+        self.assertIn("The lighthouse keeper is a careful watcher of ships", [p.text for p in paras])
+        out = rw.place_on_pages([(1, "The lighthouse keeper is a carefulwatcher of ships", 2)], [paras])
+        self.assertEqual(out[0][1], "The lighthouse keeper is a careful watcher of ships")
+        self.assertEqual(rw.respace_title("Lamp problem scan glow", "Lamp problems can glow"), "Lamp problems can glow")
+        self.assertEqual(rw.respace_title("Lamps", "Ships"), "Lamps")
+
+    def test_same_page_outline_entries_get_their_own_text(self):   # L-015: siblings on one page shared one text
+        page = ("Harbour chapter\n\nHarbour chapter\nIntro words about the harbour.\nTides and moorings\n"
+                "The tide rose twice.\nLamps on the quay\nEvery lamp was trimmed.\n")
+        titles = ["Harbour chapter", "Lamps on the quay", "Tides and moorings"]   # outline order differs from the page
+        paras = rw.text_paras(rw.isolate_headings(page, titles), "txt")
+        out = rw.place_on_pages([(1, t, 2) for t in titles], [paras])
+        self.assertEqual([t for _, t, _, _ in out], ["Harbour chapter", "Tides and moorings", "Lamps on the quay"])
+        js = [j for _, _, _, j in out]
+        self.assertEqual(len(set(js)), 3)
+        self.assertEqual(paras[js[1] + 1].text, "The tide rose twice.")
+        self.assertEqual(paras[js[2] + 1].text, "Every lamp was trimmed.")
+
+    def test_page_furniture_by_frequency(self):
+        P = rw.Para
+        pages = [[P("p", "Lamp book"), P("p", "Body text " + " ".join(["lamp", "ship", "quay", "tide"][: n % 4 + 1]) + "x" * n),
+                  P("p", "(c) Invented Press. Comment at the quay"), P("p", str(n))] for n in range(1, 9)]
+        fur = rw.page_furniture(pages)
+        self.assertIn(rw.furniture_key("(c) Invented Press. Comment at the quay"), fur)
+        self.assertIn(rw.furniture_key("7"), fur)
+        self.assertFalse(any(k.startswith("body text") for k in fur))
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("Lamp book", sum(pages, []), 1, "page1")], furniture=fur)
+        self.assertEqual(rw.strip_furniture(doc), 8 * 3 - 1)   # the heading line stays
+        self.assertTrue(all("Body text" in p.text for p in doc.sections[0].paras[1:]))
+
+    def test_repeated_section_flags_add_up(self):
+        p = self.f("lamps.md")
+        p.write_text("# One\n\nAlpha lamp.\n\n# Two\n\nBeta lamp.\n\n# Three\n\nGamma lamp.\n", encoding="utf-8")
+        code, out, _ = cli("read", p, "--section", "1", "--section", "3")
+        self.assertEqual(code, 0)
+        self.assertIn("Alpha", out)
+        self.assertIn("Gamma", out)
+        self.assertNotIn("Beta", out)
+        code, out, _ = cli("grep", p, "lamp", "-s", "2", "-s", "3", "--count")
+        self.assertIn("2 matches in 2 sections", out)
+
+    def test_grep_context_widens_over_short_lines(self):   # a boxed callout: one paragraph per PDF line
+        p = self.f("box.md")
+        words = ["Tip", "keep", "the", "lamp", "trimmed", "before", "dusk", "falls"]
+        p.write_text("# Box\n\n" + "\n\n".join(words) + "\n", encoding="utf-8")
+        code, out, _ = cli("grep", p, "dusk", "-C", "1")
+        self.assertIn("Tip", out)
+        self.assertIn("falls", out)
+
     def test_tool_error_keeps_the_exception_line(self):
         err = b"Traceback (most recent call last):\n  File x, line 1\n    boom()\nsome.module.MissingDependencyException: install markitdown[docx]\n"
         r = subprocess.CompletedProcess([], 1, b"", err)

@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-5 · 2026-11-01 · Release 0.6.0: same-page PDF sections, spaced titles, --strip-boilerplate, repeated --section
+- because: L-015 `same-page-outline-entries`
+- files: scripts/rw.py (load_pdf, isolate_headings, place_on_pages, respace_title, page_furniture, strip_furniture, heading_at, parse_outline, cmd_read, cmd_grep, main), SKILL.md (read, grep), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- PDF outline entries that start on one page are each found on the page and ordered by position, so each gets its own text and word count; heading lines run into a paragraph are split out first. Titles whose spaces were lost or moved at a line join take the heading line's spacing; escaped quotes in outline titles are unescaped. `--section` may be repeated (adds up like `N,M`). `read` and `grep` take `--strip-boilerplate` to drop lines repeated across pages (found by frequency). `grep -C` widens over runs of short lines such as boxed callouts.
+
 ### C-20261101-4 · 2026-11-01 · Release 0.5.1: PDF sections start at their heading; grep points to --section
 - because: L-014 `pdf-sections-start-a-page-early`
 - files: scripts/rw.py (load_pdf, heading_at, grep footer), tests/test_rw.py.

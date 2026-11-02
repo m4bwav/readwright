@@ -52,7 +52,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.7.0"
+VERSION = "0.8.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1799,6 +1799,42 @@ def strip_furniture(doc: Doc) -> int:
     return gone
 
 
+REPEAT_MAX_WORDS = 40   # only short paragraphs (credit lines, captions, notices) can count as repeated boilerplate
+
+
+def repeat_keys(text: str) -> list:
+    """Keys a short paragraph is compared by: its whole text and its last four words, lower-cased with digits folded,
+    so "Film A. Directed by X. Studio, 1999. All Rights Reserved." and the same line for another film share a key."""
+    w = re.findall(r"[a-z#]+", re.sub(r"\d+", "#", text.lower()))
+    if not w or len(w) > REPEAT_MAX_WORDS:
+        return []
+    keys = ["all:" + " ".join(w)]
+    if len(w) >= 6:
+        keys.append("end:" + " ".join(w[-4:]))
+    return keys
+
+
+def drop_repeated(doc: Doc, share: float = 0.3, least: int = 5) -> int:
+    """Drop short paragraphs that recur, verbatim or with the same last four words, in at least `share` of the
+    sections that have text (and at least `least` sections). A section's first paragraph (its heading) stays.
+    Returns how many paragraphs went."""
+    secs = [s for s in doc.sections if s.words()]
+    seen = {}
+    for k, s in enumerate(secs):
+        for p in s.paras[1:]:
+            if p.kind != "h":
+                for key in repeat_keys(p.text):
+                    seen.setdefault(key, set()).add(k)
+    need = max(least, share * len(secs))
+    bad = {key for key, ks in seen.items() if len(ks) >= need}
+    gone = 0
+    for s in secs if bad else []:
+        keep = s.paras[:1] + [p for p in s.paras[1:] if p.kind == "h" or not bad.intersection(repeat_keys(p.text))]
+        gone += len(s.paras) - len(keep)
+        s.paras = keep
+    return gone
+
+
 def heading_at(paras, title, lo=0, missing=-1) -> int:
     """Index of the paragraph on a page that carries an outline title (from lo on); lo when none matches.
     A numbered title run into a paragraph ("... checklist. 10.2.1 Signs of Life To know ...") splits that paragraph in place."""
@@ -2483,6 +2519,9 @@ def cmd_read(a) -> int:
         raise RWError("this is a zip archive; list it with toc and pick a member with --member NAME")
     hints = []
     skipped = skip_code(doc) if getattr(a, "skip_code", False) else None
+    if getattr(a, "drop_repeated", False):
+        n = drop_repeated(doc)
+        hints.append(f"--drop-repeated dropped {n} short paragraph(s) that recur across the book (credit lines, notices)")
     if not any(s.words() for s in doc.sections):   # a scan's pages are sections with no words (L-011)
         print(doc_head(doc))
         for n in doc.notes:
@@ -2502,6 +2541,7 @@ def cmd_read(a) -> int:
         hints.insert(0, code_note(doc, skipped, idx))
     flags = "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
                                     (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
+                                    (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                     (" --format md", a.format == "md")) if on)
     text = compose(doc, idx, a.format, a.max_words, flags)
     if a.out:
@@ -2731,6 +2771,8 @@ def main(argv=None) -> int:
     p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")
     p.add_argument("--strip-boilerplate", action="store_true", help="drop lines repeated on most pages (PDF footers, page numbers, running headers)")
     p.add_argument("--skip-code", action="store_true", help="drop code blocks (<pre> in EPUB and HTML, fenced Markdown; not PDF) and say how many words went")
+    p.add_argument("--drop-repeated", action="store_true", help="drop short paragraphs that recur in 30%% or more of "
+                   "sections, verbatim or with the same last four words (image credits, copyright notices)")
     p.add_argument("--quiet", "-q", action="store_true", help="no [readwright: ...] advice lines (cut footers stay)")
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)

@@ -1112,6 +1112,26 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.strip_furniture(doc), 8 * 3 - 1)   # the heading line stays
         self.assertTrue(all("Body text" in p.text for p in doc.sections[0].paras[1:]))
 
+    def test_drop_repeated_credit_lines(self):
+        P = rw.Para
+        secs = []
+        for n in range(10):
+            paras = [P("h", f"Shot {n}", 2), P("p", f"Body of shot {n} about " + ["lamps", "quays", "tides", "ships", "ropes"][n % 5] + " and " + "x" * (n + 1) + "."),
+                     P("p", "Remember to light the quay."),
+                     P("p", f"Invented Film {n}. Directed by Person {n}. Example Studio Video, {1990 + n}. Every Right Kept Here.")]
+            if n < 2:
+                paras.append(P("p", "A note that appears twice only."))
+            secs.append(rw.Section(f"Shot {n}", paras, 1, f"s{n}"))
+        doc = rw.Doc("x.epub", "epub", sections=secs)
+        self.assertEqual(rw.drop_repeated(doc), 20)   # the credit line (same ending) and the verbatim reminder
+        for s in doc.sections:
+            texts = [p.text for p in s.paras]
+            self.assertEqual(texts[0], s.title)
+            self.assertTrue(texts[1].startswith("Body of shot"))
+            self.assertFalse(any("Right Kept" in t or "Remember" in t for t in texts))
+        self.assertIn("A note that appears twice only.", [p.text for p in doc.sections[0].paras])
+        self.assertEqual(rw.repeat_keys(" ".join(["word"] * 50)), [])   # long paragraphs never count
+
     def test_repeated_section_flags_add_up(self):
         p = self.f("lamps.md")
         p.write_text("# One\n\nAlpha lamp.\n\n# Two\n\nBeta lamp.\n\n# Three\n\nGamma lamp.\n", encoding="utf-8")

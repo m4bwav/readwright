@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-7 · 2026-11-01 · Release 0.8.0: read --drop-repeated, batch-read tip for distilling
+- because: L-017 `repeated-credit-lines`
+- files: scripts/rw.py (repeat_keys, drop_repeated, cmd_read, main), SKILL.md (read, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- `read --drop-repeated` drops short paragraphs that recur in 30% or more of the sections with text (and at least 5), compared whole or by their last four words with digits folded, so a credit line naming a different film each time still matches; the section heading stays and one advice line gives the count. Off by default: a synthetic fixture whose body lines shared a templated ending lost them too. "Distilling a book" now says to read a chapter's sections in one `--section N-M --quiet --max-words N` call sized under 25k characters, and when to add `--drop-repeated`.
+
 ### C-20261101-6 · 2026-11-01 · Release 0.7.0: one combined hint, --quiet, --max-words offsets, --skip-code, technical-book tips
 - because: L-016 `code-heavy-batch-reads`
 - files: scripts/rw.py (cap_words, cut_offset, skip_code, code_note, compose, cmd_read, cmd_grep, main), SKILL.md (read, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

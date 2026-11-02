@@ -1623,6 +1623,16 @@ class TestFiveCs(Base):
         self.assertIn("Brannoch coiled the line", out)
         self.assertIn("KNOTS FOR WET WEATHER BB", cli("toc", p)[1])
 
+    def test_topic_head_on_facing_pages_is_no_chapter(self):   # OCR'd film book: ACTION AXIS inside CONTINUITY
+        pages = caps_book()
+        for n in range(48, 64, 2):   # a topic running head on the facing pages, inside TIDE TABLES
+            pages[n] = "SPLICE GRADES " + pages[n].split(" ", 3)[3]
+        p = self.f("facing.epub")
+        make_epub_pages(p, {"index.html": "".join(f"<p>{t}</p>" for t in pages)})
+        top = [s.title for s in rw.load(str(p)).sections if s.level == 1]
+        self.assertIn("TIDE TABLES", top)
+        self.assertNotIn("SPLICE GRADES", top)
+
     def test_caps_split_leaves_ordinary_text_alone(self):
         paras = [rw.Para("p", "Brannoch went to the NATO office and said OK. " + lorem(150)) for _ in range(40)]
         self.assertIsNone(rw.split_caps(rw.Section("x", paras)))

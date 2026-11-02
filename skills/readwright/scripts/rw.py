@@ -2476,6 +2476,18 @@ def split_caps(s: Section, pages: int = 0) -> list | None:
             first = next((h for j, h in enumerate(v) if sum(1 for x in v[j:] if x - h <= window) >= 3), None)
             if first is not None:
                 chapters[k] = first
+    # a topic head that runs on the facing pages of a chapter (ACTION AXIS inside CONTINUITY) has its span inside
+    # that chapter's span; chapters follow one another and never nest
+    # a topic head that runs on the facing pages of a chapter (ACTION AXIS inside CONTINUITY in an OCR'd film book)
+    # starts while that chapter's own running head is still on most pages: chapters follow one another, never nest
+    kept = []
+    for k in sorted(chapters, key=chapters.get):
+        v = [h for h in hits[k] if h >= chapters[k]]
+        mid = v[len(v) // 2]
+        if kept and sum(1 for h in hits[kept[-1]] if chapters[k] <= h <= mid) >= 3:
+            continue
+        kept.append(k)
+    chapters = {k: chapters[k] for k in kept}
     starts = {(v, k) for k, v in chapters.items()}
     topics = sum(1 for items in plan for x in items if x[2] == "topic")
     if len(starts) + topics < CAPS_SPLIT_MIN:

@@ -20,7 +20,6 @@ Scan note threshold and routes (decision entry in [INDEX.md](INDEX.md)).
 ## Open
 - PDF tables, definition lists and sidebars still come out flat (code blocks fixed in 0.11.0, L-022). Why not done: `pdftotext -layout` lines interleave the columns of a table or a sidebar with the body, so finding them needs block coordinates. Next step: run `pdftotext -bbox-layout` (XHTML with <block>/<line>/<word> xMin/yMin per page) on pages flagged by a cheap hint (many short lines, aligned gaps of 3+ spaces in the -layout page), group lines into rows by yMin and columns by xMin, and emit `row` paragraphs (Para kind "row" exists) for tables and a separate paragraph for blocks whose xMin sits outside the body column (sidebars). Needs a real PDF with tables to calibrate; none was at hand.
 - Two-column PDFs were not changed: plain pdftotext already reads each column in order on the test files seen.
-- The ALL-CAPS split on OCR'd text (L-021) takes topic heads repeated at page tops (ACTION AXIS, MATCHING, SOUND in the film book) as chapters; a stricter chapter test (chapter heads change in order and never come back) would fix it.
 - MuPDF 1.24 to 1.27 outline format unchecked (only 1.23); a DRM-protected KFX never seen on disk; pdftotext `-remove-hyphens` undecided (RESEARCH.md, Open questions).
 - ubuntu-latest moves to Ubuntu 26 from 2026-10-19; the `routes` job's apt package names may need a look then.
 - A partly scanned book (text on some pages only) is not flagged; no real example to calibrate on.

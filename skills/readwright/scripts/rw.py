@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.9.3"
+VERSION = "0.10.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -782,7 +782,8 @@ def load_epub(path) -> Doc:
                 if carry_on(h.paras):
                     continue
                 first_h = next((p.text for p in h.paras if p.kind == "h"), "")
-                doc.sections.append(Section(first_h, h.paras, 1, item[0]))
+                doc.sections.append(Section(notes_part_title(doc.sections, h.paras, first_h) or first_h,
+                                            h.paras, 1, item[0]))
                 continue
             points = sorted(cuts)
             if points[0] > 0:
@@ -803,6 +804,22 @@ def load_epub(path) -> Doc:
                 s.sid = s.sid[len(base) + 1:]   # ids relative to the package folder
         normalise_levels(doc.sections)
     return doc
+
+
+NOTES_TITLE = re.compile(r"^\s*(?:end\s*notes|notes|references)\b", re.I)
+
+
+def notes_part_title(sections, paras, first_h) -> str:
+    """A file the toc skips that follows a notes section and is mostly numbered notes continues that section:
+    a heading like 'Chapter 13' there names whose notes they are, not a chapter of the book."""
+    if not sections or not NOTES_TITLE.match(sections[-1].title):
+        return ""
+    lines = [p.text for p in paras if p.kind != "h" and p.text]
+    numbered = sum(1 for t in lines if re.match(r"^\[?\d{1,4}[\].)]?\s", t))
+    if numbered < max(3, len(lines) * 0.6):
+        return ""
+    base = sections[-1].title.split(": ")[0]
+    return f"{base}: {first_h}" if first_h else base
 
 
 def untitled(s: Section) -> str:
@@ -2782,6 +2799,40 @@ def cmd_read(a) -> int:
     return 0
 
 
+def chapter_key(title: str) -> str:
+    """'Chapter 4: The Myth of Meritocracy' -> 'chapter 4'; other titles as they are, lower case."""
+    m = re.match(r"\s*((?:chapter|part)\s+[\divxlc]+)\b", title, re.I)
+    return clean(m.group(1)).lower() if m else clean(title.split(":")[0]).lower()
+
+
+def cmd_note(a) -> int:
+    """The endnote a marker like [39] in section S points at: notes restart per chapter, so the chapter is needed."""
+    doc = load(a.file, a.member, a.via)
+    src = select(doc, a.section, None)
+    if len(src) != 1:
+        raise RWError("give the one section the marker is in (--section N)")
+    key = chapter_key(doc.sections[src[0] - 1].title)
+    notes = [s for s in doc.sections if NOTES_TITLE.match(s.title)]
+    if not notes:
+        raise RWError("no notes section (titled Notes, Endnotes or References) in the outline")
+    num = re.compile(rf"^\[?{a.number}[\].)]?\s")
+    blocks, current, seen = {}, "", []
+    for s in notes:
+        for p in s.paras:
+            if p.kind == "h" or (len(p.text) < 80 and re.match(r"^(?:chapter|part)\s+[\divxlc]+\b", p.text, re.I)):
+                current = chapter_key(p.text)
+                if not NOTES_TITLE.match(current) and current not in seen:
+                    seen.append(current)
+            elif num.match(p.text):
+                blocks.setdefault(current, p.text)
+    hit = blocks.get(key) or (blocks.get("") if len(blocks) == 1 else None)
+    if not hit:
+        have = ", ".join(seen[:12]) + (", ..." if len(seen) > 12 else "") if seen else "none"
+        raise RWError(f"note {a.number} not found under '{key}' (note headings seen: {have})")
+    print(f"[{key}, note {a.number}] {hit[:a.width]}")
+    return 0
+
+
 def cmd_grep(a) -> int:
     doc = load(a.file, a.member, a.via)
     if getattr(a, "strip_boilerplate", False):
@@ -2983,6 +3034,11 @@ def main(argv=None) -> int:
     p.add_argument("--format", choices=["txt", "md"], default="txt", help="read format the printed offsets count in")
     p.add_argument("--strip-boilerplate", action="store_true", help="as for read; use it on both so paragraph numbers agree")
     p.add_argument("--skip-code", action="store_true", help="as for read: search prose only; use it on both so paragraph numbers agree")
+    p = sub.add_parser("note", help="the endnote a marker like [39] points at (notes restart per chapter)")
+    common(p, False)
+    p.add_argument("number", type=int)
+    p.add_argument("--section", "-s", required=True, help="the section the marker was read in")
+    p.add_argument("--width", type=int, default=600, help="characters shown")
     p = sub.add_parser("dump", help="whole text to a file with section markers")
     common(p, False)
     p.add_argument("--out")
@@ -3000,7 +3056,7 @@ def main(argv=None) -> int:
         a.section = ",".join(a.section)
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
-        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "dump": cmd_dump,
+        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "note": cmd_note, "dump": cmd_dump,
                 "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)

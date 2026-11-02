@@ -1413,5 +1413,42 @@ class TestRoutes(unittest.TestCase):
             rw.load(str(rtf), via="markitdown")
 
 
+class TestNotesParts(Base):
+    def test_untocced_notes_file_after_endnotes_is_titled_as_notes(self):
+        x = lambda body: ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"  # noqa: E731
+                          + body + "</body></html>")
+        notes = "".join(f"<p>{n} https://example.org/source/{n}</p>" for n in range(1, 8))
+        navdoc = x("<nav epub:type='toc' xmlns:epub='http://www.idpf.org/2007/ops'><ol>"
+                   "<li><a href='ch1.xhtml'>Chapter 1: Tides</a></li><li><a href='notes.xhtml'>Endnotes</a></li>"
+                   "<li><a href='index.xhtml'>Index</a></li></ol></nav>")
+        files = {"ch1.xhtml": x("<h1>Chapter 1: Tides</h1><p>" + lorem(60) + "</p>"),
+                 "notes.xhtml": x("<h1>Endnotes</h1><h2>Chapter 1</h2>" + notes),
+                 "notes2.xhtml": x("<h2>Chapter 2</h2>" + notes),
+                 "index.xhtml": x("<h1>Index</h1><p>tides, 4</p>"),
+                 "nav.xhtml": navdoc}
+        ids = ["ch1", "notes", "notes2", "index"]
+        opf = ("<?xml version='1.0'?><package xmlns='http://www.idpf.org/2007/opf' version='3.0'><metadata/><manifest>"
+               + "".join(f"<item id='{i}' href='{i}.xhtml' media-type='application/xhtml+xml'/>" for i in ids)
+               + "<item id='nav' href='nav.xhtml' media-type='application/xhtml+xml' properties='nav'/></manifest><spine>"
+               + "".join(f"<itemref idref='{i}'/>" for i in ids) + "</spine></package>")
+        p = self.f("notes.epub")
+        with zipfile.ZipFile(p, "w") as z:
+            z.writestr("mimetype", "application/epub+zip")
+            z.writestr("META-INF/container.xml", "<?xml version='1.0'?><container version='1.0' "
+                       "xmlns='urn:oasis:names:tc:opendocument:xmlns:container'><rootfiles><rootfile "
+                       "full-path='content.opf' media-type='application/oebps-package+xml'/></rootfiles></container>")
+            z.writestr("content.opf", opf)
+            for name, data in files.items():
+                z.writestr(name, data)
+        titles = [s.title for s in rw.load(str(p)).sections]
+        self.assertEqual(titles, ["Chapter 1: Tides", "Endnotes", "Endnotes: Chapter 2", "Index"])
+        code, out, _ = cli("note", p, "3", "--section", "1")
+        self.assertEqual(code, 0)
+        self.assertIn("[chapter 1, note 3] 3 https://example.org/source/3", out)
+        code, _, err = cli("note", p, "99", "--section", "1")
+        self.assertNotEqual(code, 0)
+        self.assertIn("chapter 1, chapter 2", err)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

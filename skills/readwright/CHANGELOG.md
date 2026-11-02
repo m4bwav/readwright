@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-7 · 2026-11-02 · Release 0.13.0: read --compact; reader-agent brief tip
+- because: a reader agent on an everscout book run (Levinson, Guerrilla Marketing) stripped blank lines with grep to save tokens, missed `--out`, and first sampled 3,500 characters per section
+- files: scripts/rw.py (read), SKILL.md (Reading, Distilling a book), tests/test_rw.py
+`read --compact` prints one newline between paragraphs; it refuses `--at-para`, whose counts follow the full layout. The distilling section gives the full read line to brief reader agents with.
+
 ### C-20261102-6 · 2026-11-02 · Release 0.12.0: read --out-dir writes one file per section
 - because: a reader agent on an everscout book run (Doctorow, The Reverse Centaur's Guide to Life After AI) found multi-section reads produced one very large output and asked for per-section files
 - files: scripts/rw.py (cmd_read, read parser), SKILL.md (reading section), tests/test_rw.py

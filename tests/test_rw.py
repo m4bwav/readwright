@@ -768,6 +768,16 @@ class TestCommands(Base):
         self.assertNotEqual(out[:200], out2[:200])
         self.assertEqual(cli("read", t, "--section", "11")[0], 1)
 
+    def test_read_compact_drops_blank_lines(self):
+        t = self.big_text()
+        _, full, _ = cli("read", t, "--section", "2")
+        code, out, _ = cli("read", t, "--section", "2", "--compact")
+        self.assertEqual(code, 0)
+        self.assertIn("\n\n", full)
+        self.assertNotIn("\n\n", out)
+        self.assertEqual(full.split(), out.split())
+        self.assertNotEqual(cli("read", t, "--section", "2", "--compact", "--at-para", "1")[0], 0)
+
     def test_read_out_writes_utf8_lf(self):
         p = self.f("snow.fb2")
         make_fb2(p)

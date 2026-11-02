@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.12.0"
+VERSION = "0.13.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2994,6 +2994,11 @@ def word_offsets(doc: Doc) -> list:
     return out
 
 
+def compact_text(text: str) -> str:
+    """One newline between paragraphs instead of a blank line: fewer lines for an agent to page through."""
+    return re.sub(r"\n[ \t]*\n+", "\n", text)
+
+
 def compose(doc: Doc, idx: list, fmt: str, max_words: int | None = None, flags: str = "") -> str:
     offs = word_offsets(doc)
     total = offs[-1] + doc.sections[-1].words() if doc.sections else 0
@@ -3235,13 +3240,17 @@ def cmd_read(a) -> int:
     flags = "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
                                     (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
+                                    (" --compact", getattr(a, "compact", False)),
                                     (" --format md", a.format == "md")) if on)
+    if getattr(a, "compact", False) and a.at_para:
+        raise RWError("--at-para counts paragraphs of the full layout; drop --compact to use it")
+    shape = compact_text if getattr(a, "compact", False) else (lambda t: t)
     if getattr(a, "out_dir", None):   # one file per section: a reader agent opens only the ones it needs
         os.makedirs(a.out_dir, exist_ok=True)
         ext = "md" if a.format == "md" else "txt"
         total = 0
         for i in idx:
-            body = compose(doc, [i], a.format, a.max_words, flags)
+            body = shape(compose(doc, [i], a.format, a.max_words, flags))
             slug = re.sub(r"[^a-z0-9]+", "-", doc.sections[i - 1].title.lower()).strip("-")[:40] or "section"
             path = os.path.join(a.out_dir, f"{i:03d}-{slug}.{ext}")
             write_out(path, body)
@@ -3249,7 +3258,7 @@ def cmd_read(a) -> int:
             print(f"{path}  {fmt_n(len(body))} chars (~{fmt_n(len(body) // 4)} tokens)")
         print(f"wrote {len(idx)} section file(s), {fmt_n(total)} chars (~{fmt_n(total // 4)} tokens) to {a.out_dir}")
         return 0
-    text = compose(doc, idx, a.format, a.max_words, flags)
+    text = shape(compose(doc, idx, a.format, a.max_words, flags))
     if a.out:
         if a.offset:
             text = text[a.offset:]
@@ -3516,6 +3525,7 @@ def main(argv=None) -> int:
     p.add_argument("--out-dir", help="write each selected section to its own file in this folder (NNN-title.txt) and list their sizes")
     p.add_argument("--format", choices=["txt", "md"], default="txt")
     p.add_argument("--with-next", action="store_true", help="also read the section after each selected one")
+    p.add_argument("--compact", action="store_true", help="no blank line between paragraphs (offsets then count the compact text; pass it again with --offset)")
     p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")
     p.add_argument("--strip-boilerplate", action="store_true", help="drop lines repeated on most pages (PDF footers, page numbers, running headers)")
     p.add_argument("--skip-code", action="store_true", help="drop code blocks (<pre> in EPUB and HTML, fenced Markdown; not PDF) and say how many words went")

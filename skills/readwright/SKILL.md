@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.13.1"
+  version: "0.14.0"
 ---
 
 # readwright
@@ -27,7 +27,7 @@ If info prints `note: no text layer`, the book is page images (a scan) and readw
 
 Run `RW toc FILE`. Each line is `N. title (words w)`, indented by level; `--ids` adds each section's id (file and fragment, page, sheet), which you rarely need. EPUB titles come from the book's own navigation (nav document or NCX), DOCX and ODT titles from heading styles, HTML from h1 to h3, plain text and Markdown from headings or CHAPTER lines. Text with no structure is cut into parts of about 3,000 words. For a zip archive, toc lists the members; add `--member NAME` (or its number) to every later command.
 
-Books that list each chapter number as its own near-empty section (Packt, some O'Reilly) are shown merged: `Ch. 12: Title`, printed under the title's section number (the number-only section is hidden but keeps its number and can still be read). `RW toc FILE --depth 1` prints only the top level (parts and chapters) with each line's words rolled up from the sections below it (`--depth 2` adds the next level; JSON gets `chapter` and `words_total`). Use it to count chapters instead of counting by hand.
+Books that list each chapter number as its own near-empty section (Packt, some O'Reilly) are shown merged: `Ch. 12: Title`, printed under the title's section number (the number-only section is hidden but keeps its number and can still be read). `RW toc FILE --depth 1` prints only the top level (parts and chapters) with each line's words rolled up from the sections below it (`--depth 2` adds the next level; JSON gets `chapter` and `words_total`). Use it to count chapters instead of counting by hand. A PDF with no outline lists one section per page; `RW toc FILE --group` folds pages that share a running head into page ranges (chapters) to read with `--section 20-40`.
 
 Match the user's words to toc lines. "Chapter 14" usually means the line titled CHAPTER FOURTEEN, which in many ebooks holds only the chapter title and an epigraph: its body is the next section. The word counts show this (72 words, then 6,330). Section numbers are not chapter numbers: front matter comes first, so chapter 16 of a novel may be section 24.
 
@@ -69,6 +69,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Typos, hyphens inside words (`priori-ties`) and missing spaces next to an inline symbol are usually in the EPUB itself; check the raw XHTML before calling them a reader bug.
 
 - Brief reader agents with the whole read line: `RW read FILE --section N --compact --out <scratch>/chN.txt`, then their own Read tool on the file. An agent that reads four chapters to stdout overflows its shell output, and one that guesses `--max-chars 3500` samples only each section's opening: one Guerrilla Marketing reader did and had to read again (2026-11-02).
+- For a PDF with no outline, plan from `RW toc FILE --group` and add `--strip-boilerplate` to the reader's read and grep lines (0.14.0): it drops the running head repeated atop every page and the printed page numbers. Give greps `--width 300 --max 8` (or `--count` first): one Epistemic Injustice reader ran 15 greps at full paragraphs and got 35 KB back (2026-11-02).
 
 - Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.
 - Read the introduction, each chapter summary and any results or comparison sections first (`grep -i "summary|conclusion|results"` with `--count` finds them), and grep the rest for the terms you need.

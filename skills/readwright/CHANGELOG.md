@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-9 · 2026-11-02 · Release 0.14.0: toc --group folds outline-less PDF pages into chapters
+- because: L-023 `pdf-pages-by-running-head` (everscout run on Fricker, Epistemic Injustice)
+- files: scripts/rw.py (page_groups, group_lines, cmd_toc, toc parser), SKILL.md (toc), README.md (toc), tests/test_rw.py, version in the five places AGENTS.md lists
+`rw.py toc FILE --group` prints page ranges per running head ("20-40. Testimonial Injustice (9,135 w)"), so a reader plans and reads by chapter with `--section 20-40`. `--strip-boilerplate` now also drops a page's repeated running head (L-024 `page-running-head`; strip_furniture), and the distilling tip gives readers grep's `--width`, `--max` and `--count`.
+
 ### C-20261102-8 · 2026-11-02 · Release 0.13.1: clean PDF outline titles and ligatures
 - because: two reader agents on an everscout book run (Mateer, Coppock, Essentials of Economics) saw section titles ending in a literal `\r` and words with ligature characters (Diﬃcult) that a grep for "difficult" misses
 - files: scripts/rw.py (parse_outline, clean, PDF loading), tests/test_rw.py

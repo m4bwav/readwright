@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.12.0"
+  version: "0.13.0"
 ---
 
 # readwright
@@ -44,7 +44,7 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 - Output stops at `--max-chars` (default 25,000). The cut ends at a paragraph, line or sentence break near the limit (0.11.1), and the last line then says where to continue: `--offset N`. Keep each read under your shell tool's output limit: Claude Code shows 30,000 characters of a command's output and saves the rest to a file you would then have to open. For two long chapters, read them one call each. For more than that, write the selection with `--out <scratch>/part.txt` and open it with your own Read tool. To hand a reader agent several chapters, `--out-dir <scratch>/secs` writes each selected section to its own file (`NNN-title.txt`) and lists their sizes (0.12.0).
 - A short selection ends with a hint naming the next section, since that is where the text usually continues.
 - `read` without a selector refuses when the text is over the limit (exit code 2) and prints the toc instead. That refusal is the tool working: pick sections.
-- `--format md` keeps headings and lists as Markdown; `--out FILE` writes the selection to a file.
+- `--format md` keeps headings and lists as Markdown; `--out FILE` writes the selection to a file. `--compact` drops the blank line between paragraphs (0.13.0); give it again with `--offset`.
 
 ## Step 4: search
 
@@ -67,6 +67,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - PDF text since 0.10.1 rejoins words hyphenated at line ends (`conven- tions`) and drops running heads with a page number (`4 | Chapter 1: ...`); if a reader still sees them, the PDF uses another pattern: report it. Since 0.10.2 pipe-less heads (`42  Chapter 3: ...`), sentences split by a page break and words split without a hyphen (`tikto ken`) are fixed from the book's own word counts; since 0.11.0 code blocks keep their lines and indentation; tables, definition lists and sidebars in PDFs still come out flattened, so check those against the page (`--section` gives the page numbers).
 - To check one marker, `RW note FILE 39 --section 13` prints the note `[39]` in section 13 points at (0.10.0): numbering restarts per chapter, so give reader agents this instead of the notes section. A notes file the toc skips is titled `Endnotes: Chapter 13`, not `Chapter 13`.
 - Typos, hyphens inside words (`priori-ties`) and missing spaces next to an inline symbol are usually in the EPUB itself; check the raw XHTML before calling them a reader bug.
+
+- Brief reader agents with the whole read line: `RW read FILE --section N --compact --out <scratch>/chN.txt`, then their own Read tool on the file. An agent that reads four chapters to stdout overflows its shell output, and one that guesses `--max-chars 3500` samples only each section's opening: one Guerrilla Marketing reader did and had to read again (2026-11-02).
 
 - Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.
 - Read the introduction, each chapter summary and any results or comparison sections first (`grep -i "summary|conclusion|results"` with `--count` finds them), and grep the rest for the terms you need.

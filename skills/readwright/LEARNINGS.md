@@ -149,3 +149,8 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: on a scanned PDF run `rw.py ocr FILE` (in the background for a whole book), then read it like any PDF; sections are pages.
 - Evidence: 2026-11-01, the whole book OCR'd at about 0.8 s a page at 200 dpi; body text, headings and captions read cleanly with a few misread letters ("beginnefs"). Tests: test_ocr_* in tests/test_rw.py. Applied: C-20261101-9.
 
+
+### L-019 · 2026-11-01 · printed-page-offset: citations off by one page, and a case-sensitive miss
+- Trigger: the Color & Light reader was told printed page = PDF page - 1; the pages said + 1 (PDF page 20 carries "21"). It also reported `grep "value key"` finding nothing; with `-i` it finds 3.
+- Rule: take the offset from `info` (`printed_pages`), never from a guess; a zero-hit grep footer names the `-i` count.
+- Evidence: 2026-11-01, Color & Light: printed_offset gives +1, matching the book's own cross-references. Tests: test_printed_page_offset, test_grep_without_i_names_case_hits. Applied: C-20261101-10.

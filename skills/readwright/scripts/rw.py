@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import collections
 import email
 import email.policy
 import hashlib
@@ -52,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.9.0"
+VERSION = "0.9.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1652,6 +1653,9 @@ def load_pdf(path) -> Doc:
     pages = text.split("\f")
     if pages and not pages[-1].strip():
         pages.pop()
+    shift = printed_offset(pages)
+    if shift:
+        doc.meta["printed_pages"] = f"PDF page {'+' if shift > 0 else '-'} {abs(shift)} (from the page numbers on the pages)"
     outline = pdf_outline(path, tl["mutool"]) if tl["mutool"] else []
     on_page = {}
     for t, pg, _ in outline:
@@ -2055,6 +2059,21 @@ def refine(doc: Doc) -> Doc:
             out.append(Section(title, s.paras[j:end], s.level, f"{s.sid}@p{j + 1}"))
     doc.sections = [s for s in out if s.paras or s.title]
     return doc
+
+
+def printed_offset(pages: list) -> int:
+    """Printed page number minus PDF page number, from bare numbers in each page's first or last lines; 0 when
+    they agree or too few pages say (L-019 `printed-page-offset`)."""
+    votes = collections.Counter()
+    for n, t in enumerate(pages, 1):
+        lines = [ln.strip() for ln in t.splitlines() if ln.strip()]
+        nums = {int(ln) for ln in lines[:2] + lines[-2:] if re.fullmatch(r"\d{1,4}", ln)}
+        for v in nums:
+            votes[v - n] += 1
+    if not votes:
+        return 0
+    shift, k = votes.most_common(1)[0]
+    return shift if k >= 5 and k * 2 >= sum(votes.values()) else 0
 
 
 def load(path: str, member: str | None = None, via: str | None = None) -> Doc:
@@ -2810,6 +2829,11 @@ def cmd_grep(a) -> int:
             else:
                 print("  " + (t if len(t) <= a.width // 2 else t[:a.width // 2] + " ..."))
     shown = min(len(hits), a.max)
+    if not hits and not a.ignore_case:   # "value key" missed "Value keying" (L-019)
+        rxi = re.compile(pat, re.I)
+        n_i = sum(len(rxi.findall(p.text)) for i in idx for p in doc.sections[i - 1].paras)
+        if n_i:
+            code_skipped = (code_skipped + "; " if code_skipped else "") + f"{n_i} matches with -i (grep is case-sensitive)"
     print(f"[{total} matches in {len(hits)} paragraphs across {len(per)} sections; showed {shown}"
           + (f"; raise --max, use --count, or narrow with --section N-M" if len(hits) > a.max else "")
           + (f"; {code_skipped}" if code_skipped else "") + "]")

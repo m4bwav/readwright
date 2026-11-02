@@ -644,6 +644,19 @@ class TestFormats(Base):
             self.assertIn("text from OCR", out)
             self.assertIn("Value matters more", cli("read", p, "--section", "2")[1])
 
+    def test_printed_page_offset(self):   # L-019: printed page = PDF page + 1 in a scanned art book
+        pages = [f"Body text\n{n + 1}" for n in range(1, 9)] + ["Cover"]
+        self.assertEqual(rw.printed_offset(pages), 1)
+        self.assertEqual(rw.printed_offset([f"Text\n{n}" for n in range(1, 9)]), 0)
+        self.assertEqual(rw.printed_offset(["12\nx", "y"]), 0, "one numbered page is not enough")
+
+    def test_grep_without_i_names_case_hits(self):
+        p = self.f("t.md")
+        p.write_text("# One\n\nValue keying sets the mood.\n", encoding="utf-8")
+        code, out, _ = cli("grep", p, "value key")
+        self.assertEqual(code, 1)
+        self.assertIn("1 matches with -i", out)
+
     def test_ocr_without_an_engine_says_how(self):
         p = self.f("plates.pdf")
         make_pdf(p, pages=("",))

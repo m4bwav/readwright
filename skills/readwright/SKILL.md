@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.9.0"
+  version: "0.9.1"
 ---
 
 # readwright
@@ -60,6 +60,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- Cite printed pages, not PDF pages: when the page numbers on the pages differ from the PDF's, `info` prints `printed_pages: PDF page + N`.
 - A scanned art or craft book: `RW ocr FILE` first, then `RW grep` for the topic words to find the pages, and read page runs with `--section N-M`. Captions and step numbers come out as short lines; view the page image for a figure the text leans on.
 - Endnotes name the studies a chapter rests on. Read the Notes section with `--drop-repeated` (back-links go) and find one chapter's notes with `RW grep FILE "^Chapter 6" --section <notes>` for the offset, then `read --offset`.
 

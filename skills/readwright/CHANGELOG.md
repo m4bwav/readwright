@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-10 · 2026-11-01 · Release 0.9.1: printed-page offset in info; grep names case-insensitive hits
+- because: L-019 `printed-page-offset`; reader report on Color & Light for everscout ai-video
+- files: scripts/rw.py (printed_offset, load_pdf, cmd_grep), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- A PDF whose page numbers (a bare number in a page's first or last two lines, five or more pages agreeing) differ from its page index gets `printed_pages: PDF page + N` in `info`. A grep with no matches that would match with `-i` says how many.
+
 ### C-20261101-9 · 2026-11-01 · Release 0.9.0: rw.py ocr reads scanned PDFs with Windows' built-in OCR
 - because: L-018 `scans-need-ocr`; found on 3dtotal's Artists' Master Series: Color & Light (384 scanned pages) for everscout ai-video
 - files: scripts/rw.py (WIN_OCR_PS, ocr_dir, ocr_cache, ocr_engine, ocr_pages, cmd_ocr, load_pdf, scan_note, main), SKILL.md (Step 1, Distilling a book), references/formats.md (scans), ../../tests/test_rw.py, version in the five places AGENTS.md lists

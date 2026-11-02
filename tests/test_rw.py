@@ -1206,6 +1206,46 @@ class TestRealWorldShapes(Base):
         self.assertIn("Body text here.", out)
         self.assertEqual(rw.strip_running_heads("Name | Age | 3\nrow\nx | y | 9"), "Name | Age | 3\nrow\nx | y | 9")
 
+    def test_pipeless_running_heads_drop(self):
+        pages = [f"{n}  Chapter 3: Doing Things\n\nBody {n} text.\n\nInput:\n" if n % 2 else
+                 f"Input:\n\nBody {n} text.\n\nSection Title {n}\n" for n in range(1, 13)]
+        pages.append("Figure 3-1 shows the output.\n\nOne-off Topic 99\n")
+        keys = rw.running_head_keys(pages, ["One-off Topic"])
+        out = [rw.strip_running_heads(p, keys) for p in pages]
+        joined = "\n".join(out)
+        self.assertNotIn("Chapter 3", joined)
+        self.assertNotIn("Section Title", joined)
+        self.assertNotIn("One-off Topic", joined)   # matches an outline title
+        self.assertIn("Input:", joined)              # prose ending in ":" stays, however often
+        self.assertIn("Figure 3-1 shows the output.", joined)
+        self.assertEqual(joined.count("Body"), 12)
+        self.assertEqual(rw.strip_running_heads("7\n\nText.\n", {"#"}), "\n\nText.\n")
+
+    def test_sentence_split_across_page_rejoins(self):
+        P = rw.Para
+        pages = [[P("p", "you would pass the current user")], [P("p", "message to a store."), P("p", "Next.")],
+                 [P("p", "Ends here.")], [P("p", "lower start stays apart.")]]
+        rw.join_split_pages(pages)
+        self.assertEqual(pages[0][0].text, "you would pass the current user message to a store.")
+        self.assertEqual(len(pages[3]), 1)
+
+    def test_book_vocabulary_fixes_splits_and_captions(self):
+        rw.VOCAB.update({"tiktoken": 5, "tikto": 1, "ken": 1, "comma": 4, "separated": 4, "commaseparated": 1,
+                         "comma-separated": 2, "conven": 1, "tions": 1, "shivam": 1, "shrirao": 1})
+        rw.EXACT.update({"tiktoken": 5, "ShivamShrirao": 2})
+        rw.COMPOUNDS["commaseparated"] = "comma-separated"
+        try:
+            self.assertEqual(rw.rejoin_spaced_words("pip install tikto ken now, a commaseparated list"),
+                             "pip install tiktoken now, a comma-separated list")
+            self.assertEqual(rw.rejoin_spaced_words("by Shivam Shrirao and x.com/commaseparated"),
+                             "by Shivam Shrirao and x.com/commaseparated")
+            self.assertTrue(rw.keep_break_hyphen("a comma", "separated list"))
+            self.assertFalse(rw.keep_break_hyphen("conven", "tions"))
+        finally:
+            rw.VOCAB.clear(); rw.EXACT.clear(); rw.COMPOUNDS.clear()
+        self.assertEqual(rw.CAPTION_SPLIT.split("Some text. Figure 4-6. Refine chain"),
+                         ["Some text.", "Figure 4-6. Refine chain"])
+
     def test_drop_repeated_note_backlinks_in_one_section(self):
         P = rw.Para
         notes = [P("h", "Notes", 1)]

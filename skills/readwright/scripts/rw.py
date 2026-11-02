@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.10.1"
+VERSION = "0.10.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1349,13 +1349,13 @@ def join_lines(lines) -> str:
     out = ""
     for line in lines:
         if out and line[:1].isalpha() and out[-1] in BREAK_HYPHENS:
-            out = out[:-1] + line
+            out = out[:-1] + ("-" if keep_break_hyphen(out[:-1], line) else "") + line
         elif out and line[:1].islower() and out[-1] == "-" and out[-2:-1].isalpha():
             out += line
         else:
             out = out + " " + line if out else line
     # pdftotext can already have joined the lines ("conven‐ tions"); "pre‐ and post-war" keeps its hyphen
-    return SPLIT_WORD.sub("", out)
+    return SPLIT_WORD.sub(lambda m: "-" if keep_break_hyphen(out[:m.start()], out[m.end():]) else "", out)
 
 
 SPLIT_WORD = re.compile(r"(?<=[^\W\d_])[‐­] (?!(?:and|or|nor|to)\b)(?=[^\W\d_])")
@@ -1364,26 +1364,120 @@ SPLIT_WORD = re.compile(r"(?<=[^\W\d_])[‐­] (?!(?:and|or|nor|to)\b)(?=[^\W\d_
 RUNNING_HEAD = re.compile(r"^(\d{1,4} \| [^|]{1,80}|[^|]{1,80} \| \d{1,4})$")
 
 
-def strip_running_heads(page: str) -> str:
+NUMBERED_HEAD = re.compile(r"^(?:#\s+(\S.{1,79})|(\S.{1,79}?)\s+#)$")
+
+
+def head_key(line: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"\d+", "#", line)).strip().casefold()
+
+
+def edge_lines(page: str) -> list:
+    idx = [i for i, l in enumerate(page.split("\n")) if l.strip()]
+    return sorted({idx[0], idx[-1]}) if idx else []
+
+
+def running_head_keys(pages, titles=()) -> set:
+    """Pipe-less running heads ("42  Chapter 3: Standard Practices", "Chunking Text 85", a bare repeated book title,
+    a bare page number): keys (digits as #, case folded) of page-edge lines that repeat at the edges of several pages,
+    or whose text beside the number is a chapter or section title from the outline. A line ending in . ? ! : , ; is
+    prose and never a head; a bare title must open or close a fifth of the pages."""
+    count = {}
+    for p in pages:
+        lines = p.split("\n")
+        for k in {head_key(lines[i]) for i in edge_lines(p)}:
+            count[k] = count.get(k, 0) + 1
+    known = {head_key(t) for t in titles}
+    keys = set()
+    for k, n in count.items():
+        if not k or len(k) > 90 or k[-1] in ".?!:,;":
+            continue
+        m = NUMBERED_HEAD.match(k)
+        if k == "#":
+            keys.add(k)
+        elif m:
+            title = (m.group(1) or m.group(2)).strip()
+            if title.strip("# ") and (n >= 3 or title in known):
+                keys.add(k)
+        elif n >= max(5, len(pages) // 5) and len(k.split()) >= 2:
+            keys.add(k)
+    return keys
+
+
+def strip_running_heads(page: str, keys=frozenset()) -> str:
     """Drop a running header or footer that carries the page number ("4 | Chapter 1: Title", "Section Title | 5")
     when it is the first or last non-blank line of a page. Frequency-based furniture misses these: the number and
-    the title change from page to page. A table row has more pipes, so it never matches."""
+    the title change from page to page. A table row has more pipes, so it never matches. `keys` from
+    running_head_keys drops the pipe-less kinds at the same places."""
     lines = page.split("\n")
-    idx = [i for i, l in enumerate(lines) if l.strip()]
-    for i in {idx[0], idx[-1]} if idx else ():
-        if RUNNING_HEAD.match(lines[i].strip()):
+    for i in edge_lines(page):
+        if RUNNING_HEAD.match(lines[i].strip()) or head_key(lines[i]) in keys:
             lines[i] = ""
     return "\n".join(lines)
 
 
+SENTENCE_END = ".?!:\u201d\""
+EXACT: dict = {}   # case-sensitive word counts, for rejoining "Inter viewChain"
+COMPOUNDS: dict = {}   # "commaseparated" -> "comma-separated" for hyphenated words printed in the PDF
+VOCAB: dict = {}   # word counts of the PDF being read (lower case); empty outside load_pdf
+WORD = re.compile(r"[^\W\d_]+")
+
+
+def keep_break_hyphen(left: str, right: str) -> bool:
+    """A U+2010 at a line end is usually a syllable break, but a printed compound ("comma-separated") loses its hyphen
+    when rejoined. With the book's word counts: the joined word seen elsewhere means join; both halves real words
+    (3+ letters, seen twice) means keep the hyphen."""
+    a, b = WORD.findall(left)[-1:], WORD.findall(right)[:1]
+    if not VOCAB or not a or not b:
+        return False
+    a, b = a[0].lower(), b[0].lower()
+    if VOCAB.get(a + "-" + b, 0) > VOCAB.get(a + b, 0):
+        return True
+    if VOCAB.get(a + b, 0) >= 1:
+        return False
+    return len(a) >= 3 and len(b) >= 3 and VOCAB.get(a, 0) >= 2 and VOCAB.get(b, 0) >= 2
+
+
+def rejoin_spaced_words(text: str) -> str:
+    """pdftotext sometimes drops a line-end hyphen entirely ("tikto ken"): join two tokens when one half is rare in the
+    book (seen at most twice) and the joined word, with the same capitals, appears at least twice. Also put back a
+    printed hyphen pdftotext lost ("commaseparated") when the book prints the hyphenated form at least as often."""
+    if not VOCAB:
+        return text
+    def fix(m):
+        a, b = m.group(1), m.group(2)
+        if a[:1].isupper() and a[1:].islower() and b[:1].isupper():
+            return m.group(0)   # two capitalised words: a name ("Shivam Shrirao") or a label, not a split
+        if EXACT.get(a + b, 0) >= 2 and min(VOCAB.get(a.lower(), 0), VOCAB.get(b.lower(), 0)) <= 2:
+            return a
+        return m.group(0)
+    text = re.sub(r"(?<![\w-])([^\W\d_]{2,}) (?=([^\W\d_]{2,})(?![\w-]))", fix, text)
+
+    def hyph(m):
+        w = m.group(0)
+        before, after = text[max(0, m.start() - 1):m.start()], text[m.end():m.end() + 2]
+        if w[1:] != w[1:].lower() or before in ("/", ".") or after[:1] in ("/", ".") and after[1:].isalnum():
+            return w   # CamelCase names and URL or path parts keep their spelling
+        h = COMPOUNDS.get(w.lower())
+        if h and VOCAB.get(h, 0) >= VOCAB.get(w.lower(), 0):
+            i = h.index("-")
+            return w[:i] + "-" + w[i:]
+        return w
+    return re.sub(r"(?<![\w-])[^\W\d_]{5,}(?![\w-])", hyph, text) if COMPOUNDS else text
+
+
+CAPTION_SPLIT = re.compile(r"(?<=[.!?:\u201d\"])\s+(?=(?:Figure|Table|Example) \d+[-.]\d+\. )")
+
+
 def join_split_pages(page_paras) -> None:
-    """A word hyphenated across a page break ("conven-" at the bottom, "tions" at the top of the next) becomes one
-    paragraph: the next page's first paragraph is moved onto the previous page's last."""
+    """A word hyphenated across a page break ("conven-" at the bottom, "tions" at the top of the next), or a sentence
+    that runs on (no . ? ! : or closing quote before the break, a lower-case letter after it), becomes one paragraph:
+    the next page's first paragraph is moved onto the previous page's last."""
     prev = None
     for pp in page_paras:
         if prev and pp and prev[-1].kind == "p" and pp[0].kind == "p" and (
                 prev[-1].text[-1:] in BREAK_HYPHENS and pp[0].text[:1].isalpha()
-                or prev[-1].text[-1:] == "-" and pp[0].text[:1].islower()):
+                or prev[-1].text[-1:] == "-" and pp[0].text[:1].islower()
+                or prev[-1].text[-1:] not in SENTENCE_END and pp[0].text[:1].islower()):
             prev[-1].text = join_lines([prev[-1].text, pp[0].text])
             pp.pop(0)
         if pp:
@@ -1742,9 +1836,30 @@ def load_pdf(path) -> Doc:
     for t, pg, _ in outline:
         if 1 <= pg <= len(pages):
             on_page.setdefault(pg, []).append(t)
-    pages = [strip_running_heads(p) for p in pages]
-    page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
-    join_split_pages(page_paras)
+    head_keys = running_head_keys(pages, [t for t, _, _ in outline])
+    pages = [strip_running_heads(p, head_keys) for p in pages]
+    VOCAB.clear()
+    for w in WORD.findall(text):
+        EXACT[w] = EXACT.get(w, 0) + 1
+        w = w.lower()
+        VOCAB[w] = VOCAB.get(w, 0) + 1
+    for h in re.findall(r"(?<![\w-])[^\W\d_]{2,}-[^\W\d_]{2,}(?![\w-])", text):
+        h = h.lower()
+        COMPOUNDS[h.replace("-", "")] = h
+        VOCAB[h] = VOCAB.get(h, 0) + 1
+    try:
+        page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
+        join_split_pages(page_paras)
+        for pp in page_paras:
+            for i in range(len(pp) - 1, -1, -1):
+                if pp[i].kind != "h":
+                    parts = CAPTION_SPLIT.split(rejoin_spaced_words(pp[i].text))
+                    pp[i].text = parts[0]
+                    pp[i + 1:i + 1] = [Para(pp[i].kind, t) for t in parts[1:]]
+    finally:
+        VOCAB.clear()
+        EXACT.clear()
+        COMPOUNDS.clear()
     for pp in page_paras:
         for p in pp:
             if p.kind == "h":

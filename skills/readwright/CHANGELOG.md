@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-1 · 2026-11-02 · Release 0.10.0: `rw.py note` resolves a note marker; untocced notes files are titled as notes
+- because: reader reports on Criado Perez, Invisible Women for everscout tech-hiring (a second endnotes file showed in the outline as `Chapter 13` after Endnotes; agents had to match chapter and number by hand to check a marker)
+- files: scripts/rw.py (notes_part_title, chapter_key, cmd_note), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- An EPUB file the toc skips, right after a Notes/Endnotes/References section and mostly numbered lines, is titled `Endnotes: <its heading>`. `rw.py note FILE N --section S` finds the chapter of section S and prints note N under that chapter's heading in the notes sections, or lists the chapter headings it saw.
+
 ### C-20261101-12 · 2026-11-01 · Release 0.9.3: EPUB note references print as [40]
 - because: reader report on Lalka, The Venture Alchemists for everscout global-economics (note numbers glued to sentences, "after that.40 Uber", were misread as figures)
 - files: scripts/rw.py (HTMLText), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

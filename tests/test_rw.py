@@ -778,6 +778,17 @@ class TestCommands(Base):
         self.assertNotIn(b"\r\n", data)
         self.assertIn("Снег".encode("utf-8"), data)
 
+    def test_read_out_dir_one_file_per_section(self):
+        t = self.big_text()
+        d = self.f("secs")
+        code, out, _ = cli("read", t, "--section", "2,7", "--out-dir", d)
+        self.assertEqual(code, 0)
+        files = sorted(x.name for x in d.iterdir())
+        self.assertEqual(len(files), 2)
+        self.assertTrue(files[0].startswith("002-") and files[1].startswith("007-chapter-7"))
+        self.assertIn("Brannoch", (d / files[1]).read_text(encoding="utf-8"))
+        self.assertIn("wrote 2 section file(s)", out)
+
     def test_grep_context_and_max(self):
         t = self.big_text()
         code, out, _ = cli("grep", t, "brannoch", "-i", "-C", "1", "--max", "2", "--width", "80")

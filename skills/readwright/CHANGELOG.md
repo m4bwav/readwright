@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-6 · 2026-11-02 · Release 0.12.0: read --out-dir writes one file per section
+- because: a reader agent on an everscout book run (Doctorow, The Reverse Centaur's Guide to Life After AI) found multi-section reads produced one very large output and asked for per-section files
+- files: scripts/rw.py (cmd_read, read parser), SKILL.md (reading section), tests/test_rw.py
+`rw.py read FILE --section 12,14,16 --out-dir DIR` writes `NNN-title.txt` per section and prints each file's size, so an agent opens only the chapters it needs.
+
 ### C-20261102-5 · 2026-11-02 · Release 0.11.1: a --max-chars cut ends at a paragraph or sentence break
 - because: a reader agent on an everscout book run (Kuang and Fabricant, User Friendly) had a chapter cut mid-sentence 750 characters before its end
 - files: scripts/rw.py (clean_cut, cmd_read), SKILL.md (reading limits, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

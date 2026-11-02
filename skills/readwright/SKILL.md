@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.11.1"
+  version: "0.12.0"
 ---
 
 # readwright
@@ -41,7 +41,7 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 - `--skip-code` (read and grep) drops code blocks found by structure (EPUB and HTML `<pre>`, fenced Markdown; PDFs have no marker, so not there) and says how many words went. Advice lines come as one line at the end; `--quiet` drops them.
 - `--strip-boilerplate` (read and grep) drops lines repeated across a PDF's pages: footers, bare page numbers, running headers, found by how often they repeat. Use it on both commands so grep's paragraph numbers match `--at-para`.
 - Every section starts with a header line: `=== [43/80] title | id ... | words | starts at word N of TOTAL (P%) ===`.
-- Output stops at `--max-chars` (default 25,000). The cut ends at a paragraph, line or sentence break near the limit (0.11.1), and the last line then says where to continue: `--offset N`. Keep each read under your shell tool's output limit: Claude Code shows 30,000 characters of a command's output and saves the rest to a file you would then have to open. For two long chapters, read them one call each. For more than that, write the selection with `--out <scratch>/part.txt` and open it with your own Read tool.
+- Output stops at `--max-chars` (default 25,000). The cut ends at a paragraph, line or sentence break near the limit (0.11.1), and the last line then says where to continue: `--offset N`. Keep each read under your shell tool's output limit: Claude Code shows 30,000 characters of a command's output and saves the rest to a file you would then have to open. For two long chapters, read them one call each. For more than that, write the selection with `--out <scratch>/part.txt` and open it with your own Read tool. To hand a reader agent several chapters, `--out-dir <scratch>/secs` writes each selected section to its own file (`NNN-title.txt`) and lists their sizes (0.12.0).
 - A short selection ends with a hint naming the next section, since that is where the text usually continues.
 - `read` without a selector refuses when the text is over the limit (exit code 2) and prints the toc instead. That refusal is the tool working: pick sections.
 - `--format md` keeps headings and lists as Markdown; `--out FILE` writes the selection to a file.

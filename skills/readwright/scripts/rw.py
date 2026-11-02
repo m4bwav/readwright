@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.11.1"
+VERSION = "0.12.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3236,6 +3236,19 @@ def cmd_read(a) -> int:
                                     (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                     (" --format md", a.format == "md")) if on)
+    if getattr(a, "out_dir", None):   # one file per section: a reader agent opens only the ones it needs
+        os.makedirs(a.out_dir, exist_ok=True)
+        ext = "md" if a.format == "md" else "txt"
+        total = 0
+        for i in idx:
+            body = compose(doc, [i], a.format, a.max_words, flags)
+            slug = re.sub(r"[^a-z0-9]+", "-", doc.sections[i - 1].title.lower()).strip("-")[:40] or "section"
+            path = os.path.join(a.out_dir, f"{i:03d}-{slug}.{ext}")
+            write_out(path, body)
+            total += len(body)
+            print(f"{path}  {fmt_n(len(body))} chars (~{fmt_n(len(body) // 4)} tokens)")
+        print(f"wrote {len(idx)} section file(s), {fmt_n(total)} chars (~{fmt_n(total // 4)} tokens) to {a.out_dir}")
+        return 0
     text = compose(doc, idx, a.format, a.max_words, flags)
     if a.out:
         if a.offset:
@@ -3500,6 +3513,7 @@ def main(argv=None) -> int:
     p.add_argument("--offset", type=int, default=0, help="start this many characters into the selection")
     p.add_argument("--at-para", type=int, default=None, help="with --section: start at this paragraph (numbers from grep)")
     p.add_argument("--out", help="write the selection to this file instead of stdout")
+    p.add_argument("--out-dir", help="write each selected section to its own file in this folder (NNN-title.txt) and list their sizes")
     p.add_argument("--format", choices=["txt", "md"], default="txt")
     p.add_argument("--with-next", action="store_true", help="also read the section after each selected one")
     p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")

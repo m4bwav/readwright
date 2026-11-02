@@ -142,3 +142,10 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Hypothesis: the credit lines differ in names and years, so exact-repeat detection (PDF `--strip-boilerplate`) misses them; their shared ending is the stable part.
 - Rule: compare short paragraphs by whole text and by their last four words with digits folded, and drop keys found in 30% or more of sections; keep it opt-in, since templated short body lines can share an ending. Tell distilling readers to batch ranges with `--quiet --max-words`.
 - Evidence: C-20261101-7; on the real file `--drop-repeated` dropped 212 paragraphs, all credit lines (213 "Rights Reserved" matches; the one left is the acknowledgments page), and nothing else; 75 tests pass.
+
+### L-018 · 2026-11-01 · scans-need-ocr: a scanned art book stopped a book run cold
+- Trigger: everscout `lit ingest` refused 3dtotal's *Color & Light* (384 pages, 0 words); a session made a worktree and stopped there. The scan note offered only page images (a 384-page read by eye) and OCR tools that were not installed.
+- Hypothesis: Windows 10 and 11 ship an OCR engine (`Windows.Media.Ocr`) reachable from Windows PowerShell 5.1 with no install; mutool already renders pages.
+- Rule: on a scanned PDF run `rw.py ocr FILE` (in the background for a whole book), then read it like any PDF; sections are pages.
+- Evidence: 2026-11-01, the whole book OCR'd at about 0.8 s a page at 200 dpi; body text, headings and captions read cleanly with a few misread letters ("beginnefs"). Tests: test_ocr_* in tests/test_rw.py. Applied: C-20261101-9.
+

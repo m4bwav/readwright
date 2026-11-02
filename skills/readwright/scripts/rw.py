@@ -52,7 +52,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.8.1"
+VERSION = "0.9.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1645,6 +1645,10 @@ def load_pdf(path) -> Doc:
                       "macOS: `brew install poppler`, Linux: `apt install poppler-utils`) or mutool (MuPDF). "
                       "Nothing was installed. An agent with a Read tool that takes PDF page ranges can read it "
                       "directly instead.")
+    oc = ocr_cache(path)
+    if oc.exists():   # `rw.py ocr` ran on this scan
+        text = oc.read_bytes().decode("utf-8", "replace")
+        doc.notes.append(f"text from OCR (`rw.py ocr`, kept in {oc}); expect misread letters")
     pages = text.split("\f")
     if pages and not pages[-1].strip():
         pages.pop()
@@ -2077,8 +2081,14 @@ def scan_note(doc: Doc, path: str) -> None:
             and q.stem.lower() == p.stem.lower() and q.suffix.lower() in SIBLING_EXTS]
     djvu = " (DjVu copies often carry OCR text)" if any(s.lower().endswith(".djvu") for s in sibs) else ""
     routes = [f"read the copy beside it: {', '.join(sibs)}{djvu}"] if sibs else []
-    routes.append("add a text layer with `ocrmypdf --skip-text IN OUT` (installed)" if find_tool("ocrmypdf")
-                  else "OCR it (ocrmypdf or tesseract; neither is installed)")
+    eng = ocr_engine() if doc.fmt == "pdf" else None
+    if eng:
+        how = "the OCR built into Windows" if eng == "windows" else "tesseract"
+        routes.append(f"OCR it once with `rw.py ocr \"{p.name}\"` ({how}; then info, toc, read and grep use the text)")
+    elif find_tool("ocrmypdf"):
+        routes.append("add a text layer with `ocrmypdf --skip-text IN OUT` (installed)")
+    else:
+        routes.append("OCR it (Windows' built-in OCR, ocrmypdf or tesseract; none is available)")
     if doc.fmt == "pdf":
         mt, pp = tools()["mutool"], find_tool("pdftoppm")
         routes.append("render pages and view them with the agent's image reader: "
@@ -2089,6 +2099,144 @@ def scan_note(doc: Doc, path: str) -> None:
     unit = "pages" if doc.fmt == "pdf" else "sections"
     doc.notes.append(f"no text layer: {fmt_n(words)} words in {fmt_n(pages)} {unit}, so this is probably a scan. "
                      "Ways in: " + "; ".join(routes))
+
+
+# ---------------------------------------------------------------- OCR for scanned PDFs
+
+WIN_OCR_PS = r'''param([string]$Dir)
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
+$null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics, ContentType = WindowsRuntime]
+$asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+function Await($op, $t) { $task = $asTask.MakeGenericMethod($t).Invoke($null, @($op)); $task.Wait(); $task.Result }
+$engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+if ($null -eq $engine) { Write-Error 'no OCR language installed (Settings > Time & language > Language)'; exit 2 }
+$utf8 = New-Object System.Text.UTF8Encoding $false
+Get-ChildItem -Path $Dir -Filter 'p*.png' | ForEach-Object {
+  $f = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync($_.FullName)) ([Windows.Storage.StorageFile])
+  $s = Await ($f.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+  $d = Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($s)) ([Windows.Graphics.Imaging.BitmapDecoder])
+  $b = Await ($d.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+  $r = Await ($engine.RecognizeAsync($b)) ([Windows.Media.Ocr.OcrResult])
+  $out = New-Object System.Collections.Generic.List[string]
+  $prevBottom = -1
+  foreach ($line in $r.Lines) {
+    $top = ($line.Words | ForEach-Object { $_.BoundingRect.Y } | Measure-Object -Minimum).Minimum
+    $h = ($line.Words | ForEach-Object { $_.BoundingRect.Height } | Measure-Object -Maximum).Maximum
+    if ($prevBottom -ge 0 -and ($top - $prevBottom) -gt 0.9 * $h) { $out.Add('') }
+    $out.Add($line.Text)
+    $prevBottom = $top + $h
+  }
+  $s.Dispose()
+  [System.IO.File]::WriteAllText(($_.FullName -replace '\.png$', '.txt'), ($out -join "`n"), $utf8)
+}
+'''
+
+
+def ocr_dir() -> Path:
+    d = Path(os.environ.get("READWRIGHT_OCR_DIR") or Path.home() / ".readwright" / "ocr")
+    return d
+
+
+def ocr_cache(path: str) -> Path:
+    """Where `ocr` keeps a PDF's text: lasting (OCR of a book takes minutes), keyed by path, size and mtime."""
+    st = os.stat(path)
+    key = hashlib.sha1(f"{os.path.abspath(path)}|{st.st_size}|{st.st_mtime_ns}".encode()).hexdigest()[:20]
+    return ocr_dir() / f"{key}.txt"
+
+
+def ocr_engine() -> str | None:
+    """`windows` (the OCR built into Windows 10 and 11, through Windows PowerShell 5.1), `tesseract`, or None."""
+    hide = {t.strip() for t in os.environ.get("RW_HIDE_TOOLS", "").split(",") if t.strip()}
+    if os.name == "nt" and "windows-ocr" not in hide and find_tool("powershell"):
+        return "windows"
+    if "tesseract" not in hide and find_tool("tesseract"):
+        return "tesseract"
+    return None
+
+
+def ocr_pages(path: str, first: int, last: int, dpi: int, engine: str) -> list:
+    """Render pages first..last and OCR them; one text per page, blank lines between paragraphs."""
+    mt, pp = tools()["mutool"], find_tool("pdftoppm")
+    td = tempfile.mkdtemp(prefix="readwright-ocr-")
+    try:
+        if mt:
+            r = run([mt, "draw", "-q", "-r", str(dpi), "-o", os.path.join(td, "p%d.png"), path, f"{first}-{last}"])
+        elif pp:
+            r = run([pp, "-r", str(dpi), "-f", str(first), "-l", str(last), "-png", path, os.path.join(td, "p")])
+        else:
+            raise RWError("ocr needs mutool or pdftoppm to render pages; nothing was installed")
+        if r.returncode != 0:
+            raise RWError("rendering pages failed: " + tool_error(r))
+        imgs = {}
+        for q in Path(td).glob("p*.png"):
+            m = re.match(r"p-?0*(\d+)$", q.stem)
+            if m:
+                imgs[int(m.group(1))] = q
+        if engine == "windows":
+            ps = os.path.join(td, "ocr.ps1")
+            with open(ps, "w", encoding="utf-8-sig") as f:
+                f.write(WIN_OCR_PS)
+            r = run([find_tool("powershell"), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                     "-File", ps, "-Dir", td], timeout=60 + 30 * len(imgs))
+            if r.returncode != 0:
+                raise RWError("Windows OCR failed: " + tool_error(r))
+        else:
+            for q in imgs.values():
+                r = run([find_tool("tesseract"), str(q), str(q.with_suffix(""))], 300)
+                if r.returncode != 0:
+                    raise RWError("tesseract failed: " + tool_error(r))
+        texts = []
+        for n in range(first, last + 1):
+            q = imgs.get(n)
+            t = q.with_suffix(".txt") if q else None
+            texts.append(t.read_bytes().decode("utf-8", "replace").strip() if t and t.exists() else "")
+        return texts
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
+
+
+def cmd_ocr(a) -> int:
+    if detect(a.file) != "pdf":
+        raise RWError("ocr reads PDFs; for a scanned EPUB, extract its page images and view them")
+    engine = ocr_engine()
+    if not engine:
+        raise RWError("no OCR engine: on Windows 10 or 11 the built-in one needs powershell.exe; elsewhere install "
+                      "tesseract (`brew install tesseract`, `apt install tesseract-ocr`). Nothing was installed.")
+    doc = load_pdf(a.file) if not ocr_cache(a.file).exists() else None
+    n = str((doc.meta if doc else {}).get("pages") or "")
+    total = int(n) if n.isdigit() else (len(doc.sections) if doc else 0)
+    cache = ocr_cache(a.file)
+    pages = cache.read_bytes().decode("utf-8").split("\f") if cache.exists() else []
+    if not total:
+        total = len(pages)
+    if a.force:
+        pages = []
+    pages += [""] * (total - len(pages))
+    done = cache.exists() and not a.force
+    if done and not a.pages:
+        print(f"already OCR'd: {fmt_n(total)} pages in {cache} (--force redoes it)")
+        return EXIT_OK
+    first, last = 1, total
+    if a.pages:
+        m = re.fullmatch(r"(\d+)(?:-(\d+))?", a.pages)
+        if not m:
+            raise RWError("--pages takes N or N-M")
+        first, last = int(m.group(1)), int(m.group(2) or m.group(1))
+        last = min(last, total)
+    batch = max(1, a.batch)
+    for lo in range(first, last + 1, batch):
+        hi = min(last, lo + batch - 1)
+        pages[lo - 1:hi] = ocr_pages(a.file, lo, hi, a.dpi, engine)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_bytes("\f".join(pages).encode("utf-8"))
+        print(f"ocr: pages {lo}-{hi} of {total}", file=sys.stderr, flush=True)
+    words = sum(len(p.split()) for p in pages)
+    print(f"ocr ({engine}): {fmt_n(total)} pages, {fmt_n(words)} words, kept in {cache}. info, toc, read and grep "
+          "on the PDF now use this text; OCR misreads letters, so check a quote against a page image.")
+    return EXIT_OK
 
 
 def load_raw(path: str, member: str | None = None, via: str | None = None) -> Doc:
@@ -2802,6 +2950,12 @@ def main(argv=None) -> int:
     common(p, False)
     p.add_argument("--out")
     p.add_argument("--format", choices=["txt", "md"], default="txt")
+    p = sub.add_parser("ocr", help="OCR a scanned PDF once; info, toc, read and grep then use the text")
+    p.add_argument("file")
+    p.add_argument("--pages", help="only these pages, N or N-M (added to what is already kept)")
+    p.add_argument("--dpi", type=int, default=200, help="render resolution (default 200)")
+    p.add_argument("--batch", type=int, default=25, help="pages per render-and-OCR round; progress is saved after each")
+    p.add_argument("--force", action="store_true", help="redo pages already OCR'd")
     p = sub.add_parser("formats", help="supported formats and installed tools")
     p.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
@@ -2810,7 +2964,7 @@ def main(argv=None) -> int:
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
         return {"info": cmd_info, "toc": cmd_toc, "read": cmd_read, "grep": cmd_grep, "dump": cmd_dump,
-                "formats": cmd_formats}[a.cmd](a)
+                "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)
         return EXIT_ERR

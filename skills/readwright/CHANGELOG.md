@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-9 · 2026-11-01 · Release 0.9.0: rw.py ocr reads scanned PDFs with Windows' built-in OCR
+- because: L-018 `scans-need-ocr`; found on 3dtotal's Artists' Master Series: Color & Light (384 scanned pages) for everscout ai-video
+- files: scripts/rw.py (WIN_OCR_PS, ocr_dir, ocr_cache, ocr_engine, ocr_pages, cmd_ocr, load_pdf, scan_note, main), SKILL.md (Step 1, Distilling a book), references/formats.md (scans), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- `rw.py ocr FILE [--pages N-M] [--dpi] [--batch] [--force]` renders a scanned PDF's pages and OCRs them with the engine built into Windows 10 and 11 (Windows PowerShell 5.1, nothing to install) or tesseract, saving after each batch to a lasting cache keyed by path, size and mtime. `info`, `toc`, `read` and `grep` then use that text, with a `text from OCR` note. The scan note names the command first when an engine exists.
+
 ### C-20261101-8 · 2026-11-01 · Release 0.8.1: --drop-repeated drops endnote back-links inside one section
 - because: user request (book runs fix every reader bug); found reading Mollick, Co-Intelligence, for everscout tech-hiring
 - files: scripts/rw.py (drop_repeated, IN_SECTION_MAX_WORDS), SKILL.md (read, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

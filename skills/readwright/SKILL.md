@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.8.1"
+  version: "0.9.0"
 ---
 
 # readwright
@@ -21,7 +21,7 @@ Run `RW info FILE`. It prints the detected format (from the file's bytes, not it
 
 If info reports DRM, say so plainly and stop. readwright never removes DRM, and neither should you: suggest the store's own reader or a DRM-free copy from the seller. If it names a missing tool (pdftotext, calibre's ebook-convert, LibreOffice), pass on the install line it prints. Never install anything without the user's yes. For a PDF, the agent's own Read tool with page ranges is often the better route.
 
-If info prints `note: no text layer`, the book is page images (a scan) and readwright has nothing to read. Take the routes the note names, in its order. First, a copy of the same book in another format beside it; a DjVu copy often carries OCR text. Then OCR, when installed. Last, a few pages rendered at 50 to 80 dpi and viewed with your own image reader. Ask before installing an OCR tool.
+If info prints `note: no text layer`, the book is page images (a scan) and readwright has nothing to read. Take the routes the note names, in its order. First, a copy of the same book in another format beside it; a DjVu copy often carries OCR text. Then, for a PDF, `RW ocr FILE`: it renders the pages and runs the OCR built into Windows 10 and 11 (or tesseract where installed), about a second a page, saving after every 25 pages, and keeps the text in `~/.readwright/ocr/` so `info`, `toc`, `read` and `grep` on the same file use it from then on (`--pages N-M` for a few pages, `--force` to redo). Run a whole book in the background. OCR misreads some letters and has no headings, so sections are pages; check a quote against a page image. Last, a few pages rendered at 50 to 80 dpi and viewed with your own image reader. Ask before installing an OCR tool.
 
 ## Step 2: outline
 
@@ -60,6 +60,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A scanned art or craft book: `RW ocr FILE` first, then `RW grep` for the topic words to find the pages, and read page runs with `--section N-M`. Captions and step numbers come out as short lines; view the page image for a figure the text leans on.
 - Endnotes name the studies a chapter rests on. Read the Notes section with `--drop-repeated` (back-links go) and find one chapter's notes with `RW grep FILE "^Chapter 6" --section <notes>` for the offset, then `read --offset`.
 
 - Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.

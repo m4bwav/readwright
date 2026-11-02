@@ -1,10 +1,10 @@
 # Handoff
 
 ## Current state
-readwright 0.2.0 is public at https://github.com/m4bwav/readwright (tag v0.2.0, GitHub release published 2026-09-29; CI green on the six-job matrix and the new Linux `routes` job, which installs calibre, LibreOffice, poppler, MuPDF, pandoc, antiword and markitdown and runs every route). Installed as readwright@mark-local 0.2.0. Every route through an external tool has been run on real files: `tests/real_files.py` 38/38 on Pride and Prejudice in every format, KFX included (TESTS.md T-20260929-3). `python tests/test_rw.py`: 52 tests. Eval suite 9 cases; last run T-20261023-1 (outcome-2 3/3 with, 0/3 without). Evergreen refresh recorded, next due 2026-11-03.
+readwright 0.11.0 (2026-11-02): `rw.py ocr` reads image-only EPUBs, one-section books split at ALL-CAPS headings, PDF code blocks keep their lines (CHANGELOG C-20261102-4, LEARNINGS L-020 to L-022). Released as v0.11.0 on GitHub. `python tests/test_rw.py`: 97 tests; `tests/real_files.py` 38/38 (TESTS.md T-20261102-1).
 
 ## In progress
-Nothing half-done. Unreleased on main since 0.2.0: the scan note (C-20261023-1, L-011). Version stays 0.2.0 until a release is approved.
+Nothing half-done.
 
 ## Findings worth knowing
 - Token cost for two chapters of Moby-Dick (309k tokens): readwright 12.6k; whole book printed 310k to 317k; by hand 40k; dump to a file then grep 12k to 13k. In the eval, the model without the skill wrote its own zip extractor and matched readwright's cost on EPUB (LEARNINGS L-010). The README says so.
@@ -18,6 +18,8 @@ Nothing half-done. Unreleased on main since 0.2.0: the scan note (C-20261023-1, 
 Scan note threshold and routes (decision entry in [INDEX.md](INDEX.md)).
 
 ## Open
+- PDF tables, definition lists and sidebars still come out flat (code blocks fixed in 0.11.0, L-022). Why not done: `pdftotext -layout` lines interleave the columns of a table or a sidebar with the body, so finding them needs block coordinates. Next step: run `pdftotext -bbox-layout` (XHTML with <block>/<line>/<word> xMin/yMin per page) on pages flagged by a cheap hint (many short lines, aligned gaps of 3+ spaces in the -layout page), group lines into rows by yMin and columns by xMin, and emit `row` paragraphs (Para kind "row" exists) for tables and a separate paragraph for blocks whose xMin sits outside the body column (sidebars). Needs a real PDF with tables to calibrate; none was at hand.
+- Two-column PDFs were not changed: plain pdftotext already reads each column in order on the test files seen.
 - MuPDF 1.24 to 1.27 outline format unchecked (only 1.23); a DRM-protected KFX never seen on disk; pdftotext `-remove-hyphens` undecided (RESEARCH.md, Open questions).
 - ubuntu-latest moves to Ubuntu 26 from 2026-10-19; the `routes` job's apt package names may need a look then.
 - A partly scanned book (text on some pages only) is not flagged; no real example to calibrate on.

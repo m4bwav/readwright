@@ -240,7 +240,10 @@ def make_pdf(path, pages=("Hello from page one", "Second page text")):
     objs = ["<< /Type /Catalog /Pages 2 0 R >>", None, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
     kids = []
     for text in pages:
-        stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET"
+        if isinstance(text, str):
+            stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET"
+        else:   # [(x, line), ...] top down, 14 points apart
+            stream = " ".join(f"BT /F1 12 Tf {x} {720 - 14 * k} Td ({t}) Tj ET" for k, (x, t) in enumerate(text))
         objs.append(f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream")
         objs.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents {len(objs)} 0 R >>")
         kids.append(f"{len(objs)} 0 R")
@@ -1510,6 +1513,155 @@ class TestNotesParts(Base):
         code, _, err = cli("note", p, "99", "--section", "1")
         self.assertNotEqual(code, 0)
         self.assertIn("chapter 1, chapter 2", err)
+
+
+def make_epub_pages(path, bodies, images=None):
+    """One EPUB whose spine is `bodies` {name: HTML body}, plus image members {name: bytes}."""
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip")
+        z.writestr("META-INF/container.xml", "<?xml version='1.0'?><container version='1.0' "
+                   "xmlns='urn:oasis:names:tc:opendocument:xmlns:container'><rootfiles><rootfile "
+                   "full-path='OEBPS/content.opf' media-type='application/oebps-package+xml'/></rootfiles></container>")
+        items = "".join(f"<item id='f{k}' href='{n}' media-type='text/html'/>" for k, n in enumerate(bodies))
+        spine = "".join(f"<itemref idref='f{k}'/>" for k in range(len(bodies)))
+        z.writestr("OEBPS/content.opf", "<?xml version='1.0'?><package xmlns='http://www.idpf.org/2007/opf' version='2.0'>"
+                   f"<metadata/><manifest>{items}</manifest><spine>{spine}</spine></package>")
+        for n, body in bodies.items():
+            z.writestr("OEBPS/" + n, "<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml' "
+                       f"xmlns:xlink='http://www.w3.org/1999/xlink'><body>{body}</body></html>")
+        for n, data in (images or {}).items():
+            z.writestr("OEBPS/" + n, data)
+
+
+def caps_book(pages=120):
+    """Invented page-long paragraphs the way calibre writes a DjVu's OCR: running heads, inline caps headings."""
+    out = []
+    chapters = ["HARBOUR LIGHTS", "TIDE TABLES", "ROPE WORK"]
+    for n in range(pages):
+        ch = chapters[n * len(chapters) // pages]
+        head = f"{ch} THE QUILLMERE MANUAL" if n % 2 else f"THE QUILLMERE MANUAL {ch}"
+        topic = f"KNOTS FOR WET WEATHER {chr(65 + n // 4) * 2} " if n % 4 == 0 else ""
+        out.append(f"{head} {topic}Brannoch coiled the line twice before dawn. " + lorem(110, "gull") + ".")
+    return out
+
+
+NL, FF = chr(10), chr(12)
+
+
+class TestFiveCs(Base):
+    """0.11.0: image-only EPUBs through `rw.py ocr`, inline ALL-CAPS headings, PDF code blocks."""
+
+    def test_epub_page_images_in_spine_order(self):   # L-020 `image-only-epub-ocr`
+        p = self.f("scan.epub")
+        make_epub_pages(p, {"b.xhtml": "<p><img src='img/p2.jpg'/></p><p><img src='img/p3.jpg'/></p>",
+                            "a.xhtml": "<svg><image xlink:href='img/cover.jpg'/></svg>"},
+                        {"img/cover.jpg": b"x", "img/p2.jpg": b"x", "img/p3.jpg": b"x"})
+        self.assertEqual(rw.epub_page_images(str(p)), ["OEBPS/img/p2.jpg", "OEBPS/img/p3.jpg", "OEBPS/img/cover.jpg"])
+        self.assertEqual(rw.epub_page_images(str(self.f("missing.epub"))), [])
+
+    def test_image_only_epub_note_offers_ocr(self):
+        p = self.f("scan.epub")
+        make_epub_pages(p, {"a.xhtml": "<p><img src='p1.jpg'/></p>"}, {"p1.jpg": b"x"})
+        with unittest.mock.patch.object(rw, "ocr_engine", return_value="windows"):
+            out = cli("info", p)[1]
+        self.assertIn("rw.py ocr", out)
+        self.assertNotIn("none is available", out)
+        with hide_tools("windows-ocr", "tesseract"):
+            out = cli("info", p)[1]
+            self.assertIn("neither is available", out)
+            code, _, err = cli("ocr", p)
+            self.assertIn("no OCR engine", err)
+        q = self.f("words.epub")
+        make_epub_pages(q, {"a.xhtml": "<p>No pictures at all here.</p>"})
+        code, _, err = cli("ocr", q)
+        self.assertEqual(code, rw.EXIT_ERR)
+        self.assertIn("shows no images", err)
+
+    def test_ocr_cache_feeds_an_image_only_epub(self):
+        p = self.f("scan.epub")
+        make_epub_pages(p, {"a.xhtml": "".join(f"<p><img src='p{n}.jpg'/></p>" for n in range(3))},
+                        {f"p{n}.jpg": b"x" for n in range(3)})
+        with unittest.mock.patch.dict(os.environ, {"READWRIGHT_OCR_DIR": str(self.f("ocr"))}):
+            c = rw.ocr_cache(str(p))
+            c.parent.mkdir(parents=True)
+            c.write_bytes(FF.join(["Warm light on the pier. " + lorem(30), "The triple-take of the keeper. " + lorem(30), "Gulls. " + lorem(30)]).encode())
+            out = cli("info", p)[1]
+            self.assertIn("text from OCR", out)
+            self.assertNotIn("no text layer", out)
+            code, out, _ = cli("grep", p, "triple-take")
+            self.assertEqual(code, rw.EXIT_OK)
+            self.assertIn("triple-take of the keeper", out)
+            self.assertIn("page 2", cli("toc", p)[1])
+
+    @unittest.skipUnless(rw.ocr_engine() and rw.tools()["mutool"], "no OCR engine or mutool")
+    def test_ocr_reads_epub_page_images(self):
+        pdf = self.f("one.pdf")
+        make_pdf(pdf, pages=("Hello from page one",))
+        subprocess.run([rw.tools()["mutool"], "draw", "-q", "-r", "150", "-o", str(self.f("p.png")), str(pdf), "1"], check=True)
+        p = self.f("scan.epub")
+        make_epub_pages(p, {"a.xhtml": "<p><img src='p.jpg'/></p>"}, {"p.jpg": self.f("p.png").read_bytes()})
+        with unittest.mock.patch.dict(os.environ, {"READWRIGHT_OCR_DIR": str(self.f("ocr"))}):
+            code, out, err = cli("ocr", p)
+            self.assertEqual(code, rw.EXIT_OK, err)
+            self.assertIn("on the EPUB now use", out)
+            self.assertIn("Hello", cli("grep", p, "Hello")[1])
+
+    def test_inline_caps_headings_split_one_huge_section(self):   # L-021 `inline-caps-headings`
+        p = self.f("djvu.epub")
+        make_epub_pages(p, {"index.html": "".join(f"<p>{t}</p>" for t in caps_book())})
+        doc = rw.load(str(p))
+        titles = [(s.title, s.level) for s in doc.sections]
+        for ch in ("HARBOUR LIGHTS", "TIDE TABLES", "ROPE WORK"):
+            self.assertIn((ch, 1), titles)
+            self.assertEqual(sum(1 for t, _ in titles if t == ch), 1, "a running head opens its chapter once")
+        self.assertIn(("KNOTS FOR WET WEATHER AA", 2), titles)
+        self.assertFalse(any("QUILLMERE" in t for t, _ in titles), "the book's own running title is no section")
+        body = rw.render_paras(sum((s.paras for s in doc.sections), []), "txt")
+        self.assertNotIn("TIDE TABLES THE", body)
+        k = next(i for i, s in enumerate(doc.sections, 1) if s.title == "KNOTS FOR WET WEATHER BB")
+        out = cli("read", p, "--section", str(k))[1]
+        self.assertIn("Brannoch coiled the line", out)
+        self.assertIn("KNOTS FOR WET WEATHER BB", cli("toc", p)[1])
+
+    def test_topic_head_on_facing_pages_is_no_chapter(self):   # OCR'd film book: ACTION AXIS inside CONTINUITY
+        pages = caps_book()
+        for n in range(48, 64, 2):   # a topic running head on the facing pages, inside TIDE TABLES
+            pages[n] = "SPLICE GRADES " + pages[n].split(" ", 3)[3]
+        p = self.f("facing.epub")
+        make_epub_pages(p, {"index.html": "".join(f"<p>{t}</p>" for t in pages)})
+        top = [s.title for s in rw.load(str(p)).sections if s.level == 1]
+        self.assertIn("TIDE TABLES", top)
+        self.assertNotIn("SPLICE GRADES", top)
+
+    def test_caps_split_leaves_ordinary_text_alone(self):
+        paras = [rw.Para("p", "Brannoch went to the NATO office and said OK. " + lorem(150)) for _ in range(40)]
+        self.assertIsNone(rw.split_caps(rw.Section("x", paras)))
+        txt = self.f("plain.txt")
+        txt.write_text((NL + NL).join(caps_book()), encoding="utf-8")
+        self.assertIn("TIDE TABLES", [s.title for s in rw.load(str(txt)).sections])
+
+    def test_code_blocks_found_and_kept_as_lines(self):   # L-022 `pdf-code-layout`
+        lines = ["The function below returns an area and nothing else at all.", "def area(r):",
+                 "return 3.14 * r * r", "x = area(2)", "print(x)", "Then the text goes on as prose for a while."]
+        self.assertEqual(rw.code_blocks(lines), [(1, 5)])
+        self.assertEqual(rw.code_blocks(["Plain prose line one.", "Another line of prose."]), [])
+        layout = NL.join(["  The function below returns an area and nothing else at all.", "      def area(r):",
+                          "          return 3.14 * r * r", "      x = area(2)", "      print(x)",
+                          "  Then the text goes on as prose for a while."])
+        plain = NL.join(["The function below returns an area and nothing else at all. def area(r):",
+                         "return 3.14 * r * r x = area(2)", "print(x) Then the text goes on as prose for a while."])
+        out = rw.mark_code(plain, layout)
+        self.assertIn(NL.join([rw.PRE_OPEN, "def area(r):", "    return 3.14 * r * r", "x = area(2)"]), out)
+        self.assertEqual([p.kind for p in rw.text_paras(out, "txt")], ["p", "pre", "p"])
+
+    @unittest.skipUnless(rw.tools()["pdftotext"], "no pdftotext")
+    def test_pdf_code_block_keeps_indentation(self):
+        p = self.f("code.pdf")
+        make_pdf(p, pages=([(72, "Here is a small function for the harbour log."), (72, ""), (72, "def tide(h):"),
+                            (100, "if h > 2:"), (128, "return h * 2"), (100, "return h;"), (72, ""),
+                            (72, "The keeper then wrote the result down.")],))
+        out = cli("read", p)[1]
+        self.assertRegex(out, r"def tide.h.:\n\s+if h > 2:\n\s+return h \* 2")
 
 
 if __name__ == "__main__":

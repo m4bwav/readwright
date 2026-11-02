@@ -884,6 +884,25 @@ class TestCommands(Base):
         _, rest, _ = cli("read", t, "--section", "2", "--max-chars", m.group(1), "--quiet")
         self.assertNotIn("[readwright: shown chars", rest)
 
+    def test_char_cut_ends_at_a_paragraph_and_offset_resumes(self):
+        t = self.cookbook()
+        _, full, _ = cli("read", t, "--section", "2", "--quiet")
+        body = full.split("[readwright:")[0]
+        limit = len(body) - 40
+        _, out, _ = cli("read", t, "--section", "2", "--max-chars", str(limit), "--quiet")
+        m = re.search(r"shown chars 0-([0-9,]+) of", out)
+        self.assertTrue(m, out)
+        end = int(m.group(1).replace(",", ""))
+        self.assertLess(end, limit)
+        self.assertTrue(body[:end].endswith(("\n", " ")), repr(body[end - 20:end]))
+        _, rest, _ = cli("read", t, "--section", "2", "--offset", str(end), "--quiet")
+        self.assertEqual(body[:end] + rest.split("[readwright:")[0], body)
+
+    def test_clean_cut_prefers_paragraph_then_sentence(self):
+        self.assertEqual(rw.clean_cut("aaaa aaaa.\n\nbbbb bb. cc"), "aaaa aaaa.\n\nbbbb bb. ")
+        self.assertEqual(rw.clean_cut("a" * 30 + "\n\nbbbb. cc dd"), "a" * 30 + "\n\nbbbb. ")
+        self.assertEqual(rw.clean_cut("x" * 40), "x" * 40)
+
     def test_max_words_offset_continues_where_the_cut_fell(self):
         t = self.cookbook()
         for fmt in ("txt", "md"):

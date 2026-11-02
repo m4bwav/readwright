@@ -2,7 +2,12 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
-Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
+Entry shape: `### C-20261102-5 · 2026-11-02 · Release 0.11.1: a --max-chars cut ends at a paragraph or sentence break
+- because: a reader agent on an everscout book run (Kuang and Fabricant, User Friendly) had a chapter cut mid-sentence 750 characters before its end
+- files: scripts/rw.py (clean_cut, cmd_read), SKILL.md (reading limits, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- A cut read now backs off to the last paragraph break, else line break, else sentence end, else space, within the piece's last quarter; the footer's `--offset` resumes exactly there, so nothing is lost or repeated. The distilling tip says to size a reader's cap with a margin.
+
+### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
 ### C-20261102-4 · 2026-11-02 · Release 0.11.0: OCR for image-only EPUBs, ALL-CAPS headings split one-section books, PDF code blocks keep their lines
 - because: an everscout book run on a film-technique book (L-020 `image-only-epub-ocr`, L-021 `inline-caps-headings`) and the everscout handoff's PDF layout item (L-022 `pdf-code-layout`)

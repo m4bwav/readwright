@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-8 · 2026-11-02 · Release 0.13.1: clean PDF outline titles and ligatures
+- because: two reader agents on an everscout book run (Mateer, Coppock, Essentials of Economics) saw section titles ending in a literal `\r` and words with ligature characters (Diﬃcult) that a grep for "difficult" misses
+- files: scripts/rw.py (parse_outline, clean, PDF loading), tests/test_rw.py
+MuPDF's escaped `\r`, `\n` and `\t` in an outline title become a space; ligature characters (U+FB00-FB06) are spelled out in titles and PDF text. Still open: small-caps titles split by pdftotext (Tabl e), and sections that open with the previous section's continued text or mix sidebar text into the body (the PDF layout item).
+
 ### C-20261102-7 · 2026-11-02 · Release 0.13.0: read --compact; reader-agent brief tip
 - because: a reader agent on an everscout book run (Levinson, Guerrilla Marketing) stripped blank lines with grep to save tokens, missed `--out`, and first sampled 3,500 characters per section
 - files: scripts/rw.py (read), SKILL.md (Reading, Distilling a book), tests/test_rw.py

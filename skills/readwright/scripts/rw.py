@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.13.0"
+VERSION = "0.13.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -105,8 +105,12 @@ class Doc:
     furniture: set = field(default_factory=set)    # furniture_key() of lines repeated on most pages (PDF)
 
 
+LIGATURES = str.maketrans({"\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl",
+                           "\ufb05": "st", "\ufb06": "st"})
+
+
 def clean(s: str) -> str:
-    s = s.replace("\u00ad", "").replace("\u200b", "").replace("\ufeff", "")
+    s = s.translate(LIGATURES).replace("\u00ad", "").replace("\u200b", "").replace("\ufeff", "")
     return " ".join(s.split())
 
 
@@ -1956,6 +1960,7 @@ def load_pdf(path) -> Doc:
     if oc.exists():   # `rw.py ocr` ran on this scan
         text = oc.read_bytes().decode("utf-8", "replace")
         doc.notes.append(f"text from OCR (`rw.py ocr`, kept in {oc}); expect misread letters")
+    text = text.translate(LIGATURES)   # "Diﬃcult": a search for "difficult" must find it
     pages = text.split("\f")
     if pages and not pages[-1].strip():
         pages.pop()
@@ -2245,7 +2250,9 @@ def parse_outline(text: str) -> list:
     for line in text.splitlines():
         m = re.match(r'^( *)[|+\-]?(\t*) *"(.*)"\s+#?(?:page=)?(\d+)', line)
         if m:
-            title = re.sub(r'\\(["\\])', r"\1", m.group(3))   # MuPDF escapes quotes and backslashes (L-015)
+            # MuPDF escapes quotes and backslashes (L-015) and writes a line break in a title as \r or \n
+            title = re.sub(r'\\(["\\rnt])', lambda e: e.group(1) if e.group(1) in '"\\' else " ", m.group(3))
+            title = " ".join(title.translate(LIGATURES).split())
             out.append((title, int(m.group(4)), max(1, len(m.group(2))) + len(m.group(1)) // 2))
     return out
 

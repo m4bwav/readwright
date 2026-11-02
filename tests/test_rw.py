@@ -1193,6 +1193,11 @@ class TestRealWorldShapes(Base):
         sample = '|\t\t"What is a \\"good\\" lamp? A\\\\B"\t#page=3&view=FitH,1\n'
         self.assertEqual(rw.parse_outline(sample), [('What is a "good" lamp? A\\B', 3, 2)])
 
+    def test_outline_title_drops_escaped_line_breaks_and_ligatures(self):   # Essentials of Economics 2026-11-02: "Model?\r", "Diﬃcult"
+        sample = '|\t\t"Why Are Cycles So Diﬃcult to Predict?\\r"\t#page=9&view=FitH,1\n'
+        self.assertEqual(rw.parse_outline(sample), [("Why Are Cycles So Difficult to Predict?", 9, 2)])
+        self.assertEqual(rw.clean("eﬀect of a ﬁrm"), "effect of a firm")
+
     def test_outline_title_takes_spacing_from_the_page(self):   # L-015: "approachto" from a wrapped heading
         text = "Running head\n\nThe lighthouse keeper is a careful\nwatcher of ships\nbody text follows here.\n"
         t = rw.isolate_headings(text, ["The lighthouse keeper is a carefulwatcher of ships"])

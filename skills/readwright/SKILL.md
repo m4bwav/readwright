@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.9.2"
+  version: "0.9.3"
 ---
 
 # readwright
@@ -72,6 +72,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Cite by chapter number (`ch. 12`) or a toc section title, not by section number alone.
 - In a technical book read the Troubleshooting, Common Issues, Tips and Production sections first: they hold the most practical rules per word. Size sections with `toc`; skip long code walkthroughs or read them with `--skip-code`.
 - Note where the book is dated (library versions, prices, APIs that have since changed).
+- In EPUBs a note reference prints as `[40]` after the sentence (0.9.3). Brief reader agents that bracketed numbers are note markers, not figures; one agent read "$1.4 billion.40" as a different sum before the brackets.
 
 ## Formats
 

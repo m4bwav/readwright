@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.9.2"
+VERSION = "0.9.3"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -438,6 +438,8 @@ class HTMLText(HTMLParser):
         self.links: list = []  # (href, text, depth) for nav documents
         self._a = None
         self.depth = 0
+        self.sup = 0
+        self.noteref = 0   # inside a note reference: its number prints as [40], not glued to the sentence
 
     def flush(self):
         if self.cells is not None:   # inside a table row: blocks within a cell only add a space
@@ -473,8 +475,13 @@ class HTMLText(HTMLParser):
             if a.get(key) and (key == "id" or tag == "a"):
                 pending = 1 if (tag in BLOCK and self.cells is None and clean("".join(self.buf))) else 0
                 self.ids.setdefault(a[key], len(self.paras) + pending)
+        if tag == "sup":
+            self.sup += 1
         if tag == "a":
             self._a = [a.get("href") or "", [], self.depth]
+            kinds = f"{a.get('role') or ''} {a.get('epub:type') or ''}"
+            if "noteref" in kinds or (self.sup and "#" in (a.get("href") or "")):
+                self.noteref += 1
         if tag == "br":
             self.buf.append("\n" if self.pre else " ")
             return
@@ -510,6 +517,10 @@ class HTMLText(HTMLParser):
             return
         if self.skip:
             return
+        if tag == "sup":
+            self.sup = max(0, self.sup - 1)
+        if tag == "a" and self.noteref:
+            self.noteref -= 1
         if tag == "a" and self._a is not None:
             self.links.append((self._a[0], clean("".join(self._a[1])), self._a[2]))
             self._a = None
@@ -539,6 +550,8 @@ class HTMLText(HTMLParser):
             return
         if self.skip:
             return
+        if self.noteref and data.strip():
+            data = f"[{data.strip()}]"
         self.buf.append(data)
         if self._a is not None:
             self._a[1].append(data)
@@ -2935,7 +2948,7 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("info", help="format, size, metadata, sections, words, tokens")
     common(p)
-    p = sub.add_parser("toc", help="numbered sections with titles and word counts")
+    p = sub.add_parser("toc", aliases=["outline"], help="numbered sections with titles and word counts")
     common(p)
     p.add_argument("--limit", type=int, default=1000)
     p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
@@ -2987,7 +3000,7 @@ def main(argv=None) -> int:
         a.section = ",".join(a.section)
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
-        return {"info": cmd_info, "toc": cmd_toc, "read": cmd_read, "grep": cmd_grep, "dump": cmd_dump,
+        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "dump": cmd_dump,
                 "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)

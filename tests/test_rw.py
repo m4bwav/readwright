@@ -532,6 +532,23 @@ class TestFormats(Base):
         self.assertIn("Paraffin & kerosene.", body)
         self.assertEqual(doc.meta["author"], "D. Lamplighter")
 
+    def test_html_noterefs_bracketed(self):
+        # note numbers glued to the sentence ("after that.40 Uber") misread as figures; they print as [40]
+        html = ('<p>They raised $1.4 billion after that.<sup><a href="notes.xhtml#n40" role="doc-noteref">40</a></sup> Uber grew.'
+                ' Area is x<sup>2</sup>; see<a epub:type="noteref" href="#n7">7</a>.</p>')
+        text = rw.render_paras(rw.html_paras(html).paras)
+        self.assertIn("after that.[40] Uber grew.", text)
+        self.assertIn("x2;", text)
+        self.assertIn("see[7].", text)
+
+    def test_outline_alias(self):
+        # the skills say "outline"; a reader agent's first call was rw.py outline
+        p = self.f("lamps.html")
+        make_html(p)
+        r = subprocess.run([sys.executable, str(SCRIPT), "outline", str(p)], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Wicks", r.stdout)
+
     def test_eml(self):
         p = self.f("report.eml")
         make_eml(p)

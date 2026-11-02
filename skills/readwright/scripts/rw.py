@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.11.0"
+VERSION = "0.11.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3018,6 +3018,17 @@ def compose(doc: Doc, idx: list, fmt: str, max_words: int | None = None, flags: 
     return "\n\n".join(blocks) + "\n"
 
 
+def clean_cut(piece: str) -> str:
+    """End a --max-chars cut at the last paragraph break, else line break, else sentence end, in the piece's last
+    quarter, so a reader never gets half a sentence; the footer's --offset then resumes there."""
+    floor = len(piece) * 3 // 4
+    for mark, keep in (("\n\n", 2), ("\n", 1), (". ", 2), ("? ", 2), ("! ", 2), (" ", 1)):
+        k = piece.rfind(mark, floor)
+        if k >= 0:
+            return piece[:k + keep]
+    return piece
+
+
 def para_offsets(doc: Doc, i: int, fmt: str = "txt") -> list:
     """Character offset of each paragraph's text in `read --section i` output (what --offset counts)."""
     s = doc.sections[i - 1]
@@ -3254,6 +3265,8 @@ def cmd_read(a) -> int:
             raise RWError(f"--at-para {a.at_para}: section {idx[0]} has {len(po)} paragraphs")
         start += po[a.at_para - 1]
     piece = text[start:start + limit]
+    if start + limit < len(text):
+        piece = clean_cut(piece)
     sys.stdout.write(piece)
     end = start + len(piece)
     if end < len(text):

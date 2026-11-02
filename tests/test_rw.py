@@ -1184,6 +1184,28 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.strip_furniture(doc), 8 * 3 - 1)   # the heading line stays
         self.assertTrue(all("Body text" in p.text for p in doc.sections[0].paras[1:]))
 
+    def test_line_end_hyphens_rejoin(self):
+        H = "‐"
+        paras = rw.text_paras(f"The conven{H}\ntions of Lang{H}\nChain and soft­\nhyphens, a well-\nknown fact,\nnot a dash -\nOkay.", "txt")
+        self.assertEqual(paras[0].text, "The conventions of LangChain and softhyphens, a well-known fact, not a dash - Okay.")
+        self.assertEqual(rw.join_lines([f"story{H} telling and pre{H} and post-war"]), f"storytelling and pre{H} and post-war")
+        P = rw.Para
+        pages = [[P("p", "Some prob" + H)], [P("p", "lems remain."), P("p", "Next.")]]
+        rw.join_split_pages(pages)
+        self.assertEqual(pages[0][0].text, "Some problems remain.")
+        self.assertEqual([p.text for p in pages[1]], ["Next."])
+
+    def test_running_heads_strip_only_at_page_edges(self):
+        page = ("4 | Chapter 1: The Five Principles\n\nBody text here.\n\nName | Age | 3\n\nA | 7\n\n"
+                "More text.\n\nOverview of the Principles | 5\n")
+        out = rw.strip_running_heads(page)
+        self.assertNotIn("Chapter 1", out)
+        self.assertNotIn("Overview", out)
+        self.assertIn("Name | Age | 3", out)
+        self.assertIn("A | 7", out)   # not at a page edge
+        self.assertIn("Body text here.", out)
+        self.assertEqual(rw.strip_running_heads("Name | Age | 3\nrow\nx | y | 9"), "Name | Age | 3\nrow\nx | y | 9")
+
     def test_drop_repeated_note_backlinks_in_one_section(self):
         P = rw.Para
         notes = [P("h", "Notes", 1)]

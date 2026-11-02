@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2755,7 +2755,7 @@ def cmd_read(a) -> int:
         if not piece.endswith("\n"):
             sys.stdout.write("\n")
         print(f"[readwright: shown chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(len(text))}; continue with "
-              f"--offset {end} or write it all with --out FILE]")
+              f"--offset {end}, show it all with --max-chars {len(text) - start}, or write it all with --out FILE]")
     if added and not a.with_next:
         hints.append(f"the title matched a short section, so the section after it was added ({', '.join(map(str, added))}): "
                      f"a chapter's body often follows its title page; use --section to read exactly one section")

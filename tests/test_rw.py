@@ -856,6 +856,14 @@ class TestCommands(Base):
         self.assertIn("[readwright: cut at 10 of 122 words; continue with --section 2 --offset ", out)
         self.assertEqual(cli("read", t, "--section", "1", "--max-words", "0")[0], 1)
 
+    def test_char_cut_footer_offers_max_chars_for_the_rest(self):
+        t = self.cookbook()
+        _, out, _ = cli("read", t, "--section", "2", "--max-chars", "30", "--quiet")
+        m = re.search(r"show it all with --max-chars ([0-9]+)", out)
+        self.assertTrue(m, out)
+        _, rest, _ = cli("read", t, "--section", "2", "--max-chars", m.group(1), "--quiet")
+        self.assertNotIn("[readwright: shown chars", rest)
+
     def test_max_words_offset_continues_where_the_cut_fell(self):
         t = self.cookbook()
         for fmt in ("txt", "md"):

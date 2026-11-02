@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.9.1"
+  version: "0.9.2"
 ---
 
 # readwright
@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 - Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.
 - Read the introduction, each chapter summary and any results or comparison sections first (`grep -i "summary|conclusion|results"` with `--count` finds them), and grep the rest for the terms you need.
+- Reader agents read a whole chapter in one call with `--max-chars` set above its size (the toc word count x about 6), or `--out FILE` then read the file; the default 25k cap made two agents sample 60-85k-character chapters. 
 - Over about 150k words, split by part across parallel reader agents. Each returns principles in its own words with a citation and quotes of 25 words or fewer.
 - Read a run of sections in one call, batched by chapter, not one section per call: `RW read FILE --section 9-26 --quiet --max-words 400`. Size `--max-words` so sections x words x about 6 characters stays under 25k characters (the `--max-chars` default); each cut line gives the `--offset` to resume. Add `--drop-repeated` when every section carries the same credit or copyright line (image credits ending "All Rights Reserved"): it drops short paragraphs that recur in 30% or more of sections, verbatim or with the same last four words, and says how many went. It is off by default because a book's own templated short lines can match; check the count looks like one line per section.
 - Cite by chapter number (`ch. 12`) or a toc section title, not by section number alone.

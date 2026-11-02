@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-11 · 2026-11-01 · Release 0.9.2: the character-cut footer offers --max-chars for the rest
+- because: reader reports on Tannen, Talking From 9 to 5 for everscout tech-hiring (two agents read 50-85k-character chapters in 25k slices or sampled them, not knowing --max-chars existed)
+- files: scripts/rw.py (cmd_read footer), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- A `read` cut by the character cap now says `show it all with --max-chars N` (N = the rest of the selection) beside `--offset` and `--out`. The skill tells book runs to give reader agents that flag.
+
 ### C-20261101-10 · 2026-11-01 · Release 0.9.1: printed-page offset in info; grep names case-insensitive hits
 - because: L-019 `printed-page-offset`; reader report on Color & Light for everscout ai-video
 - files: scripts/rw.py (printed_offset, load_pdf, cmd_grep), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

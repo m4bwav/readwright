@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.5.1"
+  version: "0.6.0"
 ---
 
 # readwright
@@ -33,10 +33,11 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 
 ## Step 3: read only what is needed
 
-- `RW read FILE --section 43-44` (also `N`, `N-`, `N,M`) or `--title "REGEX"` (case-insensitive, matched against titles and ids; when nothing matches, spaces are ignored, so `westgate` finds WEST GATE).
+- `RW read FILE --section 43-44` (also `N`, `N-`, `N,M`; a repeated `--section` adds up) or `--title "REGEX"` (case-insensitive, matched against titles and ids; when nothing matches, spaces are ignored, so `westgate` finds WEST GATE).
 - When `--title` lands on a section under 300 words, the section after it is added and a note says so. `--with-next` does the same for any selection.
 - A section whose title repeats 3 or more times in the book ("Getting ready", "How to do it...", "There's more...") is shown with the nearest distinctive heading before it, in `read` headers and in `toc`: `How to do it... (in: Following a path)` (`in` in toc JSON).
 - `--max-words N` caps each selected section at N words and says how many were left out, so a batch like `--section 27-58 --max-words 80` stays small. Read a cut section in full with `--section N`.
+- `--strip-boilerplate` (read and grep) drops lines repeated across a PDF's pages: footers, bare page numbers, running headers, found by how often they repeat. Use it on both commands so grep's paragraph numbers match `--at-para`.
 - Every section starts with a header line: `=== [43/80] title | id ... | words | starts at word N of TOTAL (P%) ===`.
 - Output stops at `--max-chars` (default 25,000). The last line then says where to continue: `--offset N`. Keep each read under your shell tool's output limit: Claude Code shows 30,000 characters of a command's output and saves the rest to a file you would then have to open. For two long chapters, read them one call each. For more than that, write the selection with `--out <scratch>/part.txt` and open it with your own Read tool.
 - A short selection ends with a hint naming the next section, since that is where the text usually continues.

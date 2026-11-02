@@ -44,3 +44,6 @@ A recipe cookbook (EPUB from mobi) split each recipe into sections titled only "
 
 ## 2026-11-01 toc --depth and chapter numbers (0.5.0)
 Distilling a Packt EPUB showed every chapter number as its own empty toc section. toc now merges bare numbers into `Ch. N: Title`, `toc --depth N` rolls up words, SKILL.md has a Distilling a book section. C-20261101-3, L-013.
+
+## 2026-11-01 same-page PDF sections, spaced titles, --strip-boilerplate (0.6.0)
+Reading a MEAP PDF exposed: outline titles missing spaces at line joins, same-page outline entries sharing one text (headings run into paragraphs, set order lost), escaped quotes in titles, repeated `--section` keeping only the last, and footers on every page. All fixed with tests (69); `--strip-boilerplate` on read and grep is opt-in, so toc word counts and paragraph numbers stay as before unless asked. C-20261101-5, L-015.

@@ -806,8 +806,67 @@ class TestCommands(Base):
         self.assertEqual(code, 0)
         self.assertLess(len(out), len(full) // 3)
         self.assertEqual(out.count("=== ["), full.count("=== ["))
-        self.assertRegex(out, r"[0-9]+ more words; read all with --section 2]")
+        self.assertIn("[readwright: cut at 10 of 122 words; continue with --section 2 --offset ", out)
         self.assertEqual(cli("read", t, "--section", "1", "--max-words", "0")[0], 1)
+
+    def test_max_words_offset_continues_where_the_cut_fell(self):
+        t = self.cookbook()
+        for fmt in ("txt", "md"):
+            _, out, _ = cli("read", t, "--section", "2", "--max-words", "7", "--format", fmt, "--quiet")
+            m = re.search(r"cut at 7 of 122 words; continue with --section 2 --offset ([0-9]+)", out)
+            self.assertTrue(m, out)
+            if fmt == "md":
+                self.assertIn("--format md]", out)
+            _, rest, _ = cli("read", t, "--section", "2", "--offset", m.group(1), "--format", fmt, "--quiet")
+            self.assertTrue(rest.startswith(" consectetur adipiscing"), rest[:40])
+
+    def test_multi_section_read_prints_one_hint(self):
+        t = self.f("short.md")
+        t.write_text("\n\n".join(f"## Part {i}\n\n{lorem(5)}" for i in range(1, 7)), encoding="utf-8")
+        _, out, _ = cli("read", t, "--section", "1-4")
+        self.assertEqual(out.count("[readwright:"), 1)
+        self.assertIn("continue in section 5", out.splitlines()[-1])
+        _, out, _ = cli("read", t, "--section", "1-6")
+        self.assertNotIn("[readwright:", out)   # nothing comes after the selection
+        _, out, _ = cli("read", t, "--section", "1-2", "--quiet")
+        self.assertNotIn("[readwright:", out)
+
+    def code_epub(self):
+        src, dst = self.f("plain.epub"), self.f("code.epub")
+        make_epub(src)
+        ch2 = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+               "<h1 id='c2'>Chapter Two</h1><p>Set the flag before the run starts.</p>"
+               "<pre data-type='programlisting'><code>import tide\nfor gull in tide.count(): print(gull)</code></pre>"
+               "<p>Then check the import log for gulls.</p>"
+               "<p>A line of prose can look like code = yes; it stays.</p>"
+               "<h1 id='c3'>Chapter Three</h1><p>The ledger listed every ship.</p>"
+               "<pre>import ledger\nledger.open()</pre></body></html>")
+        with zipfile.ZipFile(src) as zi, zipfile.ZipFile(dst, "w") as zo:
+            for info in zi.infolist():
+                zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
+        return dst
+
+    def test_skip_code_on_read_and_grep(self):
+        e = self.code_epub()
+        _, full, _ = cli("read", e, "--section", "2-3")
+        self.assertIn("tide.count()", full)
+        _, out, _ = cli("read", e, "--section", "2-3", "--skip-code")
+        self.assertNotIn("tide.count()", out)
+        self.assertNotIn("ledger.open()", out)
+        self.assertIn("code = yes; it stays", out)   # structure decides, not how a line looks
+        self.assertIn("--skip-code left out 10 words in 2 code blocks", out)
+        _, out, _ = cli("read", e, "--section", "2", "--skip-code")
+        self.assertIn("left out 7 words in 1 code blocks", out)
+        _, g, _ = cli("grep", e, "import", "--skip-code")
+        self.assertIn("import log", g)
+        self.assertIn("1 matches in 1 paragraphs", g)
+        self.assertIn("left out 10 words in 2 code blocks", g)
+        self.assertIn("3 matches", cli("grep", e, "import")[1])
+
+    def test_skip_code_says_pdf_has_no_marker(self):
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("One", [rw.Para("p", "def run(): pass")])])
+        self.assertIn("no structural code marker", rw.code_note(doc, rw.skip_code(doc), [1]))
+        self.assertEqual(doc.sections[0].words(), 3)
 
     def test_toc_flags_giant_section(self):
         doc = rw.Doc("x.pdf", "pdf", sections=[

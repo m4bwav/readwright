@@ -52,7 +52,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.6.0"
+VERSION = "0.7.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2212,16 +2212,53 @@ def md_head(doc: Doc, i: int, s: Section) -> str:
 
 
 def cap_words(paras: list, n: int) -> tuple:
-    """The first n words of paras (whole paragraphs, the last one cut), and how many words were left out."""
+    """The first n words of paras (whole paragraphs, the last one cut at a word end with its spacing kept),
+    the words left out, and the cut paragraph's prefix without the ellipsis (None when the cut fell between paragraphs)."""
     out, left = [], n
     total = sum(len(p.text.split()) for p in paras)
+    part = None
     for p in paras:
         if left <= 0:
             break
         w = p.text.split()
-        out.append(p if len(w) <= left else replace(p, text=" ".join(w[:left]) + " ..."))
+        if len(w) <= left:
+            out.append(p)
+        else:
+            end = list(re.finditer(r"\S+", p.text))[left - 1].end()
+            part = replace(p, text=p.text[:end])
+            out.append(replace(p, text=p.text[:end] + " ..."))
         left -= len(w)
-    return out, max(0, total - n)
+    return out, max(0, total - n), part
+
+
+def cut_offset(body: list, part, fmt: str) -> int:
+    """Where the shown text of a capped section ends, counted as `read --offset` counts within the section body."""
+    mark = chr(0)
+    if part is None:
+        return len(render_paras(body, fmt)) + 2   # the next paragraph starts after the blank line
+    return render_paras(body[:-1] + [replace(part, text=part.text + mark)], fmt).index(mark)
+
+
+def skip_code(doc: Doc) -> dict:
+    """Drop code blocks: paragraphs of kind pre (HTML and EPUB <pre>, fenced or indented Markdown), found by
+    structure, never by guessing from a line's look. Returns {section number: (blocks, words)} for sections that had any."""
+    out = {}
+    for n, s in enumerate(doc.sections, 1):
+        code = [p for p in s.paras if p.kind == "pre"]
+        if code:
+            out[n] = (len(code), sum(len(p.text.split()) for p in code))
+            s.paras = [p for p in s.paras if p.kind != "pre"]
+    return out
+
+
+def code_note(doc: Doc, skipped: dict, idx) -> str:
+    blocks = sum(skipped[i][0] for i in idx if i in skipped)
+    words = sum(skipped[i][1] for i in idx if i in skipped)
+    if blocks:
+        return f"--skip-code left out {fmt_n(words)} words in {fmt_n(blocks)} code blocks"
+    if doc.fmt.startswith("pdf"):
+        return "--skip-code found no code blocks: a PDF has no structural code marker, so code stays in (EPUB, HTML and Markdown only)"
+    return "--skip-code found no code blocks"
 
 
 def header_line(doc: Doc, i: int, s: Section, offsets: list, total_words: int) -> str:
@@ -2239,7 +2276,7 @@ def word_offsets(doc: Doc) -> list:
     return out
 
 
-def compose(doc: Doc, idx: list, fmt: str, max_words: int | None = None) -> str:
+def compose(doc: Doc, idx: list, fmt: str, max_words: int | None = None, flags: str = "") -> str:
     offs = word_offsets(doc)
     total = offs[-1] + doc.sections[-1].words() if doc.sections else 0
     blocks = []
@@ -2251,12 +2288,14 @@ def compose(doc: Doc, idx: list, fmt: str, max_words: int | None = None) -> str:
             body = paras
         else:
             head, body = header_line(doc, i, s, offs, total), s.paras
-        cut = 0
+        cut, total_s = 0, sum(len(p.text.split()) for p in body)
         if max_words:
-            body, cut = cap_words(body, max_words)
+            body, cut, part = cap_words(body, max_words)
         text = render_paras(body, fmt)
         if cut:
-            text += f"\n[readwright: {fmt_n(cut)} more words; read all with --section {i}]"
+            at = len(head) + 2 + cut_offset(body, part, fmt)
+            text += (f"\n[readwright: cut at {fmt_n(total_s - cut)} of {fmt_n(total_s)} words; continue with "
+                     f"--section {i} --offset {at}{flags}]")
         blocks.append(head + "\n\n" + text)
     return "\n\n".join(blocks) + "\n"
 
@@ -2442,6 +2481,8 @@ def cmd_read(a) -> int:
         strip_furniture(doc)
     if doc.fmt == "zip":
         raise RWError("this is a zip archive; list it with toc and pick a member with --member NAME")
+    hints = []
+    skipped = skip_code(doc) if getattr(a, "skip_code", False) else None
     if not any(s.words() for s in doc.sections):   # a scan's pages are sections with no words (L-011)
         print(doc_head(doc))
         for n in doc.notes:
@@ -2457,7 +2498,12 @@ def cmd_read(a) -> int:
             added.append(i + 1)
     if a.max_words is not None and a.max_words < 1:
         raise RWError("--max-words must be 1 or more")
-    text = compose(doc, idx, a.format, a.max_words)
+    if skipped is not None:
+        hints.insert(0, code_note(doc, skipped, idx))
+    flags = "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
+                                    (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
+                                    (" --format md", a.format == "md")) if on)
+    text = compose(doc, idx, a.format, a.max_words, flags)
     if a.out:
         if a.offset:
             text = text[a.offset:]
@@ -2466,6 +2512,8 @@ def cmd_read(a) -> int:
         write_out(a.out, text)
         print(f"wrote {fmt_n(len(text))} chars ({fmt_n(len(text.split()))} words, ~{fmt_n(len(text) // 4)} tokens) "
               f"from {len(idx)} section(s) to {a.out}")
+        if hints and not getattr(a, "quiet", False):
+            print("[readwright: " + "; ".join(hints) + "]")
         return 0
     limit = a.max_chars if a.max_chars is not None else DEFAULT_MAX_CHARS
     if not (a.section or a.title) and len(text) > limit:
@@ -2492,13 +2540,15 @@ def cmd_read(a) -> int:
         print(f"[readwright: shown chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(len(text))}; continue with "
               f"--offset {end} or write it all with --out FILE]")
     if added and not a.with_next:
-        print(f"[readwright: the title matched a short section, so the section after it was added ({', '.join(map(str, added))}): "
-              f"a chapter's body often follows its title page. Use --section to read exactly one section]")
+        hints.append(f"the title matched a short section, so the section after it was added ({', '.join(map(str, added))}): "
+                     f"a chapter's body often follows its title page; use --section to read exactly one section")
     last = idx[-1]
     if sum(doc.sections[i - 1].words() for i in idx) < SHORT_WORDS and last < len(doc.sections) and last + 1 not in idx:
         nxt = doc.sections[last]   # chapter-opener pages often hold only a title and an epigraph
-        print(f"[readwright: the selection is short; the text may continue in section {last + 1}: "
-              f"{nxt.title} ({fmt_n(nxt.words())} words). Read it with --section {last + 1} or --section {idx[0]}-{last + 1}]")
+        hints.append(f"the selection is short; the text may continue in section {last + 1}: {nxt.title} "
+                     f"({fmt_n(nxt.words())} words), read it with --section {last + 1}")
+    if hints and not getattr(a, "quiet", False):   # one combined line at the end, however many sections were read
+        print("[readwright: " + "; ".join(hints) + "]")
     return 0
 
 
@@ -2508,12 +2558,14 @@ def cmd_grep(a) -> int:
         strip_furniture(doc)
     if doc.fmt == "zip":
         raise RWError("this is a zip archive; pick a member with --member NAME")
+    skipped = skip_code(doc) if getattr(a, "skip_code", False) else None
     pat = re.escape(a.pattern) if a.fixed else a.pattern
     try:
         rx = re.compile(pat, re.I if a.ignore_case else 0)
     except re.error as e:
         raise RWError(f"bad pattern: {e}")
     idx = select(doc, a.section, a.title) if (a.section or a.title) else range(1, len(doc.sections) + 1)
+    code_skipped = code_note(doc, skipped, idx) if skipped is not None else ""
     hits = []
     per = {}
     for i in idx:
@@ -2561,7 +2613,8 @@ def cmd_grep(a) -> int:
                 print("  " + (t if len(t) <= a.width // 2 else t[:a.width // 2] + " ..."))
     shown = min(len(hits), a.max)
     print(f"[{total} matches in {len(hits)} paragraphs across {len(per)} sections; showed {shown}"
-          + (f"; raise --max, use --count, or narrow with --section N-M" if len(hits) > a.max else "") + "]")
+          + (f"; raise --max, use --count, or narrow with --section N-M" if len(hits) > a.max else "")
+          + (f"; {code_skipped}" if code_skipped else "") + "]")
     return 0 if hits else 1
 
 
@@ -2677,6 +2730,8 @@ def main(argv=None) -> int:
     p.add_argument("--with-next", action="store_true", help="also read the section after each selected one")
     p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")
     p.add_argument("--strip-boilerplate", action="store_true", help="drop lines repeated on most pages (PDF footers, page numbers, running headers)")
+    p.add_argument("--skip-code", action="store_true", help="drop code blocks (<pre> in EPUB and HTML, fenced Markdown; not PDF) and say how many words went")
+    p.add_argument("--quiet", "-q", action="store_true", help="no [readwright: ...] advice lines (cut footers stay)")
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)
     p.add_argument("pattern")
@@ -2690,6 +2745,7 @@ def main(argv=None) -> int:
     p.add_argument("--title", "-t")
     p.add_argument("--format", choices=["txt", "md"], default="txt", help="read format the printed offsets count in")
     p.add_argument("--strip-boilerplate", action="store_true", help="as for read; use it on both so paragraph numbers agree")
+    p.add_argument("--skip-code", action="store_true", help="as for read: search prose only; use it on both so paragraph numbers agree")
     p = sub.add_parser("dump", help="whole text to a file with section markers")
     common(p, False)
     p.add_argument("--out")

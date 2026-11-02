@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-6 · 2026-11-01 · Release 0.7.0: one combined hint, --quiet, --max-words offsets, --skip-code, technical-book tips
+- because: L-016 `code-heavy-batch-reads`
+- files: scripts/rw.py (cap_words, cut_offset, skip_code, code_note, compose, cmd_read, cmd_grep, main), SKILL.md (read, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- `read` gathers its advice into one `[readwright: ...]` line at the end and `--quiet` drops it. A `--max-words` cut ends `[cut at N of M words; continue with --section S --offset C]`, where C resumes exactly at the cut (the cut keeps the paragraph's spacing). `--skip-code` on read and grep drops `pre` paragraphs (EPUB/HTML `<pre>`, fenced Markdown) and counts the words skipped in the selection; on a PDF it says there is no structural marker. SKILL.md: read Troubleshooting, Common Issues, Tips and Production sections of a technical book first.
+
 ### C-20261101-5 · 2026-11-01 · Release 0.6.0: same-page PDF sections, spaced titles, --strip-boilerplate, repeated --section
 - because: L-015 `same-page-outline-entries`
 - files: scripts/rw.py (load_pdf, isolate_headings, place_on_pages, respace_title, page_furniture, strip_furniture, heading_at, parse_outline, cmd_read, cmd_grep, main), SKILL.md (read, grep), ../../tests/test_rw.py, version in the five places AGENTS.md lists

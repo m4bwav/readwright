@@ -136,3 +136,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Hypothesis: advice was printed per condition rather than once; `--max-words` gave no exact resume point; code is marked by structure (`<pre>`) in EPUB but a line regex cannot tell code from prose.
 - Rule: one combined advice line per read, `--quiet` to drop it; every cut gives a `--section S --offset C` that resumes at the cut; skip code by paragraph kind, never by line pattern; in technical books read the troubleshooting and tips sections first.
 - Evidence: C-20261101-6, 73 tests; on the real file `--skip-code` on sections 60-70 left out 1,024 words in 9 code blocks and grep "import" fell from 154 matches to 31.
+
+### L-017 · 2026-11-01 · repeated-credit-lines: a per-image credit line in every section of a film book
+- Trigger: distilling a film-technique EPUB: almost every section ends with a frame-grab credit (film, director, studio, year, "All Rights Reserved"), and the reader looped `read --section N` one section at a time, not knowing ranges and `--quiet` existed, so output overflowed.
+- Hypothesis: the credit lines differ in names and years, so exact-repeat detection (PDF `--strip-boilerplate`) misses them; their shared ending is the stable part.
+- Rule: compare short paragraphs by whole text and by their last four words with digits folded, and drop keys found in 30% or more of sections; keep it opt-in, since templated short body lines can share an ending. Tell distilling readers to batch ranges with `--quiet --max-words`.
+- Evidence: C-20261101-7; on the real file `--drop-repeated` dropped 212 paragraphs, all credit lines (213 "Rights Reserved" matches; the one left is the acknowledgments page), and nothing else; 75 tests pass.

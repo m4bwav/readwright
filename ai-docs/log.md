@@ -50,3 +50,6 @@ Reading a MEAP PDF exposed: outline titles missing spaces at line joins, same-pa
 
 ## 2026-11-01 · 0.7.0 from an ML-book reader's friction
 One combined advice line per read and `--quiet`; `--max-words` cuts end with an exact `--offset` to resume; `--skip-code` on read and grep drops `<pre>` blocks by structure (not PDFs: no marker); SKILL.md tells readers of technical books to start with troubleshooting and tips sections. 73 tests. See CHANGELOG C-20261101-6 and LEARNINGS L-016 `code-heavy-batch-reads`.
+
+## 2026-11-01 · 0.8.0 from a film-book reader's friction
+`read --drop-repeated` drops short paragraphs recurring in 30%+ of sections (whole text or last four words, digits folded); opt-in. "Distilling a book" tells readers to batch chapter ranges with `--section N-M --quiet --max-words N` under 25k characters. Checked on a film-technique EPUB: 212 credit lines dropped, no other text. See L-017 `repeated-credit-lines`.

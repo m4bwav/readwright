@@ -541,6 +541,14 @@ class TestFormats(Base):
         self.assertIn("x2;", text)
         self.assertIn("see[7].", text)
 
+    def test_outline_alias(self):
+        # the skills say "outline"; a reader agent's first call was rw.py outline
+        p = self.f("lamps.html")
+        make_html(p)
+        r = subprocess.run([sys.executable, str(SCRIPT), "outline", str(p)], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Wicks", r.stdout)
+
     def test_eml(self):
         p = self.f("report.eml")
         make_eml(p)

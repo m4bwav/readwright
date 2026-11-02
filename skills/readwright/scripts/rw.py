@@ -2948,7 +2948,7 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("info", help="format, size, metadata, sections, words, tokens")
     common(p)
-    p = sub.add_parser("toc", help="numbered sections with titles and word counts")
+    p = sub.add_parser("toc", aliases=["outline"], help="numbered sections with titles and word counts")
     common(p)
     p.add_argument("--limit", type=int, default=1000)
     p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
@@ -3000,7 +3000,7 @@ def main(argv=None) -> int:
         a.section = ",".join(a.section)
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
-        return {"info": cmd_info, "toc": cmd_toc, "read": cmd_read, "grep": cmd_grep, "dump": cmd_dump,
+        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "dump": cmd_dump,
                 "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)

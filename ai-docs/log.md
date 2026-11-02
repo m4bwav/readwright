@@ -47,3 +47,6 @@ Distilling a Packt EPUB showed every chapter number as its own empty toc section
 
 ## 2026-11-01 same-page PDF sections, spaced titles, --strip-boilerplate (0.6.0)
 Reading a MEAP PDF exposed: outline titles missing spaces at line joins, same-page outline entries sharing one text (headings run into paragraphs, set order lost), escaped quotes in titles, repeated `--section` keeping only the last, and footers on every page. All fixed with tests (69); `--strip-boilerplate` on read and grep is opt-in, so toc word counts and paragraph numbers stay as before unless asked. C-20261101-5, L-015.
+
+## 2026-11-01 · 0.7.0 from an ML-book reader's friction
+One combined advice line per read and `--quiet`; `--max-words` cuts end with an exact `--offset` to resume; `--skip-code` on read and grep drops `<pre>` blocks by structure (not PDFs: no marker); SKILL.md tells readers of technical books to start with troubleshooting and tips sections. 73 tests. See CHANGELOG C-20261101-6 and LEARNINGS L-016 `code-heavy-batch-reads`.

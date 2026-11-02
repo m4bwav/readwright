@@ -61,3 +61,7 @@ One combined advice line per read and `--quiet`; `--max-words` cuts end with an 
 ## 2026-11-02: 0.10.1 PDF hyphens and running heads
 
 O'Reilly PDFs printed words split with U+2010 (`conven- tions`) and running heads with page numbers (`4 | Chapter 1: ...`) mid-text. `join_lines` rejoins split words (pdftotext had already put both halves on one line with a space, so a mid-line pattern is needed too), `strip_running_heads` drops `N | title` / `title | N` at a page's first or last line, default on for PDFs. Tests added; checked on the reported book.
+
+## 2026-11-02: 0.10.2 PDF pipe-less heads, page-break sentences, vocabulary joins
+
+Reader reports from an O'Reilly PDF. Added running_head_keys (frequency or outline match for number+title edge lines), page-break sentence joins, book-vocabulary rejoins (spaced splits, lost compound hyphens) and caption splits; see CHANGELOG C-20261102-3. Frequency alone is unsafe: prose lines like "Input:" repeat at page edges, hence the punctuation guard. Left: code blocks, tables, definition lists, sidebars (need layout or font data; a candidate route is pdftotext -bbox-layout or -layout for flagged regions).

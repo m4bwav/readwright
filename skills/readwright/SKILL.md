@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.10.2"
+  version: "0.11.0"
 ---
 
 # readwright
@@ -61,9 +61,10 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 ## Distilling a book
 
 - Cite printed pages, not PDF pages: when the page numbers on the pages differ from the PDF's, `info` prints `printed_pages: PDF page + N`.
+- An image-only EPUB (page pictures, `no text layer`) often has a DjVu twin in the same folder with OCR text: read that first. Else `RW ocr FILE` works on the EPUB too (0.11.0). A DjVu or plain-text book that comes out as one huge section is split at its ALL-CAPS headings automatically; check `RW toc` and expect a few OCR-misread titles.
 - A scanned art or craft book: `RW ocr FILE` first, then `RW grep` for the topic words to find the pages, and read page runs with `--section N-M`. Captions and step numbers come out as short lines; view the page image for a figure the text leans on.
 - Endnotes name the studies a chapter rests on. Read the Notes section with `--drop-repeated` (back-links go) and find one chapter's notes with `RW grep FILE "^Chapter 6" --section <notes>` for the offset, then `read --offset`.
-- PDF text since 0.10.1 rejoins words hyphenated at line ends (`conven- tions`) and drops running heads with a page number (`4 | Chapter 1: ...`); if a reader still sees them, the PDF uses another pattern: report it. Since 0.10.2 pipe-less heads (`42  Chapter 3: ...`), sentences split by a page break and words split without a hyphen (`tikto ken`) are fixed from the book's own word counts; code blocks, tables and sidebars in PDFs still come out flattened, so check those against the page (`--section` gives the page numbers).
+- PDF text since 0.10.1 rejoins words hyphenated at line ends (`conven- tions`) and drops running heads with a page number (`4 | Chapter 1: ...`); if a reader still sees them, the PDF uses another pattern: report it. Since 0.10.2 pipe-less heads (`42  Chapter 3: ...`), sentences split by a page break and words split without a hyphen (`tikto ken`) are fixed from the book's own word counts; since 0.11.0 code blocks keep their lines and indentation; tables, definition lists and sidebars in PDFs still come out flattened, so check those against the page (`--section` gives the page numbers).
 - To check one marker, `RW note FILE 39 --section 13` prints the note `[39]` in section 13 points at (0.10.0): numbering restarts per chapter, so give reader agents this instead of the notes section. A notes file the toc skips is titled `Endnotes: Chapter 13`, not `Chapter 13`.
 - Typos, hyphens inside words (`priori-ties`) and missing spaces next to an inline symbol are usually in the EPUB itself; check the raw XHTML before calling them a reader bug.
 

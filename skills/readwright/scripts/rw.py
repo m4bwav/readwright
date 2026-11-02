@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.10.2"
+VERSION = "0.11.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -634,7 +634,12 @@ def structure(paras, default_title="", max_level=3) -> list:
             else:
                 out.append(s)
         return out
-    if sum(len(p.text.split()) for p in paras) > CHUNK_WORDS * 1.5:
+    words = sum(len(p.text.split()) for p in paras)
+    if words > BIG_SECTION:   # plain text with its headings inline in capitals (L-021)
+        parts = split_caps(Section(default_title or "(text)", list(paras), 1, "p1"))
+        if parts:
+            return parts
+    if words > CHUNK_WORDS * 1.5:
         return chunk(paras)
     return [Section(default_title or "(text)", list(paras), 1, "p1")] if paras else []
 
@@ -803,7 +808,69 @@ def load_epub(path) -> Doc:
             if base and s.sid.startswith(base + "/"):
                 s.sid = s.sid[len(base) + 1:]   # ids relative to the package folder
         normalise_levels(doc.sections)
+    oc = ocr_cache(path)
+    if oc.exists():   # `rw.py ocr` ran on this image-only EPUB
+        pages = oc.read_bytes().decode("utf-8", "replace").split("\f")
+        page_paras = [text_paras(p, "txt") for p in pages]
+        join_split_pages(page_paras)
+        flat = [p for pp in page_paras for p in pp]
+        whole = Section(doc.meta.get("title") or "(text)", flat, 1, "ocr")
+        parts = split_caps(whole, len(pages)) if whole.words() > BIG_SECTION else None
+        if parts:
+            doc.sections = parts
+        else:
+            doc.sections = [Section(f"page {n}" + (f": {pp[0].text[:50]}" if pp else ""), pp, 1, f"page{n}")
+                            for n, pp in enumerate(page_paras, 1)]
+        doc.notes.append(f"text from OCR (`rw.py ocr`, kept in {oc}); expect misread letters")
     return doc
+
+
+IMAGE_EXT = (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff", ".webp")
+
+
+def epub_page_images(path) -> list:
+    """Zip member names of the images an EPUB's spine shows, in reading order: <img src>, SVG <image href>, or an
+    image as a spine item. An image-only EPUB (scanned pages wrapped by pdftohtml or calibre) is read by OCR-ing
+    these (L-020 `image-only-epub-ocr`)."""
+    out = []
+    try:
+        z = zipfile.ZipFile(path)
+    except (OSError, zipfile.BadZipFile):
+        return []
+    with z:
+        names = z.namelist()
+        lower = {n.lower(): n for n in names}
+        opf_path = None
+        if "META-INF/container.xml" in names:
+            m = re.search(rb'full-path="([^"]+)"', zread(z, "META-INF/container.xml"))
+            opf_path = m.group(1).decode("utf-8", "replace") if m else None
+        if not opf_path or opf_path not in names:
+            opf_path = next((n for n in names if n.lower().endswith(".opf")), None)
+        if not opf_path:
+            return []
+        base = posixpath.dirname(opf_path)
+        manifest, spine = {}, []
+        for el in xml_root(zread(z, opf_path)).iter():
+            t = local(el.tag)
+            if t == "item":
+                manifest[el.get("id")] = posixpath.normpath(posixpath.join(base, unquote(el.get("href", ""))))
+            elif t == "itemref":
+                spine.append(el.get("idref"))
+        for idref in spine:
+            real = lower.get((manifest.get(idref) or "").lower())
+            if not real:
+                continue
+            if real.lower().endswith(IMAGE_EXT):
+                out.append(real)
+                continue
+            html = decode_text(zread(z, real))
+            fb = posixpath.dirname(real)
+            for m in re.finditer(r"<(?:\w+:)?(?:img|image)\b[^>]*?\s(?:src|xlink:href|href)\s*=\s*[\"']([^\"']+)", html, re.I):
+                href = unquote(m.group(1).split("#")[0])
+                q = lower.get(posixpath.normpath(posixpath.join(fb, href)).lower())
+                if q and q.lower().endswith(IMAGE_EXT) and q not in out:
+                    out.append(q)
+    return out
 
 
 NOTES_TITLE = re.compile(r"^\s*(?:end\s*notes|notes|references)\b", re.I)
@@ -1465,6 +1532,59 @@ def rejoin_spaced_words(text: str) -> str:
     return re.sub(r"(?<![\w-])[^\W\d_]{5,}(?![\w-])", hyph, text) if COMPOUNDS else text
 
 
+CODE_LINE = re.compile(r"[{};]\s*$|^\s*(?:def|class|return|import|from|for|while|if|elif|else|try|except|public|private|"
+                       r"static|void|var|let|const|function|async|await|package|#include|#define|SELECT|INSERT)\b|"
+                       r"^\s*(?:[}\])]|//|/\*|\*/|#!|>>>|\$ )|\w\([^ ]*\)\s*;?$|^\s*[\w.\[\]]+\s*[-+*/]?=\s*\S")
+PRE_OPEN, PRE_CLOSE = "PRE", "/PRE"   # fences text_paras() turns into a `pre` paragraph (private use:
+#                                                  str.strip() eats \x1c-\x1f)
+CODE_RUN = 3   # code lines in a row (blank lines allowed) before a stretch is called a code block
+
+
+def code_blocks(lines: list) -> list:
+    """(start, end) line ranges that read as program code: CODE_RUN or more lines in a row matching CODE_LINE, where a
+    line between two code lines may be anything short (a lone identifier, a closing word)."""
+    out, i, n = [], 0, len(lines)
+    while i < n:
+        if not lines[i].strip() or not CODE_LINE.search(lines[i]):
+            i += 1
+            continue
+        j, last, hits = i, i, 0
+        while j < n:
+            t = lines[j]
+            if t.strip() and CODE_LINE.search(t):
+                hits, last = hits + 1, j
+            elif t.strip() and (len(t.split()) > 6 or j - last > 1):
+                break
+            j += 1
+        if hits >= CODE_RUN:
+            out.append((i, last + 1))
+        i = last + 1
+    return out
+
+
+def mark_code(page: str, layout: str | None) -> str:
+    """Fence the code blocks of one page of plain pdftotext output as `pre`, with the lines and indentation
+    `pdftotext -layout` kept. The plain mode reads indented lines as flowing text and joins them into the prose
+    around them, so blocks are found in the layout page and then located in the plain page by their words
+    (L-022 `pdf-code-layout`). A block whose words are not found in order is left as it was."""
+    if not layout:
+        return page
+    lay = [ln.rstrip() for ln in layout.replace("\r", "").split("\n")]
+    for a, b in code_blocks(lay):
+        body = lay[a:b]
+        pad = min(len(x) - len(x.lstrip()) for x in body if x.strip())
+        body = [x[pad:] for x in body]
+        pat = r"\s+".join(re.escape(t) for t in " ".join(body).split())
+        m = re.search(pat, page)
+        if m:
+            fence = "\n\n" + "\n".join([PRE_OPEN] + body + [PRE_CLOSE]) + "\n\n"
+            page = page[:m.start()] + fence + page[m.end():]
+    return page
+
+
+CODE_HINT = re.compile(r"(?m)[{}]\s*$|\bdef \w+\(|\w\([^\s)]*\)\s*[;{:]|^\s*(?:#include|import \w|>>> )")
+
+
 CAPTION_SPLIT = re.compile(r"(?<=[.!?:\u201d\"])\s+(?=(?:Figure|Table|Example) \d+[-.]\d+\. )")
 
 
@@ -1501,6 +1621,17 @@ def text_paras(text: str, fmt: str) -> list:
     while i < len(lines):
         line = lines[i]
         s = line.strip()
+        if s == PRE_OPEN:
+            flush()
+            j = i + 1
+            code = []
+            while j < len(lines) and lines[j].strip() != PRE_CLOSE:
+                code.append(lines[j].rstrip())
+                j += 1
+            if code:
+                paras.append(Para("pre", "\n".join(code)))
+            i = j + 1
+            continue
         if fmt == "md" and s.startswith("```"):
             flush()
             j = i + 1
@@ -1838,6 +1969,9 @@ def load_pdf(path) -> Doc:
             on_page.setdefault(pg, []).append(t)
     head_keys = running_head_keys(pages, [t for t, _, _ in outline])
     pages = [strip_running_heads(p, head_keys) for p in pages]
+    if not oc.exists() and CODE_HINT.search(text):   # a cheap gate before a second pdftotext run
+        lay = pdf_layout(path, tl)
+        pages = [mark_code(p, lay[n] if n < len(lay) else None) for n, p in enumerate(pages)]
     VOCAB.clear()
     for w in WORD.findall(text):
         EXACT[w] = EXACT.get(w, 0) + 1
@@ -1852,7 +1986,7 @@ def load_pdf(path) -> Doc:
         join_split_pages(page_paras)
         for pp in page_paras:
             for i in range(len(pp) - 1, -1, -1):
-                if pp[i].kind != "h":
+                if pp[i].kind not in ("h", "pre"):
                     parts = CAPTION_SPLIT.split(rejoin_spaced_words(pp[i].text))
                     pp[i].text = parts[0]
                     pp[i + 1:i + 1] = [Para(pp[i].kind, t) for t in parts[1:]]
@@ -1895,6 +2029,18 @@ def load_pdf(path) -> Doc:
             first = pp[0].text[:50] if pp else ""
             doc.sections.append(Section(f"page {n}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
     return doc
+
+
+def pdf_layout(path, tl) -> list:
+    """Pages of `pdftotext -layout` output (cached), or [] without pdftotext: used only for the indentation of code."""
+    if not tl["pdftotext"]:
+        return []
+    cp = cache_path(path, "pdftotext-layout", ".txt")
+    if CACHE_OFF or not cp.exists():
+        r = run([tl["pdftotext"], "-layout", "-enc", "UTF-8", path, str(cp)])
+        if r.returncode != 0 or not cp.exists():
+            return []
+    return cp.read_bytes().decode("utf-8", "replace").split("\f")
 
 
 def isolate_headings(text: str, titles) -> str:
@@ -2232,6 +2378,138 @@ def zip_members(path) -> list:
 BIG_SECTION = CHUNK_WORDS * 4
 
 
+CAPS_RUN_MAX = 8          # a longer all-caps stretch is a caps paragraph (credits, a shouted line), not a heading
+CAPS_SPLIT_MIN = 3        # fewer headings than this and a big section is left whole
+
+
+def caps_token(t: str) -> bool:
+    return not re.search(r"[a-z]", t) and bool(re.search(r"[A-Z]", t))
+
+
+def letters(ws) -> int:
+    return sum(len(re.sub(r"[^A-Z]", "", w)) for w in ws)
+
+
+def caps_runs(words: list) -> list:
+    """(start, end) word ranges of ALL-CAPS runs; '&' and dashes may sit inside one; one-letter words ('A', 'I')
+    and bare numbers at either end are not part of it."""
+    runs, i, n = [], 0, len(words)
+    while i < n:
+        if not caps_token(words[i]):
+            i += 1
+            continue
+        j = i
+        while j < n and (caps_token(words[j]) or words[j] in ("&", "-", "\u2014")):
+            j += 1
+        a, b = i, j
+        while a < b and (letters([words[a]]) < 2 or not caps_token(words[a])):
+            a += 1
+        while b > a and (letters([words[b - 1]]) < 2 or not caps_token(words[b - 1])):
+            b -= 1
+        if b > a and letters(words[a:b]) >= 4:
+            runs.append((a, b))
+        i = j
+    return runs
+
+
+def caps_key(ws) -> str:
+    return " ".join(ws).strip(" ,.:;")
+
+
+def split_caps(s: Section, pages: int = 0) -> list | None:
+    """Sections for one huge section whose headings sit inline in ALL CAPS, the way calibre turns a DjVu's OCR text
+    into a few hundred page-long paragraphs ('TRIPLE-TAKE TECHNIQUE The simplest method ...', L-021
+    `inline-caps-headings`). An ALL-CAPS phrase repeated on many pages is a running head: the book's title when it
+    runs through most of the book (dropped), else a chapter name (a level-1 section from its first page; dropped
+    elsewhere). Heads are counted near paragraph starts only and stripped from the front of a caps run. Any other caps run of 1-8 words (one word only when it is six letters or more) after a paragraph
+    start or a sentence end, and before a capital letter or the paragraph's end, is a topic heading (level 2).
+    None when fewer than CAPS_SPLIT_MIN headings turn up."""
+    paras = [p for p in s.paras if p.kind in ("p", "h", "li", "quote")]
+    if len(paras) < len(s.paras) or not paras:
+        return None
+    words = [p.text.split() for p in paras]
+    runs = [caps_runs(w) for w in words]
+    count = collections.Counter()
+    for w, rs in zip(words, runs):
+        for a, b in rs:   # running heads open a page, and a page is a paragraph or starts one
+            if a <= 3:
+                count.update(tuple(w[a:a + k]) for k in range(1, min(b - a, 5) + 1))
+    least = max(5, (pages or len(paras)) // 40)   # a running head is on most pages of its chapter
+    freq = {k for k, c in count.items() if c >= least and letters(k) >= 4}
+    freq = {k for k in freq if not any(count[k[:j]] >= least and count[k[j:]] >= least
+                                       for j in range(1, len(k)))}   # two heads side by side
+    heads = {k for k in freq if not any(len(q) > len(k) and count[q] >= 0.7 * count[k] and q[:len(k)] == k
+                                        for q in freq)
+             and not any(count[k] < 0.7 * count[k[:j]] for j in range(1, len(k)))}   # a head plus a topic
+    hits = collections.defaultdict(list)     # head -> paragraph indexes
+    plan = []                                 # per paragraph: [(a, b, kind, key)], kind 'rh' or 'topic'
+    for i, (w, rs) in enumerate(zip(words, runs)):
+        items = []
+        for a, b in rs:
+            lead = []
+            while a < b:
+                k = next((tuple(w[a:a + n]) for n in range(min(b - a, 5), 0, -1) if tuple(w[a:a + n]) in heads), None)
+                if not k:
+                    break
+                lead.append((a, a + len(k), "rh", caps_key(k)))
+                a += len(k)
+            items += lead
+            if b > a:
+                before = w[a - 1] if a else ""
+                after = w[b] if b < len(w) else ""
+                one = b - a == 1
+                if b - a > CAPS_RUN_MAX:
+                    continue
+                if (not before or lead or before[-1:] in SENTENCE_END + ")\u2019") \
+                        and (not after or after[:1].isupper() or after[:1] in "\"\u201c'(") \
+                        and (not one or re.fullmatch(r"[A-Z]{6,}", w[a].strip(".,:;"))):
+                    items.append((a, b, "topic", caps_key(w[a:b])))
+        for a, b, kind, key in items:
+            if kind == "rh" and a <= 3:
+                hits[key].append(i)
+        plan.append(items)
+    n = len(paras)
+    chapters = {}
+    window = 15 * n / (pages or n)   # 15 pages, in paragraphs
+    for k, v in hits.items():   # stray hits (an index, a cross-reference) must not stretch a chapter
+        if len(v) >= 3 and v[len(v) * 9 // 10] - v[len(v) // 10] < 0.6 * n:
+            first = next((h for j, h in enumerate(v) if sum(1 for x in v[j:] if x - h <= window) >= 3), None)
+            if first is not None:
+                chapters[k] = first
+    starts = {(v, k) for k, v in chapters.items()}
+    topics = sum(1 for items in plan for x in items if x[2] == "topic")
+    if len(starts) + topics < CAPS_SPLIT_MIN:
+        return None
+    sub = s.level + (1 if chapters else 0)
+    out = [Section(s.title, [], s.level, s.sid)]
+    cur_topic = None
+    for i, (w, items) in enumerate(zip(words, plan)):
+        pieces, last = [], 0
+        for a, b, kind, key in items:
+            pieces.append((w[last:a], None))
+            if kind == "topic" or (i, key) in starts:
+                pieces.append(([], (kind, key)))
+                starts.discard((i, key))
+            last = b
+        pieces.append((w[last:], None))
+        for ws, cut in pieces:
+            if cut:
+                kind, key = cut
+                if kind == "topic" and key == cur_topic:
+                    continue   # the same heading repeated on the next page
+                cur_topic = key if kind == "topic" else None
+                level = s.level if kind == "rh" else sub
+                out.append(Section(key, [Para("h", key, level - s.level + 1)], level, f"{s.sid}@p{i + 1}"))
+            elif ws:
+                out[-1].paras.append(Para(paras[i].kind, " ".join(ws)))
+    seen = collections.Counter()
+    for x in out[1:]:
+        seen[x.sid] += 1
+        if seen[x.sid] > 1:
+            x.sid += f".{seen[x.sid]}"
+    return [x for x in out if x.paras]
+
+
 def refine(doc: Doc) -> Doc:
     """Split a section of more than BIG_SECTION words at the headings or CHAPTER-style lines inside it. Converters
     often lose the outline: calibre's FB2 writes chapter titles as plain paragraphs, and its PDB round trip keeps
@@ -2244,7 +2522,8 @@ def refine(doc: Doc) -> Doc:
             cuts = [j for j, p in enumerate(s.paras) if (j > 0 or untitled_) and p.kind in ("h", "p")
                     and len(p.text) <= 80 and (p.kind == "h" or heading_line(p.text))]
         if len(cuts) < (1 if untitled_ else 2):
-            out.append(s)
+            parts = split_caps(s) if s.words() > BIG_SECTION else None
+            out.extend(parts or [s])
             continue
         lead = s.paras[:cuts[0]]
         if untitled_ and out and not any(p.kind == "h" for p in lead):
@@ -2291,6 +2570,8 @@ def scan_note(doc: Doc, path: str) -> None:
     n = str(doc.meta.get("pages") or "")
     pages = int(n) if n.isdigit() else len(doc.sections)
     words = sum(s.words() for s in doc.sections)
+    if ocr_cache(path).exists():
+        return
     if not pages or words >= SCAN_WORDS_PER_PAGE * pages:
         return
     p = Path(path)
@@ -2298,14 +2579,16 @@ def scan_note(doc: Doc, path: str) -> None:
             and q.stem.lower() == p.stem.lower() and q.suffix.lower() in SIBLING_EXTS]
     djvu = " (DjVu copies often carry OCR text)" if any(s.lower().endswith(".djvu") for s in sibs) else ""
     routes = [f"read the copy beside it: {', '.join(sibs)}{djvu}"] if sibs else []
-    eng = ocr_engine() if doc.fmt == "pdf" else None
+    eng = ocr_engine() if doc.fmt == "pdf" or epub_page_images(path) else None
     if eng:
         how = "the OCR built into Windows" if eng == "windows" else "tesseract"
         routes.append(f"OCR it once with `rw.py ocr \"{p.name}\"` ({how}; then info, toc, read and grep use the text)")
     elif find_tool("ocrmypdf"):
         routes.append("add a text layer with `ocrmypdf --skip-text IN OUT` (installed)")
-    else:
+    elif doc.fmt == "pdf":
         routes.append("OCR it (Windows' built-in OCR, ocrmypdf or tesseract; none is available)")
+    else:
+        routes.append("OCR it (Windows' built-in OCR or tesseract; neither is available)")
     if doc.fmt == "pdf":
         mt, pp = tools()["mutool"], find_tool("pdftoppm")
         routes.append("render pages and view them with the agent's image reader: "
@@ -2374,12 +2657,19 @@ def ocr_engine() -> str | None:
     return None
 
 
-def ocr_pages(path: str, first: int, last: int, dpi: int, engine: str) -> list:
-    """Render pages first..last and OCR them; one text per page, blank lines between paragraphs."""
+def ocr_pages(path: str, first: int, last: int, dpi: int, engine: str, images: list | None = None) -> list:
+    """Render pages first..last and OCR them; one text per page, blank lines between paragraphs. With `images`
+    (an EPUB's page images in spine order) the pages are those images, copied out of the zip instead of rendered;
+    both engines read a JPEG by its content whatever the file's name says."""
     mt, pp = tools()["mutool"], find_tool("pdftoppm")
     td = tempfile.mkdtemp(prefix="readwright-ocr-")
     try:
-        if mt:
+        if images is not None:
+            with zipfile.ZipFile(path) as z:
+                for n in range(first, last + 1):
+                    Path(td, f"p{n}.png").write_bytes(zread(z, images[n - 1]))
+            r = subprocess.CompletedProcess([], 0)
+        elif mt:
             r = run([mt, "draw", "-q", "-r", str(dpi), "-o", os.path.join(td, "p%d.png"), path, f"{first}-{last}"])
         elif pp:
             r = run([pp, "-r", str(dpi), "-f", str(first), "-l", str(last), "-png", path, os.path.join(td, "p")])
@@ -2416,17 +2706,22 @@ def ocr_pages(path: str, first: int, last: int, dpi: int, engine: str) -> list:
 
 
 def cmd_ocr(a) -> int:
-    if detect(a.file) != "pdf":
-        raise RWError("ocr reads PDFs; for a scanned EPUB, extract its page images and view them")
+    fmt = detect(a.file)
+    images = epub_page_images(a.file) if fmt == "epub" else None
+    if fmt != "pdf" and not images:
+        raise RWError("ocr reads scanned PDFs and EPUBs made of page images" +
+                      ("; this EPUB shows no images" if fmt == "epub" else ""))
     engine = ocr_engine()
     if not engine:
         raise RWError("no OCR engine: on Windows 10 or 11 the built-in one needs powershell.exe; elsewhere install "
                       "tesseract (`brew install tesseract`, `apt install tesseract-ocr`). Nothing was installed.")
-    doc = load_pdf(a.file) if not ocr_cache(a.file).exists() else None
+    doc = load_pdf(a.file) if images is None and not ocr_cache(a.file).exists() else None
     n = str((doc.meta if doc else {}).get("pages") or "")
     total = int(n) if n.isdigit() else (len(doc.sections) if doc else 0)
     cache = ocr_cache(a.file)
     pages = cache.read_bytes().decode("utf-8").split("\f") if cache.exists() else []
+    if images:
+        total = len(images)
     if not total:
         total = len(pages)
     if a.force:
@@ -2446,13 +2741,13 @@ def cmd_ocr(a) -> int:
     batch = max(1, a.batch)
     for lo in range(first, last + 1, batch):
         hi = min(last, lo + batch - 1)
-        pages[lo - 1:hi] = ocr_pages(a.file, lo, hi, a.dpi, engine)
+        pages[lo - 1:hi] = ocr_pages(a.file, lo, hi, a.dpi, engine, images)
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_bytes("\f".join(pages).encode("utf-8"))
         print(f"ocr: pages {lo}-{hi} of {total}", file=sys.stderr, flush=True)
     words = sum(len(p.split()) for p in pages)
     print(f"ocr ({engine}): {fmt_n(total)} pages, {fmt_n(words)} words, kept in {cache}. info, toc, read and grep "
-          "on the PDF now use this text; OCR misreads letters, so check a quote against a page image.")
+          f"on the {fmt.upper()} now use this text; OCR misreads letters, so check a quote against a page image.")
     return EXIT_OK
 
 
@@ -3211,7 +3506,7 @@ def main(argv=None) -> int:
     common(p, False)
     p.add_argument("--out")
     p.add_argument("--format", choices=["txt", "md"], default="txt")
-    p = sub.add_parser("ocr", help="OCR a scanned PDF once; info, toc, read and grep then use the text")
+    p = sub.add_parser("ocr", help="OCR a scanned PDF or image-only EPUB once; info, toc, read and grep then use the text")
     p.add_argument("file")
     p.add_argument("--pages", help="only these pages, N or N-M (added to what is already kept)")
     p.add_argument("--dpi", type=int, default=200, help="render resolution (default 200)")

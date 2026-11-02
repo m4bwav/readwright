@@ -65,3 +65,7 @@ O'Reilly PDFs printed words split with U+2010 (`conven- tions`) and running head
 ## 2026-11-02: 0.10.2 PDF pipe-less heads, page-break sentences, vocabulary joins
 
 Reader reports from an O'Reilly PDF. Added running_head_keys (frequency or outline match for number+title edge lines), page-break sentence joins, book-vocabulary rejoins (spaced splits, lost compound hyphens) and caption splits; see CHANGELOG C-20261102-3. Frequency alone is unsafe: prose lines like "Input:" repeat at page edges, hence the punctuation guard. Left: code blocks, tables, definition lists, sidebars (need layout or font data; a candidate route is pdftotext -bbox-layout or -layout for flagged regions).
+
+## 2026-11-02: 0.11.0 image-only EPUB OCR, ALL-CAPS heading split, PDF code blocks
+
+From an everscout run on a film-technique book (image-only EPUB plus a DjVu twin). `rw.py ocr` now takes EPUBs made of page images; one-section books split at ALL-CAPS headings (running heads become chapters); PDF code blocks come back with indentation via a gated `pdftotext -layout` pass. See CHANGELOG C-20261102-4, LEARNINGS L-020 to L-022. Left open: PDF tables, definition lists, sidebars (HANDOFF Open).

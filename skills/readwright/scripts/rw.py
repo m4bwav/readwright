@@ -52,7 +52,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1799,6 +1799,7 @@ def strip_furniture(doc: Doc) -> int:
     return gone
 
 
+IN_SECTION_MAX_WORDS, IN_SECTION_LEAST = 8, 10   # a short line repeated this often inside one section is a back-link or marker
 REPEAT_MAX_WORDS = 40   # only short paragraphs (credit lines, captions, notices) can count as repeated boilerplate
 
 
@@ -1816,7 +1817,8 @@ def repeat_keys(text: str) -> list:
 
 def drop_repeated(doc: Doc, share: float = 0.3, least: int = 5) -> int:
     """Drop short paragraphs that recur, verbatim or with the same last four words, in at least `share` of the
-    sections that have text (and at least `least` sections). A section's first paragraph (its heading) stays.
+    sections that have text (and at least `least` sections), or a line of at most eight words repeated verbatim ten
+    times or more inside one section, a quarter of its paragraphs (endnote back-links). A section's first paragraph (its heading) stays.
     Returns how many paragraphs went."""
     secs = [s for s in doc.sections if s.words()]
     seen = {}
@@ -1827,6 +1829,14 @@ def drop_repeated(doc: Doc, share: float = 0.3, least: int = 5) -> int:
                     seen.setdefault(key, set()).add(k)
     need = max(least, share * len(secs))
     bad = {key for key, ks in seen.items() if len(ks) >= need}
+    for s in secs:   # a back-link line after every endnote ("GO TO NOTE REFERENCE IN TEXT") recurs inside one section
+        body = [p for p in s.paras[1:] if p.kind != "h"]
+        count = {}
+        for p in body:
+            if len(p.text.split()) <= IN_SECTION_MAX_WORDS:
+                for key in repeat_keys(p.text)[:1]:
+                    count[key] = count.get(key, 0) + 1
+        bad.update(key for key, c in count.items() if c >= IN_SECTION_LEAST and c >= 0.25 * len(body))
     gone = 0
     for s in secs if bad else []:
         keep = s.paras[:1] + [p for p in s.paras[1:] if p.kind == "h" or not bad.intersection(repeat_keys(p.text))]

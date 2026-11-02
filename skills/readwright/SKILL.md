@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.8.0"
+  version: "0.8.1"
 ---
 
 # readwright
@@ -37,7 +37,7 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 - When `--title` lands on a section under 300 words, the section after it is added and a note says so. `--with-next` does the same for any selection.
 - A section whose title repeats 3 or more times in the book ("Getting ready", "How to do it...", "There's more...") is shown with the nearest distinctive heading before it, in `read` headers and in `toc`: `How to do it... (in: Following a path)` (`in` in toc JSON).
 - `--max-words N` caps each selected section at N words, so a batch like `--section 27-58 --max-words 80` stays small; a cut section ends `[cut at N of M words; continue with --section S --offset C]`.
-- `--drop-repeated` (read) drops short paragraphs (40 words or fewer) that recur in 30% or more of the sections, verbatim or with the same last four words once digits are folded: per-image credits and copyright notices in EPUBs. Off by default.
+- `--drop-repeated` (read) drops short paragraphs (40 words or fewer) that recur in 30% or more of the sections, verbatim or with the same last four words once digits are folded: per-image credits and copyright notices in EPUBs. It also drops a line of eight words or fewer repeated ten times or more inside one section (a quarter of its paragraphs), such as the "GO TO NOTE REFERENCE IN TEXT" back-link after every endnote. Off by default.
 - `--skip-code` (read and grep) drops code blocks found by structure (EPUB and HTML `<pre>`, fenced Markdown; PDFs have no marker, so not there) and says how many words went. Advice lines come as one line at the end; `--quiet` drops them.
 - `--strip-boilerplate` (read and grep) drops lines repeated across a PDF's pages: footers, bare page numbers, running headers, found by how often they repeat. Use it on both commands so grep's paragraph numbers match `--at-para`.
 - Every section starts with a header line: `=== [43/80] title | id ... | words | starts at word N of TOTAL (P%) ===`.
@@ -59,6 +59,8 @@ For work that needs many passes over a long book (every scene with a character, 
 Quote briefly. For a copyrighted book, summarise and quote a sentence or two at a time, never whole pages or chapters, even when the user owns the copy. Cite where each point came from (section number and title) so the user can check it. When a conversion note was printed (calibre, LibreOffice, pdftotext), mention that the text came through a converter if the wording matters.
 
 ## Distilling a book
+
+- Endnotes name the studies a chapter rests on. Read the Notes section with `--drop-repeated` (back-links go) and find one chapter's notes with `RW grep FILE "^Chapter 6" --section <notes>` for the offset, then `read --offset`.
 
 - Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.
 - Read the introduction, each chapter summary and any results or comparison sections first (`grep -i "summary|conclusion|results"` with `--count` finds them), and grep the rest for the terms you need.

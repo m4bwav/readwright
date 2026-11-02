@@ -1112,6 +1112,18 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.strip_furniture(doc), 8 * 3 - 1)   # the heading line stays
         self.assertTrue(all("Body text" in p.text for p in doc.sections[0].paras[1:]))
 
+    def test_drop_repeated_note_backlinks_in_one_section(self):
+        P = rw.Para
+        notes = [P("h", "Notes", 1)]
+        for n in range(12):
+            notes += [P("p", f"claim {n}: A. Author, Paper on " + "lamps quays tides ships ropes sails nets oars masts keels decks hulls".split()[n] + " (2023)."), P("p", "GO TO NOTE REFERENCE IN TEXT")]
+        body = rw.Section("One", [P("h", "One", 1), P("p", "Go to the store."), P("p", "Text " * 30)], 1, "s1")
+        doc = rw.Doc("x.epub", "epub", sections=[body, rw.Section("Notes", notes, 1, "s2")])
+        self.assertEqual(rw.drop_repeated(doc), 12)
+        self.assertEqual(len(doc.sections[1].paras), 13)
+        self.assertEqual(len(doc.sections[0].paras), 3)
+
+
     def test_drop_repeated_credit_lines(self):
         P = rw.Para
         secs = []

@@ -53,3 +53,7 @@ One combined advice line per read and `--quiet`; `--max-words` cuts end with an 
 
 ## 2026-11-01 · 0.8.0 from a film-book reader's friction
 `read --drop-repeated` drops short paragraphs recurring in 30%+ of sections (whole text or last four words, digits folded); opt-in. "Distilling a book" tells readers to batch chapter ranges with `--section N-M --quiet --max-words N` under 25k characters. Checked on a film-technique EPUB: 212 credit lines dropped, no other text. See L-017 `repeated-credit-lines`.
+
+## 2026-11-01: 0.8.1 endnote back-links
+
+`--drop-repeated` now drops a short line repeated ten or more times inside one section (endnote back-links, found reading Mollick, Co-Intelligence, for everscout). Distilling tip for endnotes added. Other reader-agent reports that run (no word counts in toc, no paging, no snippet width) were wrong: `toc` shows words, `--offset` pages, `grep --width` exists.

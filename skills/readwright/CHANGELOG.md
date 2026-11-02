@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-8 · 2026-11-01 · Release 0.8.1: --drop-repeated drops endnote back-links inside one section
+- because: user request (book runs fix every reader bug); found reading Mollick, Co-Intelligence, for everscout tech-hiring
+- files: scripts/rw.py (drop_repeated, IN_SECTION_MAX_WORDS), SKILL.md (read, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- The Notes section of a Penguin EPUB put "GO TO NOTE REFERENCE IN TEXT" after each of its 100 notes; `--drop-repeated` only compared lines across sections, so all 100 stayed. A line of eight words or fewer repeated verbatim ten times or more, and a quarter of a section's paragraphs, now goes too. Distilling tip: read a chapter's endnotes for its studies.
+
 ### C-20261101-7 · 2026-11-01 · Release 0.8.0: read --drop-repeated, batch-read tip for distilling
 - because: L-017 `repeated-credit-lines`
 - files: scripts/rw.py (repeat_keys, drop_repeated, cmd_read, main), SKILL.md (read, Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

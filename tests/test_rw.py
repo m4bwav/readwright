@@ -1099,6 +1099,18 @@ class TestTocChapters(Base):
         self.assertTrue(any("Ch. 12: Real Title" in l for l in lines))
         self.assertTrue(any(l.strip().startswith("1. 7") for l in lines))
 
+    def test_group_folds_pages_by_running_head(self):   # L-023 `pdf-pages-by-running-head`
+        def pg(n, head, w=50):
+            return rw.Section(f"page {n}: {head}" if head else f"page {n}", [rw.Para("p", lorem(w))], 1, f"page{n}")
+        doc = rw.Doc("x.pdf", "pdf", sections=[pg(1, ""), pg(2, "Preface"), pg(3, "Preface"),
+            pg(4, "Testimonial Injustice In the film she"), pg(5, "Testimonial Injustice"), pg(6, "Testimonial Injustice"),
+            pg(7, "Hermeneutical Injustice")])
+        self.assertEqual([(f, l, h) for f, l, h, _ in rw.page_groups(doc)],
+                         [(1, 1, ""), (2, 3, "Preface"), (4, 6, "Testimonial Injustice"), (7, 7, "Hermeneutical Injustice")])
+        self.assertEqual(rw.page_groups(doc)[2][3], 150)
+        self.assertTrue(any("4-6. Testimonial Injustice  (150 w)" in l for l in rw.group_lines(doc)))
+        self.assertEqual(rw.page_groups(rw.Doc("x.epub", "epub", sections=[rw.Section("Chapter 1")])), [])
+
 
 class TestRealWorldShapes(Base):
     """Shapes seen in real files on 2026-09-29 (LEARNINGS L-001, L-003, L-005, L-006), rebuilt from invented text."""

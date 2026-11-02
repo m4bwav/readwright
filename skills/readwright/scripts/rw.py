@@ -10,7 +10,7 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
-  toc   FILE [--limit N] [--ids] [--depth N]    numbered sections with titles and word counts (ids on request)
+  toc   FILE [--limit N] [--ids] [--depth N] [--group] numbered sections with titles and word counts (ids on request)
   read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-words N] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
                                     [--with-next]
   grep  FILE PATTERN [-C N] [-i] [-F] [--max N] [--width N] [--count]
@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.13.1"
+VERSION = "0.14.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3117,6 +3117,39 @@ def rolled_words(doc: Doc) -> list:
     return out
 
 
+def page_groups(doc: Doc) -> list:
+    """Runs of one-page sections that share a running head ("page 21: Testimonial Injustice"), for a PDF
+    with no outline: [(first, last, head, words)]. A chapter's opening page carries the head plus its first
+    words ("page 20: Testimonial Injustice In Anthony..."), so it joins the run when the next page's head
+    starts it. [] when the sections are not bare pages."""
+    heads = []
+    for s in doc.sections:
+        m = re.match(r"page \d+(?:: (.*))?$", s.title)
+        if not m:
+            return []
+        heads.append((m.group(1) or "").strip())
+    groups = []
+    for i, h in enumerate(heads, 1):
+        w = doc.sections[i - 1].words()
+        if groups and h and h == groups[-1][2]:
+            f, _, g, gw = groups[-1]
+            groups[-1] = (f, i, g, gw + w)
+            continue
+        nxt = heads[i] if i < len(heads) else ""
+        if len(nxt) > 3 and h.startswith(nxt + " "):
+            h = nxt
+        groups.append((i, i, h, w))
+    return groups
+
+
+def group_lines(doc: Doc) -> list:
+    out = []
+    for f, l, h, w in page_groups(doc):
+        rng = f"{f}-{l}" if l > f else str(f)
+        out.append(f"{rng:>9}. {h or '(no text)'}  ({fmt_n(w)} w)")
+    return out
+
+
 def toc_lines(doc: Doc, limit: int, ids: bool = False, depth: int | None = None) -> list:
     """One line per section. A bare chapter-number section is merged into the titled section after it
     ("Ch. 12: Title", printed under the title's number; the number section stays readable). depth keeps
@@ -3210,7 +3243,17 @@ def cmd_toc(a) -> int:
     print(doc_head(doc))
     for n in doc.notes:
         print(f"note: {n}")
+    if a.group:
+        lines = group_lines(doc)
+        if not lines:
+            raise RWError("--group folds the one-page sections of a PDF with no outline; this file has titled sections")
+        print("\n".join(lines))
+        print("read a run: rw.py read FILE --section N-M")
+        return 0
     print("\n".join(toc_lines(doc, a.limit, a.ids, a.depth)))
+    groups = page_groups(doc)
+    if len(doc.sections) > 40 and groups and len(groups) * 3 < len(doc.sections):
+        print(f"note: {len(doc.sections)} pages share {len(groups)} running heads; rw.py toc FILE --group lists them as page ranges")
     for n in big_section_notes(doc):
         print(n)
     return 0
@@ -3521,6 +3564,7 @@ def main(argv=None) -> int:
     p.add_argument("--limit", type=int, default=1000)
     p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
     p.add_argument("--depth", type=int, default=None, help="only sections at indent depth N or less (1 = parts and chapters); word counts include the sections below")
+    p.add_argument("--group", action="store_true", help="PDF with no outline: fold pages that share a running head into page ranges (chapters)")
     p = sub.add_parser("read", help="text of chosen sections")
     common(p, False)
     p.add_argument("--section", "-s", action="append", help="N, N-M, N- or N,M (numbers from toc); repeat to add more")

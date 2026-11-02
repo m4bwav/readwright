@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.10.0"
+VERSION = "0.10.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1339,6 +1339,57 @@ def heading_line(s: str) -> str | None:
 GUTENBERG_RE = re.compile(r"^\*{3}\s*((?:START|END) OF (?:THE|THIS) PROJECT GUTENBERG E-?BOOK\b.{0,120}?)\s*\*{3}$", re.I)
 
 
+BREAK_HYPHENS = "‐­"   # a word split at a line end by typesetting: always rejoined
+
+
+def join_lines(lines) -> str:
+    """Join a paragraph's lines with spaces, rejoining a word split at a line end: a U+2010 or soft hyphen before a
+    letter is dropped ("conven-" + "tions" = "conventions", "Lang-" + "Chain" = "LangChain"); an ASCII hyphen
+    before a lower-case letter is kept and the lines joined without a space ("well-" + "known" = "well-known"), since it may be a real compound."""
+    out = ""
+    for line in lines:
+        if out and line[:1].isalpha() and out[-1] in BREAK_HYPHENS:
+            out = out[:-1] + line
+        elif out and line[:1].islower() and out[-1] == "-" and out[-2:-1].isalpha():
+            out += line
+        else:
+            out = out + " " + line if out else line
+    # pdftotext can already have joined the lines ("conven‐ tions"); "pre‐ and post-war" keeps its hyphen
+    return SPLIT_WORD.sub("", out)
+
+
+SPLIT_WORD = re.compile(r"(?<=[^\W\d_])[‐­] (?!(?:and|or|nor|to)\b)(?=[^\W\d_])")
+
+
+RUNNING_HEAD = re.compile(r"^(\d{1,4} \| [^|]{1,80}|[^|]{1,80} \| \d{1,4})$")
+
+
+def strip_running_heads(page: str) -> str:
+    """Drop a running header or footer that carries the page number ("4 | Chapter 1: Title", "Section Title | 5")
+    when it is the first or last non-blank line of a page. Frequency-based furniture misses these: the number and
+    the title change from page to page. A table row has more pipes, so it never matches."""
+    lines = page.split("\n")
+    idx = [i for i, l in enumerate(lines) if l.strip()]
+    for i in {idx[0], idx[-1]} if idx else ():
+        if RUNNING_HEAD.match(lines[i].strip()):
+            lines[i] = ""
+    return "\n".join(lines)
+
+
+def join_split_pages(page_paras) -> None:
+    """A word hyphenated across a page break ("conven-" at the bottom, "tions" at the top of the next) becomes one
+    paragraph: the next page's first paragraph is moved onto the previous page's last."""
+    prev = None
+    for pp in page_paras:
+        if prev and pp and prev[-1].kind == "p" and pp[0].kind == "p" and (
+                prev[-1].text[-1:] in BREAK_HYPHENS and pp[0].text[:1].isalpha()
+                or prev[-1].text[-1:] == "-" and pp[0].text[:1].islower()):
+            prev[-1].text = join_lines([prev[-1].text, pp[0].text])
+            pp.pop(0)
+        if pp:
+            prev = pp
+
+
 def text_paras(text: str, fmt: str) -> list:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = text.split("\n")
@@ -1347,7 +1398,7 @@ def text_paras(text: str, fmt: str) -> list:
 
     def flush():
         if buf:
-            t = clean(" ".join(buf))
+            t = clean(join_lines(buf))
             if t:
                 paras.append(Para("p", t))
             buf.clear()
@@ -1691,7 +1742,9 @@ def load_pdf(path) -> Doc:
     for t, pg, _ in outline:
         if 1 <= pg <= len(pages):
             on_page.setdefault(pg, []).append(t)
+    pages = [strip_running_heads(p) for p in pages]
     page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
+    join_split_pages(page_paras)
     for pp in page_paras:
         for p in pp:
             if p.kind == "h":

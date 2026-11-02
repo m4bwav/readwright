@@ -57,3 +57,7 @@ One combined advice line per read and `--quiet`; `--max-words` cuts end with an 
 ## 2026-11-01: 0.8.1 endnote back-links
 
 `--drop-repeated` now drops a short line repeated ten or more times inside one section (endnote back-links, found reading Mollick, Co-Intelligence, for everscout). Distilling tip for endnotes added. Other reader-agent reports that run (no word counts in toc, no paging, no snippet width) were wrong: `toc` shows words, `--offset` pages, `grep --width` exists.
+
+## 2026-11-02: 0.10.1 PDF hyphens and running heads
+
+O'Reilly PDFs printed words split with U+2010 (`conven- tions`) and running heads with page numbers (`4 | Chapter 1: ...`) mid-text. `join_lines` rejoins split words (pdftotext had already put both halves on one line with a space, so a mid-line pattern is needed too), `strip_running_heads` drops `N | title` / `title | N` at a page's first or last line, default on for PDFs. Tests added; checked on the reported book.

@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-2 · 2026-11-02 · Release 0.10.1: PDF line-end hyphens rejoined; page-numbered running heads dropped
+- because: reader report on an O'Reilly PDF (words printed as "conven- tions" with U+2010; "4 | Chapter 1: ..." and "Title | 179" mid-sentence)
+- files: scripts/rw.py (join_lines, SPLIT_WORD, strip_running_heads, join_split_pages, text_paras, load_pdf), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- A U+2010 or soft hyphen at a line end (or followed by a space mid-line, as pdftotext joins them) before a letter is removed and the word rejoined, except before and/or/nor/to; an ASCII hyphen before a lower-case line is kept and joined without a space. A word split across a page break is joined too. PDF pages lose a first or last line shaped `N | title` or `title | N` (no other pipes, at most 80 characters), on by default: frequency-based furniture missed them because the number and title vary. Checked on the reported book's sections 12, 17, 59 and 111: no split words or heads left.
+
 ### C-20261102-1 · 2026-11-02 · Release 0.10.0: `rw.py note` resolves a note marker; untocced notes files are titled as notes
 - because: reader reports on Criado Perez, Invisible Women for everscout tech-hiring (a second endnotes file showed in the outline as `Chapter 13` after Endnotes; agents had to match chapter and number by hand to check a marker)
 - files: scripts/rw.py (notes_part_title, chapter_key, cmd_note), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

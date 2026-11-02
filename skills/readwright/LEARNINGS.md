@@ -165,6 +165,11 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: `toc --group` folds runs of pages that share a running head into page ranges with word counts; a chapter's opening page (head plus first words) joins the run. Plain `toc` adds a note offering it when pages outnumber heads three to one.
 - Evidence: 2026-11-02, the book's 199 pages became 22 ranges (test_group_folds_pages_by_running_head). Applied: C-20261102-9.
 
+### L-024 · 2026-11-02 · page-running-head: each page of an outline-less PDF opened with the chapter's running head
+- Trigger: the same Fricker run: the reader agent saw "Testimonial Injustice" as the first line of every page even with `--strip-boilerplate`, because a section's first paragraph is kept as its heading, and per-chapter heads fall below the 40% furniture count.
+- Rule: in a bare page section, drop the first paragraph when it is furniture and the previous page's first line starts with it; a chapter's opening page keeps its line. Footnotes printed at the page foot still sit inline (the PDF layout item; needs `-bbox-layout`). The agent also missed grep's `--width`, `--max` and `--count`: now in the brief tip.
+- Evidence: 2026-11-02, pages 20-22 of the book; test_strip_drops_repeated_running_head_on_pages. Applied: C-20261102-9.
+
 ### L-021 · 2026-11-02 · inline-caps-headings: a DjVu came out of calibre as one 90k-word section
 - Trigger: calibre's DjVu conversion of the same book gave one section; each page was one paragraph that opened with running heads ("CAMERA ANGLES THE FIVE C's ...") and carried its topic headings inline ("... dawn. TRIPLE-TAKE TECHNIQUE The simplest method ...").
 - Rule: a section over BIG_SECTION words with no headings is split at ALL-CAPS runs. A caps phrase that opens many pages is a running head: the book title if it spans most of the book (dropped), else a chapter (a level-1 section from its first dense run of pages). Other caps runs of 1-8 words (single words only when 6+ letters) after a sentence end and before a capital are topic headings (level 2). Fewer than 3 headings found: nothing changes. Count heads near paragraph starts only, and never strip them from the end of a run, or topic words like FACTORS and TECHNIQUE become chapters.

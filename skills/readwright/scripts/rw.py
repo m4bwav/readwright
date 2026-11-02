@@ -2147,10 +2147,18 @@ def page_furniture(page_paras) -> set:
 
 def strip_furniture(doc: Doc) -> int:
     """Drop page furniture from every section; returns how many paragraphs went. A section's first paragraph stays:
-    it is usually the heading, and a running header repeats exactly that heading."""
-    gone = 0
+    it is usually the heading, and a running header repeats exactly that heading. In a PDF with no outline each
+    page is a section: there the first paragraph goes too when it repeats the previous page's running head
+    (L-024 `page-running-head`)."""
+    gone, prev = 0, None
     for s in doc.sections if doc.furniture else []:
-        keep = s.paras[:1] + [p for p in s.paras[1:] if furniture_key(p.text) not in doc.furniture]
+        first = s.paras[:1]
+        key = furniture_key(first[0].text) if first else None
+        if re.match(r"page \d+", s.title):
+            if key in doc.furniture and prev is not None and prev.startswith(key):
+                first = []
+            prev = key
+        keep = first + [p for p in s.paras[1:] if furniture_key(p.text) not in doc.furniture]
         gone += len(s.paras) - len(keep)
         s.paras = keep
     return gone

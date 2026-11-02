@@ -69,6 +69,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Typos, hyphens inside words (`priori-ties`) and missing spaces next to an inline symbol are usually in the EPUB itself; check the raw XHTML before calling them a reader bug.
 
 - Brief reader agents with the whole read line: `RW read FILE --section N --compact --out <scratch>/chN.txt`, then their own Read tool on the file. An agent that reads four chapters to stdout overflows its shell output, and one that guesses `--max-chars 3500` samples only each section's opening: one Guerrilla Marketing reader did and had to read again (2026-11-02).
+- For a PDF with no outline, plan from `RW toc FILE --group` and add `--strip-boilerplate` to the reader's read and grep lines (0.14.0): it drops the running head repeated atop every page and the printed page numbers. Give greps `--width 300 --max 8` (or `--count` first): one Epistemic Injustice reader ran 15 greps at full paragraphs and got 35 KB back (2026-11-02).
 
 - Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.
 - Read the introduction, each chapter summary and any results or comparison sections first (`grep -i "summary|conclusion|results"` with `--count` finds them), and grep the rest for the terms you need.

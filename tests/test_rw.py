@@ -1111,6 +1111,17 @@ class TestTocChapters(Base):
         self.assertTrue(any("4-6. Testimonial Injustice  (150 w)" in l for l in rw.group_lines(doc)))
         self.assertEqual(rw.page_groups(rw.Doc("x.epub", "epub", sections=[rw.Section("Chapter 1")])), [])
 
+    def test_strip_drops_repeated_running_head_on_pages(self):   # L-024 `page-running-head`
+        P = rw.Para
+        doc = rw.Doc("x.pdf", "pdf", sections=[
+            rw.Section("page 4: Testimonial Injustice In the film", [P("p", "Testimonial Injustice In the film she"), P("p", "4")]),
+            rw.Section("page 5: Testimonial Injustice", [P("p", "Testimonial Injustice"), P("p", "body five"), P("p", "5")]),
+            rw.Section("page 6: Testimonial Injustice", [P("p", "Testimonial Injustice"), P("p", "body six")])],
+            furniture={"testimonial injustice", "#"})
+        rw.strip_furniture(doc)
+        self.assertEqual([[p.text for p in s.paras] for s in doc.sections],
+                         [["Testimonial Injustice In the film she"], ["body five"], ["body six"]])
+
 
 class TestRealWorldShapes(Base):
     """Shapes seen in real files on 2026-09-29 (LEARNINGS L-001, L-003, L-005, L-006), rebuilt from invented text."""

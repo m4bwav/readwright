@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261101-12 · 2026-11-01 · Release 0.9.3: EPUB note references print as [40]
+- because: reader report on Lalka, The Venture Alchemists for everscout global-economics (note numbers glued to sentences, "after that.40 Uber", were misread as figures)
+- files: scripts/rw.py (HTMLText), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists
+- An `<a>` with role `doc-noteref` or epub:type `noteref`, or a `<sup>` link to an anchor, prints its text in brackets. Plain superscripts (x<sup>2</sup>) are unchanged. The conversion cache is keyed by version, so old text is rebuilt.
+
 ### C-20261101-11 · 2026-11-01 · Release 0.9.2: the character-cut footer offers --max-chars for the rest
 - because: reader reports on Tannen, Talking From 9 to 5 for everscout tech-hiring (two agents read 50-85k-character chapters in 25k slices or sampled them, not knowing --max-chars existed)
 - files: scripts/rw.py (cmd_read footer), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places AGENTS.md lists

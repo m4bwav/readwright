@@ -1543,14 +1543,14 @@ REAL_PREFIXES = {"anti", "co", "de", "multi", "non", "over", "post", "pre", "pro
 
 def heal_stray_hyphens(sections) -> None:
     """Scanned-then-converted EPUBs keep print line-break hyphens mid-line ("in-formation", "stu-dent"). Join a pair when
-    the book prints the joined word at least three times and the hyphenated form at most once. A real prefix with a real right half
+    the book prints the joined word at least three times and the hyphenated form at most once or a tenth as often. A real prefix with a real right half
     ("re-sign") stays."""
     paras = [p for s in sections for p in s.paras if p.kind not in ("h", "pre")]
     counts = collections.Counter(w for p in paras for w in re.findall(r"[a-z]+(?:-[a-z]+)*", p.text))
 
     def fix(m):
         a, b = m.group(1), m.group(2)
-        if counts[a + b] < 3 or counts[a + "-" + b] > 1:
+        if counts[a + b] < 3 or counts[a + "-" + b] > max(1, counts[a + b] // 10):
             return m.group(0)
         if a in REAL_PREFIXES and counts[b] >= 1:
             return m.group(0)

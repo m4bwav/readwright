@@ -6,7 +6,7 @@ Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (ID
 
 ### C-20261103-14 · 2026-11-03 · Release 0.33.0: stray print hyphens in EPUB text are healed
 - because: book distill of Tannen, You Just Don't Understand: `stu-dent`, `ex-ample` and `in-formation` sat mid-line and hid words from `grep`.
-- files: scripts/rw.py (`heal_stray_hyphens`), tests/test_rw.py, plugin versions, SKILL.md Distilling a book. A pair joins only when the book prints the joined word three times or more and the hyphenated form at most once; real prefixes stay.
+- files: scripts/rw.py (`heal_stray_hyphens`), tests/test_rw.py, plugin versions, SKILL.md Distilling a book. A pair joins only when the book prints the joined word three times or more and the hyphenated form at most once or a tenth as often; real prefixes stay.
 
 ### C-20261103-13 · 2026-11-03 · Release 0.32.2: running heads with roman page numbers are dropped
 - because: book distill of Huss and Zonca, Generative AI on Kubernetes: `xxx | Introduction` stayed in the front matter text.

@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-11 · 2026-11-03 · Release 0.32.0: clean PDF chapter openers and glued running heads
+- because: book distill of Zhai and Massung, Text Data Management and Analysis: chapters opened "1Text Su6mmarization" and running heads such as "8.3 Scorer 155" joined the next paragraph
+- files: scripts/rw.py (fix_chapter_openers, run by load_pdf), SKILL.md (Distilling a book), tests/test_rw.py. Only numbers matching the section's own chapter are touched.
+
 ### C-20261103-10 · 2026-11-03 · Release 0.31.0: per-section caps for multi-section reads, image and math markers, ISBN in info
 - because: user request (a reader distilling an EPUB textbook: a formula and TABLE 15-1 set as images vanished silently, one long section crowded out the rest of a multi-section read, and the copyright page lacked authors)
 - files: scripts/rw.py (HTMLText.handle_starttag, EPUB metadata, cmd_read, read --each-chars), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places

@@ -1653,6 +1653,21 @@ class TestRealWorldShapes(Base):
         self.assertEqual(len(doc.sections[0].paras), 3)
 
 
+    def test_fix_chapter_openers(self):   # drop-cap digits and running heads glued into PDF text
+        P, S = rw.Para, rw.Section
+        doc = rw.Doc("x", "pdf", sections=[
+            S("16. Text Summarization (p. 338-349, printed 317-328)", [P("p", "1Text Su6mmarization Text summarization is hard."),
+                                         P("p", "16.2 Extractive Text Summarization 319"),
+                                         P("p", "16.3 Abstractive Text Summarization 321 si = max"),
+                                         P("p", "7.2 Other Chapter 99 stays, wrong chapter")]),
+            S("8. Scorer", [P("p", "154 Chapter 8 Scorer and return the top k"), P("p", "8Scorer in 2 parts")]),
+            S("Preface", [P("p", "1Preface stays")])])
+        self.assertEqual(rw.fix_chapter_openers(doc), 4)
+        self.assertEqual([p.text for p in doc.sections[0].paras],
+                         ["Text Summarization Text summarization is hard.", "si = max", "7.2 Other Chapter 99 stays, wrong chapter"])
+        self.assertEqual(doc.sections[1].paras[0].text, "and return the top k")
+        self.assertEqual(doc.sections[2].paras[0].text, "1Preface stays")
+
     def test_drop_repeated_credit_lines(self):
         P = rw.Para
         secs = []

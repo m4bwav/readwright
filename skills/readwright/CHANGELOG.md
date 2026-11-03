@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-7 · 2026-11-03 · Release 0.28.0: printed page labels for PDFs whose offset drifts
+- because: L-034 (an everscout book run, Styhre *Indie Video Game Development Work*: two reader agents took different offsets, -7 and -9, and cited pages wrongly)
+- files: scripts/rw.py (printed_labels, printed_selector, pdf page sections, info), SKILL.md Reading tips, ../../tests/test_rw.py, version in the five places
+When no single printed-page shift holds, each page section's toc title carries its own `(p. N)` from the running head, a bare number or a copyright footer, `info` says the offset drifts, and `read --section p153` or `p153-p160` reads by printed page (also through a single shift).
+
 ### C-20261103-6 · 2026-11-03 · Learnings consolidation: 34 active to 13
 - because: consolidate:34>25
 - files: LEARNINGS.md (Active), LEARNINGS-ARCHIVE.md (new)

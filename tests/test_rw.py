@@ -670,6 +670,28 @@ class TestFormats(Base):
         self.assertEqual(rw.printed_offset([f"Text\n{n}" for n in range(1, 9)]), 0)
         self.assertEqual(rw.printed_offset(["12\nx", "y"]), 0, "one numbered page is not enough")
 
+    def test_printed_labels_follow_a_drifting_offset(self):   # L-034: a dropped page per chapter moves the offset
+        heads = [f"{n - 10} A. STYHRE\nBody" if n % 2 else f"SOCIAL NORMS {n - 10}\nBody" for n in range(11, 21)]
+        opener = ["Chapter title\nBody\n© The Author(s) 2020\n12\nA. Styhre, Indie Work,\nhttps://doi.org/x"]
+        tail = [f"{n - 9} A. STYHRE\nBody" for n in range(22, 30)]
+        pages = ["Cover"] * 10 + heads + opener + tail
+        labels = rw.printed_labels(pages)
+        self.assertEqual(rw.printed_offset(pages), 0, "no single shift")
+        self.assertEqual(labels[11], 1)
+        self.assertEqual(labels[20], 10)
+        self.assertEqual(labels[22], 13)
+        self.assertNotIn(1, labels, "the cover carries no number")
+        self.assertEqual(rw.printed_labels(["Body\n3", "Text", "y"]), {}, "too few pages agree")
+        doc = rw.Doc("x.pdf", "pdf")
+        doc.sections = [rw.Section(f"page {n}", [], 1, f"page{n}") for n in range(1, 30)]
+        doc.meta["printed_labels"] = labels
+        self.assertEqual(rw.printed_selector(doc, "p10-p13"), "20-22")
+        self.assertEqual(rw.printed_selector(doc, "p1-3,25"), "11-13,25")
+        with self.assertRaises(rw.RWError):
+            rw.printed_selector(doc, "p999")
+        doc.meta = {"page_shift": 2}
+        self.assertEqual(rw.printed_selector(doc, "p12"), "10")
+
     def test_grep_without_i_names_case_hits(self):
         p = self.f("t.md")
         p.write_text("# One\n\nValue keying sets the mood.\n", encoding="utf-8")

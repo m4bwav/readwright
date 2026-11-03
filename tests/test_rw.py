@@ -1611,6 +1611,13 @@ class TestRealWorldShapes(Base):
         self.assertEqual(pages[0][0].text, "you would pass the current user message to a store.")
         self.assertEqual(len(pages[3]), 1)
 
+    def test_stray_hyphens_healed_only_when_the_book_prints_the_word(self):
+        p = rw.Para("p", "An ex-ample of in-formation. A re-sign and a well-known cat. "
+                         "example example example information information information resign resign resign sign known well")
+        rw.heal_stray_hyphens([rw.Section("c", [p])])
+        self.assertIn("An example of information.", p.text)
+        self.assertIn("A re-sign and a well-known cat.", p.text)
+
     def test_book_vocabulary_fixes_splits_and_captions(self):
         rw.VOCAB.update({"tiktoken": 5, "tikto": 1, "ken": 1, "comma": 4, "separated": 4, "commaseparated": 1,
                          "comma-separated": 2, "conven": 1, "tions": 1, "shivam": 1, "shrirao": 1})

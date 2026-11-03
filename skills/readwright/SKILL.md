@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A popular book with few work examples: `rank` with the beat's words, then `grep` for offsets and read 1-3k characters at each (`--offset`), rather than whole chapters; 7k of 105k words was enough for one (0.33.0). Say which claims you could not check beyond the book.
 - Before reporting glued words (largelydetermine) as a reader bug, look at the raw XHTML: retail EPUBs can carry the typo themselves (0.32.1). Spot-check a surprising figure against a primary file too; a reputable publisher does not rule out a slip.
 - Section numbers are not chapter numbers: in a textbook `--section 23` may be chapter 16. Cite the chapter from the `toc` title. A broad textbook usually serves a beat through a few sections: grep the beat's terms across the book first, then read only those (0.32.0).
 - Read several sections in one call: `RW read FILE --section 83,87,90-92 --each-chars 4000` caps each section on its own and prints a resume line per cut one (0.31.0). Pictures in their own paragraph show as `[image omitted: t0243-01.jpg]` (a table or formula set as an image: view it if the text leans on it), MathML as `[math: alttext]`; `info` prints authors, date and `isbn` from the OPF.

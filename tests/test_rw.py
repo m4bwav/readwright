@@ -990,6 +990,27 @@ class TestCommands(Base):
         self.assertIn("left out 10 words in 2 code blocks", g)
         self.assertIn("3 matches", cli("grep", e, "import")[1])
 
+    def test_skip_code_drops_colon_lead_ins(self):
+        src, dst = self.f("plain.epub"), self.f("leadin.epub")
+        make_epub(src)
+        ch2 = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+               "<h1 id='c2'>Chapter Two</h1><p>To count the gulls, open a fresh shell:</p>"
+               "<pre>gulls --count</pre>"
+               "<ul><li>We load the tide table:</li></ul><pre>load(tide)</pre>"
+               "<p>The keeper notes three things:</p><p>Wind, rain and fog.</p>"
+               "<p>The harbour wakes early.</p></body></html>")
+        with zipfile.ZipFile(src) as zi, zipfile.ZipFile(dst, "w") as zo:
+            for info in zi.infolist():
+                zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
+        _, out, _ = cli("read", dst, "--section", "2", "--skip-code")
+        self.assertNotIn("fresh shell", out)
+        self.assertNotIn("tide table", out)
+        self.assertIn("three things:", out)   # a colon line before prose stays
+        self.assertIn("harbour wakes", out)
+        self.assertIn("left out 3 words in 2 code blocks and 2 lead-in lines", out)
+        _, full, _ = cli("read", dst, "--section", "2")
+        self.assertIn("fresh shell", full)
+
     def test_giant_section_splits_at_printed_contents(self):
         P = lambda t: rw.Para("p", t)
         contents = [P("1"), P("Brass Lanterns and Tides"), P("3"), P("Harbour charts"), P("4"),

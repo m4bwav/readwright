@@ -850,6 +850,17 @@ class TestCommands(Base):
         self.assertIn("CHAPTER 7:", out)
         self.assertEqual(cli("grep", t, "zzzz-nothing")[0], 1)
 
+    def test_grep_per_section_spreads_hits(self):
+        t = self.big_text()
+        code, all_out, _ = cli("grep", t, "e", "--max", "500")
+        code, out, _ = cli("grep", t, "e", "--per-section", "1", "--max", "500")
+        self.assertEqual(code, 0)
+        heads = re.findall(r"--- \[(\d+)\]", out)
+        self.assertEqual(len(heads), len(set(heads)))
+        self.assertGreater(len(set(heads)), 1)
+        self.assertIn("past --per-section 1 not shown", out)
+        self.assertLess(out.count("--- ["), all_out.count("--- ["))
+
     def test_dump_to_file_with_markers(self):
         t = self.big_text()
         o = self.f("dump.md")

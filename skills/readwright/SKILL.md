@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.26.0"
+  version: "0.27.0"
 ---
 
 # readwright
@@ -95,6 +95,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - A math-heavy textbook PDF: equations come out garbled (symbols on their own lines, numbers as `(9.3)` alone); read the prose sections and skip equation-only ones. Since 0.23.0 double-spaced pages are rejoined into paragraphs, glued MATLAB or Python listings are found by `--skip-code`, and tables print as ` | ` rows, still to be checked against the page.
 - A textbook: read only the chapters the purpose needs (its toc parts split micro, macro and appendices cleanly), and each chapter's Conclusion section first; textbook PDFs mix sidebars, figure labels and tables into the prose, so trust prose paragraphs and check numbers against the table they came from.
 - Several copies of one book in the folder (early-access EPUBs beside a final PDF): `info` and `toc` each and read the final edition; an early-access contents page says not final and has a different chapter order. A PDF of Python listings: `--skip-code` drops them since 0.26.0, but program output printed as prose stays in.
+- A grep over many sections where one section (a code walkthrough, an MCP listing) takes every hit: add `--per-section 2` (0.27.0). EPUB formulas print as `[formula: image]`: tell reader agents to infer them from the prose, and a sentence that stops short (`with 75.`) is usually cut in the EPUB itself.
 - Note where the book is dated (library versions, prices, APIs that have since changed).
 - In EPUBs a note reference prints as `[40]` after the sentence (0.9.3). Brief reader agents that bracketed numbers are note markers, not figures; one agent read "$1.4 billion.40" as a different sum before the brackets.
 

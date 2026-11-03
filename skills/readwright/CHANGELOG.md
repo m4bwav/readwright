@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-4 · 2026-11-03 · Release 0.27.0: grep --per-section N spreads hits across sections
+- because: an everscout book run (*Advanced Retrieval-Augmented Generation*, Wei and Wu): one section's code block took every hit of a 20-hit grep
+- files: scripts/rw.py (cmd_grep, grep parser), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places
+`grep --per-section N` shows at most N paragraphs from each section and says how many it held back. The skill gains a tip: EPUB formulas print as `[formula: image]`, and a sentence cut short (`with 75.`) is usually in the EPUB itself.
+
 ### C-20261103-3 · 2026-11-03 · Release 0.26.0: --skip-code finds Python listings in PDFs
 - because: L-033 `pdf-python-listings` (an everscout book run, *Hands-On Large Language Models* PDF)
 - files: scripts/rw.py (CODE_LINE, CODE_HINT), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places

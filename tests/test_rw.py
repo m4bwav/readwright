@@ -1018,6 +1018,34 @@ class TestCommands(Base):
         self.assertNotIn("Salt Roads", doc.sections[3].paras[1].text)
         self.assertFalse([n for n in notes if "section 2 " in n])   # the preface no longer holds the book
 
+    def test_giant_pdf_section_splits_at_running_heads(self):
+        intro = ["Introduction\n" + lorem(50)] + ["■ Introduction\n" + lorem(50)] * 2
+        ch = lambda n, t: ([f"CHAPTER {n}\n{t}\n" + lorem(300)]
+                           + [f"Chapter {n} ■ {t}\n" + lorem(300) for _ in range(4)])
+        pages = ["Front matter"] + intro + ch(1, "Brass Lanterns") + ch(2, "Salt Roads") + ch(3, "Last Light")
+        # chapter 3 has no opener; its first page carries no head either
+        pages[14] = lorem(300)
+        chars = [len(p) for p in pages]
+        old = rw.BIG_SECTION_CHARS
+        try:
+            rw.BIG_SECTION_CHARS = 1_000
+            got = rw.run_head_chapters([(2, "Introduction", 1, 0)], pages, chars)
+            plain = rw.run_head_chapters([(2, "Introduction", 1, 0)], [lorem(300)] * 18, [1800] * 18)
+        finally:
+            rw.BIG_SECTION_CHARS = old
+        self.assertEqual([(p, t) for p, t, _, _ in got],
+                         [(2, "Introduction"), (5, "Chapter 1: Brass Lanterns"), (10, "Chapter 2: Salt Roads"),
+                          (15, "Chapter 3: Last Light")])
+        self.assertEqual(plain, [(2, "Introduction", 1, 0)])
+
+    def test_contents_dot_leaders_collapse(self):
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("Contents", [
+            rw.Para("p", "About the Author" + "�" * 40 + " xiii Chapter 1: Lanterns" + "�" * 30 + " 1"),
+            rw.Para("p", "Salt Roads ........ 21 Tides ····· 40 Wait... no 3")])])
+        rw.collapse_leaders(doc)
+        self.assertEqual(doc.sections[0].paras[0].text, "About the Author … xiii Chapter 1: Lanterns … 1")
+        self.assertEqual(doc.sections[0].paras[1].text, "Salt Roads … 21 Tides … 40 Wait... no 3")
+
     def test_giant_section_stays_whole_without_contents(self):
         doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("One", [rw.Para("p", "short text")]),
                                                 rw.Section("Two", [rw.Para("p", lorem(300)) for _ in range(150)])])

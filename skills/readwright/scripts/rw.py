@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.17.0"
+VERSION = "0.18.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1969,6 +1969,7 @@ def load_pdf(path) -> Doc:
     if shift:
         doc.meta["printed_pages"] = f"PDF page {'+' if shift > 0 else '-'} {abs(shift)} (from the page numbers on the pages)"
     outline = pdf_outline(path, tl["mutool"]) if tl["mutool"] else []
+    raw_pages = pages
     on_page = {}
     for t, pg, _ in outline:
         if 1 <= pg <= len(pages):
@@ -2013,6 +2014,7 @@ def load_pdf(path) -> Doc:
                 starts.append((pg, t, d))
         starts.sort(key=lambda x: x[0])
         starts = place_on_pages(starts, page_paras)
+        starts = run_head_chapters(starts, raw_pages, [sum(len(p.text) for p in pp) for pp in page_paras])
         if starts and starts[0][0] > 1:
             doc.sections.append(Section(f"pages 1-{starts[0][0] - 1}", sum(page_paras[:starts[0][0] - 1], []), 1, "page1"))
         # a section starts at its heading line, not at the top of its page: the page's first lines end the section before
@@ -2035,6 +2037,60 @@ def load_pdf(path) -> Doc:
             first = pp[0].text[:50] if pp else ""
             doc.sections.append(Section(f"page {n}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
     return doc
+
+
+RUN_HEAD_RE = re.compile(r"﻿?\s*Chapter\s+(\d{1,3})\s*[■|:\-–—]\s*(\S.{0,120})$", re.I)
+OPENER_LINE_RE = re.compile(r"﻿?\s*CHAPTER\s+(\d{1,3})\s*$", re.I)
+
+
+def run_head_chapters(starts: list, raw_pages: list, page_chars: list) -> list:
+    """Outline starts [(page, title, depth, para)] plus chapter starts read from running heads such as
+    'Chapter 2 | The bpy Module' on each page's first line, added only inside a section that holds over half the
+    text and BIG_SECTION_CHARS (the outline stops early; L-027 `pdf-running-head-split`). A chapter starts at its
+    'CHAPTER N' opener page, else at the page before its first head when that page has no head, else at the first
+    head. Needs CONTENTS_MIN chapters numbered in order; else STARTS comes back unchanged."""
+    total = sum(page_chars) or 1
+    heads, openers = {}, {}
+    for n, t in enumerate(raw_pages, 1):
+        lines = [ln.strip() for ln in t.splitlines() if ln.strip()]
+        if not lines:
+            continue
+        m = RUN_HEAD_RE.match(lines[0])
+        if m:
+            heads[n] = (int(m.group(1)), m.group(2).strip())
+        m = OPENER_LINE_RE.match(lines[0])
+        if m:
+            openers[n] = (int(m.group(1)), lines[1] if len(lines) > 1 else "")
+    if not heads:
+        return starts
+    out = list(starts)
+    for k, (pg, _, d, _) in enumerate(starts):
+        end = starts[k + 1][0] - 1 if k + 1 < len(starts) else len(raw_pages)
+        chars = sum(page_chars[pg - 1:end])
+        if chars <= BIG_SECTION_CHARS or chars <= total // 2:
+            continue
+        firsts, titles = {}, {}
+        for n in range(pg + 1, end + 1):
+            if n in heads:
+                c, title = heads[n]
+                firsts.setdefault(c, n)
+                titles.setdefault(c, collections.Counter())[title] += 1
+        nums = sorted(firsts)
+        if len(nums) < CONTENTS_MIN or nums != list(range(nums[0], nums[0] + len(nums))) \
+                or [firsts[c] for c in nums] != sorted(firsts.values()):
+            continue
+        prev = pg
+        for c in nums:
+            f = firsts[c]
+            op = [n for n in range(prev + 1, f) if openers.get(n, (None,))[0] == c]
+            at = op[0] if op else (f - 1 if f - 1 > prev and f - 1 not in heads else f)
+            title = titles[c].most_common(1)[0][0]
+            if op and 0 < len(openers[op[0]][1]) <= 120:
+                title = openers[op[0]][1]
+            out.append((at, f"Chapter {c}: {title}", d, 0))
+            prev = at
+    out.sort(key=lambda x: (x[0], x[3]))
+    return out
 
 
 def pdf_layout(path, tl) -> list:
@@ -2697,8 +2753,23 @@ def split_at_contents(doc: Doc) -> Doc:
     return doc
 
 
+LEADER_RE = re.compile(r"(?<=\S)\s*(?:�{3,}|\.{4,}|·{4,}|…{2,}|(?:\. ){3,}\.?)\s*(?=(?:\d{1,4}|[ivxlcdm]{1,7})\b)")
+
+
+def collapse_leaders(doc: Doc) -> Doc:
+    """Contents dot leaders ('About the Author' + 60 U+FFFD or dots + 'xiii') become ' ... ' with one ellipsis
+    character, in titles and text, so every output path prints them short (L-028 `contents-dot-leaders`)."""
+    for s in doc.sections:
+        s.title = LEADER_RE.sub(" … ", s.title)
+        for p in s.paras:
+            if "���" in p.text or "..." in p.text or "··" in p.text or "……" in p.text \
+                    or ". . ." in p.text:
+                p.text = LEADER_RE.sub(" … ", p.text)
+    return doc
+
+
 def load(path: str, member: str | None = None, via: str | None = None) -> Doc:
-    doc = split_at_contents(refine(load_raw(path, member, via)))
+    doc = split_at_contents(refine(collapse_leaders(load_raw(path, member, via))))
     if doc.fmt in ("pdf", "epub") and not member and not via:
         scan_note(doc, path)
     return doc

@@ -160,6 +160,16 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: an EPUB whose spine shows page images is OCR'd like a scanned PDF: `rw.py ocr FILE` reads the images in spine order (no rendering), keeps the text in the OCR cache, and info, toc, read and grep use it. An image-only EPUB often has a DjVu twin in the same folder with OCR text already in it: try that first.
 - Evidence: 2026-11-02, the real EPUB: 247 page images OCR'd in 35 s with Windows OCR, 88k words; `grep -i triple-take` 20 hits. Tests: TestFiveCs (epub_page_images, note, cache, engine run). Applied: C-20261102-4.
 
+### L-028 · 2026-11-02 · contents-dot-leaders: pdftotext turns a contents page's dot leaders into runs of U+FFFD
+- Trigger: an Apress PDF's Contents section printed `About the Author` followed by 60 replacement characters and `xiii`.
+- Rule: collapse 3+ U+FFFD, or 4+ leader dots, between text and a page number to ` … ` at load so every output path is short.
+- Evidence: 2026-11-02; test_contents_dot_leaders_collapse. Applied: C-20261102-15.
+
+### L-027 · 2026-11-02 · pdf-running-head-split: bookmarks that stop early, but every page names its chapter in the running head
+- Trigger: the same Apress PDF: outline ended at "Introduction", which held 90% of the text; `--group` refused (titled sections); the printed contents page gives printed page numbers, not PDF pages.
+- Rule: read each page's first line before running heads are stripped; `Chapter N ■ Title` gives the chapter of every page, and the `CHAPTER N` opener page (no head) is where it starts. Split there.
+- Evidence: 2026-11-02: 14 sections, chapters 1-8 at 2.3k to 5.7k words each, the Introduction 1.8k. Applied: C-20261102-15.
+
 ### L-026 · 2026-11-02 · printed-contents-split: bookmarks that stop early, but the printed contents page names every chapter
 - Trigger: a Packt 2024 PDF: the outline's last entries are the part pages and "Preface", so `toc` gave 12 sections and section 11 held 94% of the text; `--group` refused (titled sections).
 - Rule: pdftotext reads the contents page as `1` / title / page lines, and a chapter's opening page as one paragraph starting with its title. Cut the giant section at the first paragraph, in order, opening with each title. A two-column contents page comes out scrambled (chapter 9's number landed before a section entry), so titles also come from the part openers' "Chapter N, Title" lists, and an entry whose title line ends in a page number is a section, not a chapter.

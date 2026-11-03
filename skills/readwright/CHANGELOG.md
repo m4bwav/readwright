@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-18 · 2026-11-02 · Release 0.21.0: info flags swapped title and author
+- because: an everscout book run (Tannen, Conversational Style EPUB): the metadata title was the author's name and the author field held the title, so the book was filed under the author
+- files: scripts/rw.py (meta_swapped, cmd_info), SKILL.md Distilling a book, tests/test_rw.py
+`info` prints a note naming the probable title and author when the title is a person's name and the author field is the book title, both found in the file name.
+
 ### C-20261102-17 · 2026-11-02 · Release 0.20.0: read --headings
 - because: an everscout book run (a Unity for Android tutorial EPUB): to skim a long chapter the reader wanted only its subheadings and filtered short lines with awk, which also caught figure captions and code
 - files: scripts/rw.py (flags_used, heading_lines, cmd_read, main), SKILL.md (Reading options, Distilling a book), ../../tests/test_rw.py (TestHeadings), version in the five places

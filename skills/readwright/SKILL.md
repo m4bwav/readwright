@@ -64,6 +64,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- EPUB metadata can have title and author swapped; `info` says so in a note (0.21.0). Take the title from the note or the file name, not the `title:` line.
 - Cite printed pages, not PDF pages: when the page numbers on the pages differ from the PDF's, `info` prints `printed_pages: PDF page + N`.
 - An image-only EPUB (page pictures, `no text layer`) often has a DjVu twin in the same folder with OCR text: read that first. Else `RW ocr FILE` works on the EPUB too (0.11.0). A DjVu or plain-text book that comes out as one huge section is split at its ALL-CAPS headings automatically; check `RW toc` and expect a few OCR-misread titles.
 - A scanned art or craft book: `RW ocr FILE` first, then `RW grep` for the topic words to find the pages, and read page runs with `--section N-M`. Captions and step numbers come out as short lines; view the page image for a figure the text leans on.

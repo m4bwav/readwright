@@ -165,6 +165,11 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: across a page break move only the run-on sentence (to the first sentence end) when at least 20 words stay behind.
 - Evidence: 2026-11-03; test_page_join_moves_only_the_run_on_sentence; empty pages 45 to 4 on the real file. Applied: C-20261103-2.
 
+### L-033 · 2026-11-03 · pdf-python-listings: Python listings in a PDF slipped past --skip-code
+- Trigger: Alammar and Grootendorst, *Hands-On Large Language Models* PDF (LangChain listings): `--skip-code` dropped 107 words of about 1,500 in a chapter; `# comment` lines of eight words and calls with spaces inside (`print(f"Top hits")`) broke each run before it reached three code lines.
+- Rule: in a PDF layout page a `# word` line and a line that is one whole call count as code lines; `from x import y` opens the code gate.
+- Evidence: 2026-11-03; test_code_blocks_found_and_kept_as_lines; the real chapter went from 107 to 220 words dropped, section 126 from 7 to 32. Applied: C-20261103-3.
+
 ### L-032 · 2026-11-03 · contents-title-then-page: a contents page with the page number on the next line
 - Trigger: a 2017 game-business handbook PDF with no outline and no running heads listed as 277 one-page sections; its contents page read `1 Personal Finance` then `15`.
 - Rule: with no running heads, fold pages by the printed contents: title line, then page-number line, pages rising; shift by the printed-page offset.

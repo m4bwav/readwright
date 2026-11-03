@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-3 · 2026-11-03 · Release 0.26.0: --skip-code finds Python listings in PDFs
+- because: L-033 `pdf-python-listings` (an everscout book run, *Hands-On Large Language Models* PDF)
+- files: scripts/rw.py (CODE_LINE, CODE_HINT), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places
+A `# word` comment line and a line that is one whole call (spaces inside allowed) now count as code lines when a PDF layout page is scanned for listings, and `from x import y` opens the gate that runs the layout pass. Program output printed as prose stays in. The skill gains a tip: with several copies of one book, read the final edition, not an early-access draft.
+
 ### C-20261103-2 · 2026-11-03 · Release 0.25.0: toc --group from a printed contents page; a page join no longer empties the page
 - because: L-032 `contents-title-then-page` (an everscout book run, Futter, *The GameDev Business Handbook* PDF: no outline, no running heads, so `toc` listed 277 pages and `--group` folded nothing)
 - files: scripts/rw.py (join_split_pages, SPLIT_TAIL_RE, contents_groups, CONTENTS_HEAD_RE, group_lines, cmd_toc note, load_pdf page_shift), SKILL.md Step 2 toc, ../../tests/test_rw.py, version in the five places

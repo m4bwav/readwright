@@ -1900,6 +1900,12 @@ class TestFiveCs(Base):
                  "return 3.14 * r * r", "x = area(2)", "print(x)", "Then the text goes on as prose for a while."]
         self.assertEqual(rw.code_blocks(lines), [(1, 5)])
         self.assertEqual(rw.code_blocks(["Plain prose line one.", "Another line of prose."]), [])
+        # Python comments and whole-line calls with spaces inside (Hands-On LLMs, LangChain listings)
+        py = ["Using this memory, we can try out a sequence of questions:", "# Retain only the last 2 conversations in memory",
+              "from langchain.memory import ConversationBufferWindowMemory", "# Ask two questions and keep both in the chat history",
+              'llm_chain.predict(input_prompt="What is 3 + 3?")', "The interaction so far is kept in the chat history for the next turn."]
+        self.assertEqual(rw.code_blocks(py), [(1, 5)])
+        self.assertTrue(rw.CODE_HINT.search("from langchain.memory import ConversationBufferWindowMemory"))
         layout = NL.join(["  The function below returns an area and nothing else at all.", "      def area(r):",
                           "          return 3.14 * r * r", "      x = area(2)", "      print(x)",
                           "  Then the text goes on as prose for a while."])

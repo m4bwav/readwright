@@ -1396,6 +1396,23 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.CAPTION_SPLIT.split("Some text. Figure 4-6. Refine chain"),
                          ["Some text.", "Figure 4-6. Refine chain"])
 
+    def test_drop_epigraphs(self):
+        P = rw.Para
+        paras = [P("h", "Ten", 1),
+                 P("p", "\u201cCreativity is a habit of small invented steps.\u201d"), P("p", "\u2014Ada Example"),
+                 P("p", "Body text about making things in public every day."),
+                 P("p", '"A straight-quoted line here."'), P("p", "-- Bo Sample, Invented Poet"),
+                 P("p", "\u201cA quotation with no attribution after it.\u201d"),
+                 P("p", "More body text follows the lone quotation."),
+                 P("p", "\u201cShort quote.\u201d"), P("p", "\u2013 " + "word " * 12)]
+        doc = rw.Doc("x.epub", "epub", sections=[rw.Section("Ten", paras, 1, "s1")])
+        self.assertEqual(rw.drop_epigraphs(doc), 4)
+        texts = [p.text for p in doc.sections[0].paras]
+        self.assertEqual(len(texts), 6)
+        self.assertNotIn("\u2014Ada Example", texts)
+        self.assertIn("\u201cA quotation with no attribution after it.\u201d", texts)
+        self.assertIn("\u201cShort quote.\u201d", texts)   # attribution too long to be a name
+
     def test_drop_repeated_note_backlinks_in_one_section(self):
         P = rw.Para
         notes = [P("h", "Notes", 1)]

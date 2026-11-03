@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.18.0"
+VERSION = "0.19.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2267,6 +2267,33 @@ def drop_repeated(doc: Doc, share: float = 0.3, least: int = 5) -> int:
     return gone
 
 
+EPIGRAPH_MAX_WORDS = 80   # a quotation epigraph is short
+ATTRIB_MAX_WORDS = 8      # and its attribution is a name
+QUOTED_RE = re.compile(r'^\s*["\u201c\u201e\u00ab].*["\u201d\u00bb]\s*$', re.S)
+ATTRIB_RE = re.compile(r"^\s*(\u2014|\u2013|--)\s*\S")
+
+
+def drop_epigraphs(doc: Doc) -> int:
+    """Drop quotation epigraphs: a paragraph of at most EPIGRAPH_MAX_WORDS wholly in quotation marks (straight or
+    curly) followed at once by an attribution of at most ATTRIB_MAX_WORDS starting with an em dash, en dash or `--`.
+    Both go; a quotation without an attribution line stays. Returns how many paragraphs went."""
+    gone = 0
+    for s in doc.sections:
+        keep, ps, i = [], s.paras, 0
+        while i < len(ps):
+            p, q = ps[i], ps[i + 1] if i + 1 < len(ps) else None
+            if (q is not None and p.kind != "h" and q.kind != "h" and QUOTED_RE.match(p.text)
+                    and len(p.text.split()) <= EPIGRAPH_MAX_WORDS and ATTRIB_RE.match(q.text)
+                    and len(ATTRIB_RE.sub("x", q.text, 1).split()) <= ATTRIB_MAX_WORDS):
+                gone += 2
+                i += 2
+                continue
+            keep.append(p)
+            i += 1
+        s.paras = keep
+    return gone
+
+
 def heading_at(paras, title, lo=0, missing=-1) -> int:
     """Index of the paragraph on a page that carries an outline title (from lo on); lo when none matches.
     A numbered title run into a paragraph ("... checklist. 10.2.1 Signs of Life To know ...") splits that paragraph in place."""
@@ -3466,6 +3493,9 @@ def cmd_read(a) -> int:
     if getattr(a, "drop_repeated", False):
         n = drop_repeated(doc)
         hints.append(f"--drop-repeated dropped {n} short paragraph(s) that recur across the book (credit lines, notices)")
+    if getattr(a, "drop_epigraphs", False):
+        n = drop_epigraphs(doc)
+        hints.append(f"--drop-epigraphs dropped {n} paragraph(s): quotation epigraphs and their attribution lines")
     if not any(s.words() for s in doc.sections):   # a scan's pages are sections with no words (L-011)
         print(doc_head(doc))
         for n in doc.notes:
@@ -3486,6 +3516,7 @@ def cmd_read(a) -> int:
     flags = "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
                                     (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
+                                    (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
                                     (" --compact", getattr(a, "compact", False)),
                                     (" --format md", a.format == "md")) if on)
     if getattr(a, "compact", False) and a.at_para:
@@ -3837,6 +3868,8 @@ def main(argv=None) -> int:
     p.add_argument("--skip-code", action="store_true", help="drop code blocks (<pre> in EPUB and HTML, fenced Markdown; not PDF) and say how many words went")
     p.add_argument("--drop-repeated", action="store_true", help="drop short paragraphs that recur in 30%% or more of "
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")
+    p.add_argument("--drop-epigraphs", action="store_true", help="drop quotations of 80 words or fewer followed by a "
+                   "dash attribution line of 8 words or fewer (both paragraphs)")
     p.add_argument("--quiet", "-q", action="store_true", help="no [readwright: ...] advice lines (cut footers stay)")
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)

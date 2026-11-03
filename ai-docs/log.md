@@ -89,3 +89,7 @@ From an everscout run on a Unity tutorial EPUB, where the reader skimmed a chapt
 ## [2026-11-02] update | 0.23.0 double-spaced PDF pages, glued listings, table cells
 
 From reading a signal-processing textbook PDF. `merge_wrapped` rejoins a page's one-line paragraphs (lower-case continuation, or full-width lines on a double-spaced page) and drops a break hyphen when the joined word is commoner in the book; `split_listing` makes leading code lines of a paragraph a `pre` block (one line after a `Repo N: file.m` marker); `collapse_cells` turns 6+ one-token paragraphs into a ` | ` row. Skill tip for math-heavy textbooks. CHANGELOG C-20261102-20, LEARNINGS L-030, L-031.
+
+## [2026-11-03] update | 0.24.0 rank by BM25, equation pictures marked
+
+From the everscout distill of Manning, Raghavan and Schutze, *Introduction to Information Retrieval* (EPUB). `rw.py rank FILE WORDS` scores sections, or paragraphs with `--paras`, by Okapi BM25 (k1 1.2, b 0.75) over lowercased words with stop words dropped and a light suffix strip; it names query words the book lacks. The EPUB sets its 160 numbered equations and about 900 inline formulas as JPEGs with alt text "image": they now print `[equation 11.32: image]` (from the `eq_` id) or `[formula: image]` mid-sentence, and `<sub>` prints `_` after a letter (`tf_td`, `k_1`). grep and rank say the file goes first when the arguments are swapped. Formula OCR not attempted (HANDOFF). PR #38, released v0.24.0, installed.

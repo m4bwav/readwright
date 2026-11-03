@@ -122,3 +122,8 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Trigger: `grep "consumer price index"` found nothing and only said how many `-i` would find.
 - Rule: smart case as in ripgrep: no capital letter outside a regex escape means any case; `--case-sensitive` forces exact case.
 - Evidence: Test: test_grep_smart_case. Applied: C-20261103-8.
+
+### L-039 · 2026-11-03 · epub-oneline-contents: a calibre EPUB with bold-paragraph chapters stayed one section
+- Trigger: an EPUB with a one-entry NCX: `toc` gave 6 sections, one with 90% of the words; its contents page read `1 TITLE` per line, each chapter opened with a `1` paragraph then a title paragraph, and the contents lines `INTRODUCTION` and `EPILOGUE: ...` matched HEAD_RE, so the sections after them were titled one off.
+- Rule: read one-line contents entries before the two-line PDF form; cut at the number paragraph above a title; drop a heading cut whose first word opens a later cut when the lines beside it are short.
+- Evidence: 2026-11-03, the book went to 12 sections: Introduction, chapters 1-8 (7,200 to 11,100 words), Epilogue. Test: test_epub_section_splits_at_oneline_contents. Applied: C-20261103-9.

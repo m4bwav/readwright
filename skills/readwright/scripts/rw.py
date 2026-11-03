@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.29.0"
+VERSION = "0.30.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2773,6 +2773,17 @@ def split_caps(s: Section, pages: int = 0) -> list | None:
     return [x for x in out if x.paras]
 
 
+def contents_entry(s: Section, j: int, cuts: list) -> bool:
+    """True when the heading-like line at J is a line of a printed contents page, not the heading: the same opening
+    word is a later cut too, and the lines beside it are short (the contents list) rather than prose (L-039
+    `epub-oneline-contents`: 'INTRODUCTION' and 'EPILOGUE: ...' on an EPUB's contents page opened false sections)."""
+    key = lambda k: (s.paras[k].text.split() or [""])[0].strip(":.").lower()   # 'EPILOGUE: ...' then 'EPILOGUE'
+    if not any(k > j and key(k) == key(j) for k in cuts):
+        return False
+    near = s.paras[max(0, j - 2):j] + s.paras[j + 1:j + 3]
+    return len(near) >= 2 and all(len(p.text.split()) <= 12 for p in near)
+
+
 def refine(doc: Doc) -> Doc:
     """Split a section of more than BIG_SECTION words at the headings or CHAPTER-style lines inside it. Converters
     often lose the outline: calibre's FB2 writes chapter titles as plain paragraphs, and its PDB round trip keeps
@@ -2784,6 +2795,7 @@ def refine(doc: Doc) -> Doc:
         if s.words() > BIG_SECTION or untitled_:
             cuts = [j for j, p in enumerate(s.paras) if (j > 0 or untitled_) and p.kind in ("h", "p")
                     and len(p.text) <= 80 and (p.kind == "h" or heading_line(p.text))]
+            cuts = [j for j in cuts if not contents_entry(s, j, cuts)]
         if len(cuts) < (1 if untitled_ else 2):
             parts = split_caps(s) if s.words() > BIG_SECTION else None
             out.extend(parts or [s])
@@ -2954,11 +2966,34 @@ def listed_chapters(doc: Doc) -> dict:
     return out
 
 
+ONELINE_RE = re.compile(r"(\d{1,3})[\s.:\u2002-\u200b\ufffd]+([^\W\d_].{1,100})")
+
+
+def oneline_contents(doc: Doc) -> list:
+    """(number, title, title, where) from a printed contents page with each chapter on one line ('1 INTENTIONAL
+    SUCCESS', '2 ...'), the way an EPUB's contents page reads: CONTENTS_MIN or more paragraphs in a row numbered
+    1, 2, 3... with no page number at the end (L-039 `epub-oneline-contents`). The first such run wins."""
+    for si, s in enumerate(doc.sections):
+        run = []
+        for j, p in enumerate(s.paras + [Para("p", "")]):
+            m = ONELINE_RE.fullmatch(p.text.strip())
+            if m and int(m.group(1)) == len(run) + 1 and len(m.group(2).split()) <= 15 \
+                    and not re.search(r"\s\d{1,4}$", m.group(2)):
+                run.append((len(run) + 1, m.group(2).strip(), m.group(2).strip(), (si, j)))
+                continue
+            if len(run) >= CONTENTS_MIN:
+                return run
+            run = [(1, m.group(2).strip(), m.group(2).strip(), (si, j))] if m and m.group(1) == "1" else []
+    return []
+
+
 def chapter_list(doc: Doc) -> list:
     """(number, [titles to try], where) for chapters 1, 2, 3...: titles from the printed contents page first, then
-    from 'Chapter N, Title' lists, since pdftotext can scramble a two-column contents page. One gap is allowed."""
+    from 'Chapter N, Title' lists, since pdftotext can scramble a two-column contents page. One gap is allowed.
+    A one-line-per-chapter contents page (EPUB) comes first: the two-line reader would take the body's own
+    chapter openers ('1' then 'TITLE') for contents entries."""
     listed = listed_chapters(doc)
-    printed = {n: (t, line, w) for n, t, line, w in contents_chapters(doc, listed)}
+    printed = {n: (t, line, w) for n, t, line, w in (oneline_contents(doc) or contents_chapters(doc, listed))}
     out, n, gap = [], 1, 0
     while gap < 2 and n < 200:
         tries = [x for x in (printed.get(n, (None,) * 3)[:2] + (listed.get(n),)) if x]
@@ -3001,6 +3036,11 @@ def split_at_contents(doc: Doc) -> Doc:
             text = s.paras[q].text.strip()
             m = next(((t, m) for t, pat in pats if pat and (m := pat.match(text))), None)
             if m:
+                if q > j and m[1].end() == len(text) and s.paras[q - 1].text.strip() == str(n):
+                    q -= 1   # the chapter number sits in its own paragraph above the title (EPUB): cut there
+                    cuts.append((q, n, m[0], len(str(n))))
+                    j = q + 2
+                    break
                 cuts.append((q, n, m[0], m[1].end()))
                 j = q + 1
                 break

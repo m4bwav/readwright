@@ -1,7 +1,9 @@
 # Handoff
 
 ## Current state
-readwright 0.29.0 (2026-11-03): Cengage textbook PDF fixes: outline titles give printed pages, per-page copyright footers dropped by default, smart-case grep, a warning for symbol-font math (CHANGELOG C-20261103-8, LEARNINGS L-035 to L-038). `python tests/test_rw.py`: 136 tests pass.
+readwright 0.30.0 (2026-11-03): an EPUB whose outline collapsed into one giant section is split at the chapters of a one-line printed contents page (`1 TITLE`), cutting at a bare chapter-number paragraph above the title; contents-page lines no longer open false sections (CHANGELOG C-20261103-9, LEARNINGS L-039). `python tests/test_rw.py`: 137 tests pass; `tests/real_files.py` 38/38.
+
+Earlier: readwright 0.29.0 (2026-11-03): Cengage textbook PDF fixes: outline titles give printed pages, per-page copyright footers dropped by default, smart-case grep, a warning for symbol-font math (CHANGELOG C-20261103-8, LEARNINGS L-035 to L-038). `python tests/test_rw.py`: 136 tests pass.
 
 Open: symbol-font math is detected, not repaired. pdftotext's text has no font per character; a repair would read `mutool draw -F stext` (font name per char) and map Mathematical Pi codes to Unicode, only where mutool is present (L-036).
 

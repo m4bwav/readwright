@@ -32,7 +32,7 @@ def lorem(n, word="lorem"):
 
 # ---------------------------------------------------------------- fixture builders
 
-def make_epub(path, nav=True, ncx=False, encryption=None, extra=None):
+def make_epub(path, nav=True, ncx=False, encryption=None, extra=None, meta_extra=""):
     ch1 = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><head><title>c1</title>"
            "<style>p{color:red}</style></head><body><h1>Chapter One</h1><p>The lighthouse keeper counted the gulls.</p>"
            "<p>Brannoch walked to the pier at dawn.</p><script>alert('no')</script></body></html>")
@@ -58,7 +58,7 @@ def make_epub(path, nav=True, ncx=False, encryption=None, extra=None):
         items.append("<item id='ncx' href='toc.ncx' media-type='application/x-dtbncx+xml'/>")
     opf = ("<?xml version='1.0' encoding='utf-8'?><package xmlns='http://www.idpf.org/2007/opf' version='3.0'>"
            "<metadata xmlns:dc='http://purl.org/dc/elements/1.1/'><dc:title>The Quillmere Ledger</dc:title>"
-           "<dc:creator>A. Nonymous</dc:creator><dc:language>en</dc:language></metadata>"
+           "<dc:creator>A. Nonymous</dc:creator><dc:language>en</dc:language>" + meta_extra + "</metadata>"
            "<manifest>" + "".join(items) + "</manifest>"
            "<spine" + (" toc='ncx'" if ncx else "") + "><itemref idref='c1'/><itemref idref='c2'/></spine></package>")
     with zipfile.ZipFile(path, "w") as z:
@@ -410,6 +410,40 @@ class TestEpub(Base):
         self.assertIn("Rain on the slate roofs", text)
         self.assertNotIn("ledger under the stairs", text)
         self.assertNotIn("alert", rw.render_paras(doc.sections[0].paras))
+
+    def test_opf_isbn_and_description_entities(self):
+        p = self.f("isbn.epub")
+        make_epub(p, meta_extra="<dc:identifier>urn:uuid:1234</dc:identifier>"
+                                "<dc:identifier>urn:isbn:978-0-00-000000-2</dc:identifier>"
+                                "<dc:creator>B. Second</dc:creator><dc:date>2001</dc:date>"
+                                "<dc:description>Gulls &amp;#8212; and ledgers</dc:description>")
+        code, out, _ = cli("info", p)
+        self.assertEqual(code, 0)
+        self.assertIn("isbn: 9780000000002", out)
+        self.assertIn("author: A. Nonymous; B. Second", out)
+        self.assertIn("date: 2001", out)
+        self.assertIn("Gulls — and ledgers", out)
+
+    def test_block_image_and_math_are_marked(self):
+        h = rw.html_paras("<p>We divide one by the other:</p><p class='timage'><img alt='image' src='img/t01.jpg'/></p>"
+                          "<p><img alt='A bar chart of gull counts' src='f.png'/></p>"
+                          "<p>Area is <math alttext='pi r^2'><mi>r</mi></math> here.</p><p><math><mi>x</mi></math></p>")
+        texts = [x.text for x in h.paras]
+        self.assertIn("[image omitted: t01.jpg]", texts)
+        self.assertIn("[image: A bar chart of gull counts]", texts)
+        self.assertIn("Area is [math: pi r^2] here.", texts)
+        self.assertIn("[math omitted]", texts)
+
+    def test_read_each_chars_caps_every_section(self):
+        p = self.f("each.epub")
+        make_epub(p)
+        code, out, _ = cli("read", p, "-s", "1-3", "--each-chars", "60")
+        self.assertEqual(code, 0)
+        for n in (1, 2, 3):
+            self.assertIn(f"=== [{n}/3]", out)
+        self.assertIn("section 2 cut at chars 0-", out)
+        self.assertIn("continue with --section 2 --offset", out)
+        self.assertNotIn("ledger listed every ship", out)
 
     def test_ncx_titles(self):
         p = self.f("book2.epub")

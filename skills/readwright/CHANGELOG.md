@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-10 · 2026-11-03 · Release 0.31.0: per-section caps for multi-section reads, image and math markers, ISBN in info
+- because: user request (a reader distilling an EPUB textbook: a formula and TABLE 15-1 set as images vanished silently, one long section crowded out the rest of a multi-section read, and the copyright page lacked authors)
+- files: scripts/rw.py (HTMLText.handle_starttag, EPUB metadata, cmd_read, read --each-chars), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places
+`read --each-chars N` cuts each selected section at N characters with its own resume line (`--max-chars` still caps the total). An `<img>` alone in a block now prints `[image omitted: NAME]` or `[image: ALT]` when the alt text says something; MathML prints `[math: ALTTEXT]` or `[math omitted]`. `info` adds `isbn` from an ISBN-shaped `dc:identifier` and decodes entities in the description. Word counts of image-heavy books rise slightly, since the markers count as words.
+
 ### C-20261103-9 · 2026-11-03 · Release 0.30.0: collapsed EPUB sections split at a one-line printed contents page
 - because: L-039 (a book run on an EPUB whose only outline entry was Start: one section held 90% of the text and two contents-page lines opened false sections)
 - files: scripts/rw.py (oneline_contents, chapter_list, split_at_contents, contents_entry, refine), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places

@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.15.1"
+VERSION = "0.16.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3427,6 +3427,38 @@ def cmd_note(a) -> int:
     return 0
 
 
+GLOSSARY_TITLE = re.compile(r"^\s*(glossary|key terms|terms|definitions)\b", re.I)
+TERM_SPLIT = re.compile(r"^(.{1,60}?)(?:\s*[:—–]\s+|\s+-\s+|\s+(?=(?:A|An|The|[A-Z][a-z]+)\s))(.*)$")
+
+
+def glossary_term(text: str):
+    """(headword, definition) for a glossary paragraph: `Term: def`, `Term - def`, or a run-together `Backlight A process...`."""
+    m = TERM_SPLIT.match(text.strip())
+    if not m or len(m.group(2)) < 15:
+        return None
+    return m.group(1).strip(" .,;"), m.group(2).strip()
+
+
+def cmd_terms(a) -> int:
+    """Headwords of a glossary: the sections titled Glossary (or --section), one term per line with its definition's opening."""
+    doc = load(a.file, a.member, a.via)
+    src = select(doc, a.section, None) if a.section else [i + 1 for i, s in enumerate(doc.sections) if GLOSSARY_TITLE.match(s.title)]
+    if not src:
+        raise RWError("no section titled Glossary, Key terms or Definitions; give --section N")
+    n = 0
+    for i in src:
+        s = doc.sections[i - 1]
+        for p in s.paras:
+            if p.kind == "h" or GLOSSARY_TITLE.match(p.text):
+                continue
+            t = glossary_term(p.text)
+            if t:
+                n += 1
+                print(f"{t[0]}  | {t[1][:a.width]}")
+    print(f"--- {n} terms in section {', '.join(map(str, src))}; read one in full with grep FILE '^TERM'")
+    return 0
+
+
 def cmd_grep(a) -> int:
     doc = load(a.file, a.member, a.via)
     if getattr(a, "strip_boilerplate", False):
@@ -3640,6 +3672,10 @@ def main(argv=None) -> int:
     p.add_argument("number", type=int)
     p.add_argument("--section", "-s", required=True, help="the section the marker was read in")
     p.add_argument("--width", type=int, default=600, help="characters shown")
+    p = sub.add_parser("terms", help="a glossary's headwords, one per line with the start of each definition")
+    common(p, False)
+    p.add_argument("--section", "-s", help="glossary section(s); default: those titled Glossary")
+    p.add_argument("--width", type=int, default=60, help="definition characters shown")
     p = sub.add_parser("dump", help="whole text to a file with section markers")
     common(p, False)
     p.add_argument("--out")
@@ -3657,7 +3693,7 @@ def main(argv=None) -> int:
         a.section = ",".join(a.section)
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
-        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "note": cmd_note, "dump": cmd_dump,
+        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "note": cmd_note, "terms": cmd_terms, "dump": cmd_dump,
                 "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)

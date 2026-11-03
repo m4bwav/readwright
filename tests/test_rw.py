@@ -788,6 +788,18 @@ class TestCommands(Base):
         self.assertNotIn(b"\r\n", data)
         self.assertIn("Снег".encode("utf-8"), data)
 
+    def test_read_out_cut_says_where_to_resume(self):   # a reader could not tell --out had cut the section
+        t = self.big_text()
+        o = self.f("out/cut.txt")
+        code, out, _ = cli("read", t, "--section", "2", "--max-chars", "300", "--out", o)
+        self.assertEqual(code, 0)
+        self.assertIn("cut at chars 0-", out)
+        end = int(out.split("--offset ")[1].split(",")[0].replace(",", ""))
+        self.assertEqual(end, len(o.read_text(encoding="utf-8")))
+        self.assertLessEqual(end, 300)
+        code, out, _ = cli("read", t, "--section", "2", "--out", o)
+        self.assertNotIn("cut at", out)
+
     def test_read_out_dir_one_file_per_section(self):
         t = self.big_text()
         d = self.f("secs")

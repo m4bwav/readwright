@@ -990,6 +990,45 @@ class TestCommands(Base):
         self.assertIn("left out 10 words in 2 code blocks", g)
         self.assertIn("3 matches", cli("grep", e, "import")[1])
 
+    def test_giant_section_splits_at_printed_contents(self):
+        P = lambda t: rw.Para("p", t)
+        contents = [P("1"), P("Brass Lanterns and Tides"), P("3"), P("Harbour charts"), P("4"),
+                    P("2"), P("Salt Roads of the"), P("north coast"), P("21"),
+                    P("3"), P("Case study - a ferry log 40"),   # a section entry, not chapter 3
+                    P("4"), P("Last Light"), P("60")]
+        opener = P("This part has the following chapters: • Chapter 3, Quiet Pilots: The Night Shift • Chapter 4, Last Light")
+        body = [P("Brass Lanterns and Tides " + lorem(200))] + [P(lorem(300)) for _ in range(20)] \
+            + [P("Salt Roads of the North Coast: " + lorem(200))] + [P(lorem(300)) for _ in range(20)] \
+            + [P("Quiet Pilots - The Night Shift " + lorem(200))] + [P(lorem(300)) for _ in range(20)] \
+            + [P("Last Light " + lorem(300))] + [P(lorem(300)) for _ in range(20)]
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("Contents", contents + [opener]),
+                                                rw.Section("Preface", [P("A short preface.")] + body)])
+        old = rw.BIG_SECTION_CHARS
+        try:
+            rw.BIG_SECTION_CHARS = 10_000
+            rw.split_at_contents(doc)
+            notes = rw.big_section_notes(doc)
+        finally:
+            rw.BIG_SECTION_CHARS = old
+        self.assertEqual([s.title for s in doc.sections],
+                         ["Contents", "Preface", "1. Brass Lanterns and Tides", "2. Salt Roads of the north coast",
+                          "3. Quiet Pilots: The Night Shift", "4. Last Light"])
+        self.assertEqual(doc.sections[1].paras[0].text, "A short preface.")
+        self.assertTrue(doc.sections[3].paras[1].text.startswith("lorem ipsum"))
+        self.assertNotIn("Salt Roads", doc.sections[3].paras[1].text)
+        self.assertFalse([n for n in notes if "section 2 " in n])   # the preface no longer holds the book
+
+    def test_giant_section_stays_whole_without_contents(self):
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("One", [rw.Para("p", "short text")]),
+                                                rw.Section("Two", [rw.Para("p", lorem(300)) for _ in range(150)])])
+        old = rw.BIG_SECTION_CHARS
+        try:
+            rw.BIG_SECTION_CHARS = 10_000
+            rw.split_at_contents(doc)
+        finally:
+            rw.BIG_SECTION_CHARS = old
+        self.assertEqual(len(doc.sections), 2)
+
     def test_skip_code_says_pdf_has_no_marker(self):
         doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("One", [rw.Para("p", "def run(): pass")])])
         self.assertIn("no structural code marker", rw.code_note(doc, rw.skip_code(doc), [1]))

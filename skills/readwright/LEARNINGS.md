@@ -160,6 +160,11 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: an EPUB whose spine shows page images is OCR'd like a scanned PDF: `rw.py ocr FILE` reads the images in spine order (no rendering), keeps the text in the OCR cache, and info, toc, read and grep use it. An image-only EPUB often has a DjVu twin in the same folder with OCR text already in it: try that first.
 - Evidence: 2026-11-02, the real EPUB: 247 page images OCR'd in 35 s with Windows OCR, 88k words; `grep -i triple-take` 20 hits. Tests: TestFiveCs (epub_page_images, note, cache, engine run). Applied: C-20261102-4.
 
+### L-026 · 2026-11-02 · printed-contents-split: bookmarks that stop early, but the printed contents page names every chapter
+- Trigger: a Packt 2024 PDF: the outline's last entries are the part pages and "Preface", so `toc` gave 12 sections and section 11 held 94% of the text; `--group` refused (titled sections).
+- Rule: pdftotext reads the contents page as `1` / title / page lines, and a chapter's opening page as one paragraph starting with its title. Cut the giant section at the first paragraph, in order, opening with each title. A two-column contents page comes out scrambled (chapter 9's number landed before a section entry), so titles also come from the part openers' "Chapter N, Title" lists, and an entry whose title line ends in a page number is a section, not a chapter.
+- Evidence: 2026-11-02, the book: 11 chapters, 2.6k to 13k words each, preface 908 words. Applied: C-20261102-14.
+
 ### L-025 · 2026-11-02 · pre-crlf-nbsp-code: a publisher's EPUB writes code with CRLF and no-break-space indents
 - Trigger: reader agents on a Python-for-Blender book saw one listing whose loop body had no indent and suspected `--compact`.
 - Rule: the missing indent was in the EPUB source itself (the book's error); readwright now turns `<pre>` CR line ends into LF and U+00A0 into spaces, and joins listings the publisher split into one `<pre>` per line. When a reader reports mangled code, check the raw XHTML before blaming the renderer, and tell readers to trust code over prose but check API names against current docs.

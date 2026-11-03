@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-1 · 2026-11-03 · Release 0.24.0: rank sections by BM25; equation pictures marked; grep names swapped arguments
+- because: user request (every book run adds a reader feature); the reader of Manning, Raghavan and Schutze, *Introduction to Information Retrieval* got grep hits in book order with no ranking, and `grep "champion list" FILE` failed with a bare no-such-file
+- files: scripts/rw.py (RANK_STOP, rank_terms, bm25, cmd_rank, cmd_grep, rank parser, the HTML parser img and sub handling), SKILL.md Step 4 and Distilling a book, ../../tests/test_rw.py, version in the five places
+`rank FILE WORDS` scores each section (or paragraph with `--paras`) by Okapi BM25 (k1 1.2, b 0.75, the book's sec. 11.4.3) over lowercased words with stop words dropped and a light suffix strip, and names query words the book lacks. grep and rank say the file goes first when the second argument is the file. An EPUB equation set as a picture prints `[equation 11.32: image]` (from its `eq_` id) and a picture mid-sentence `[formula: image]`, so a gap no longer reads as a finished sentence; `<sub>` prints as `_` after a letter (`tf_td`, `k_1`). The formula text itself is a picture and stays unread.
+
 ### C-20261102-20 · 2026-11-02 · Release 0.23.0: double-spaced PDF pages, glued MATLAB listings, one-cell-per-line tables
 - because: L-030 `pdf-double-spaced`, L-031 `pdf-table-cells` (a signal-processing textbook PDF: every printed line came out as its own paragraph, a word split across a column break stayed `fre- quency`, a MATLAB listing after a `Repo N: file.m` marker was glued into the prose so `--skip-code` missed it, and a table printed one cell per line)
 - files: scripts/rw.py (merge_wrapped, collapse_cells, CELL_RE, CELL_RUN, REPO_MARK, ML_LINE, LISTING_CAPTION, split_listing, text_paras, load_pdf, load_ocr), SKILL.md Distilling a book, ../../tests/test_rw.py (TestPdfDoubleSpaced), version in the five places

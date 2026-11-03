@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.23.0"
+  version: "0.24.0"
 ---
 
 # readwright
@@ -54,6 +54,8 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 
 `RW grep FILE "PATTERN" -C 1 --max 5` prints each matching paragraph with its section number and title, paragraph number and one paragraph of context on each side. Long paragraphs are trimmed around the match (`--width`). `--after N` (`-A N`) adds N paragraphs after each hit, shown up to `--width` with their line breaks: the code block or list that follows the sentence naming it (0.15.0). Use `-i` for case-insensitive and `-F` for a plain string; `--count` gives matches per section, the quickest way to find where a character or term appears. Each hit line ends `| offset N`, the character offset `read --section S --offset N` starts at; `read --section S --at-para P` starts at a paragraph. Use them when toc notes one giant section (bookmarks that stop early); since 0.17.0 such a section is first cut at the chapters a printed contents page or a "Chapter N, Title" list names, so the note shows only when that fails. Exit code 1 means no match. Search before reading when the user asks where or whether something is mentioned.
 
+`RW rank FILE topic words` (0.24.0) ranks sections by BM25 for a few topic words and prints score, words and the terms each holds: which section to read first, where grep prints hits in book order. Stop words and plural, -ed and -ing endings are folded, so `shingles` finds `shingling`; a word not in the book is named. `--paras` ranks paragraphs (heading lines often win: read from there), `--top N`, `--section`, `--k1` and `--b` as in BM25. Rank first on a long book, then grep inside the top sections.
+
 ## Step 5: whole book to a scratch file
 
 For work that needs many passes over a long book (every scene with a character, a timeline), run `RW dump FILE --out <scratch>/book.txt` once. Then use your own search and read tools on that file, never `cat`. Section markers are lines starting `=== [N/`; `--format md` writes `<!-- readwright section N/... -->` comments with Markdown headings. Dump writes to stdout only when the text is under 25,000 characters. Put the file in the session's scratch or temp folder, never in the user's repository.
@@ -89,6 +91,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Cite by chapter number (`ch. 12`) or a toc section title, not by section number alone.
 - Skim a long tutorial chapter with `RW read FILE --section N --headings` before reading it: the subheadings with word counts show which parts matter, then `--at-para P` reads just those.
 - In a technical book read the Troubleshooting, Common Issues, Tips and Production sections first: they hold the most practical rules per word. Size sections with `toc`; skip long code walkthroughs or read them with `--skip-code`.
+- A long textbook (an IR or ML text of 250k words): give the reader `rank FILE <topic words>` for each topic before any grep, then grep inside the top two sections. EPUB equations are often pictures: since 0.24.0 they print as `[equation 11.32: image]` or `[formula: image]` and subscripts as `k_1`; the values a book gives sit in the prose after the picture, so grep the symbol (`k_1`, `β`) and read the sentences around it (Manning IR, 2026-11-03).
 - A math-heavy textbook PDF: equations come out garbled (symbols on their own lines, numbers as `(9.3)` alone); read the prose sections and skip equation-only ones. Since 0.23.0 double-spaced pages are rejoined into paragraphs, glued MATLAB or Python listings are found by `--skip-code`, and tables print as ` | ` rows, still to be checked against the page.
 - A textbook: read only the chapters the purpose needs (its toc parts split micro, macro and appendices cleanly), and each chapter's Conclusion section first; textbook PDFs mix sidebars, figure labels and tables into the prose, so trust prose paragraphs and check numbers against the table they came from.
 - Note where the book is dated (library versions, prices, APIs that have since changed).

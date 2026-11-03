@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.23.0"
+VERSION = "0.24.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -444,6 +444,7 @@ class HTMLText(HTMLParser):
         self._a = None
         self.depth = 0
         self.sup = 0
+        self.blockid = ""
         self.noteref = 0   # inside a note reference: its number prints as [40], not glued to the sentence
 
     def flush(self):
@@ -492,6 +493,14 @@ class HTMLText(HTMLParser):
             return
         if tag == "img" and a.get("alt") and len(a["alt"]) > 1 and self.kind == "h":
             self.buf.append(a["alt"])
+        elif tag == "img":   # an equation set as a picture (<p id="eq_11_32"><img alt="image">) says so, not a silent gap
+            m = re.match(r"eq[_.-]?(\d+(?:[_.-]\d+)*)$", a.get("id") or self.blockid or "", re.I)
+            if m:
+                self.buf.append(f" [equation {re.sub(r'[_-]', '.', m.group(1))}: image] ")
+            elif not self.pre and clean("".join(self.buf)):   # a picture mid-sentence is an inline formula: "then ." loses it
+                self.buf.append(" [formula: image] ")
+        if tag == "sub" and self.buf and self.buf[-1][-1:].isalnum():   # tf<sub>td</sub> reads tf_td, not tftd
+            self.buf.append("_")
         if tag in ("td", "th"):
             if self.cells is not None:
                 self.buf = []
@@ -503,6 +512,7 @@ class HTMLText(HTMLParser):
             return
         if tag in BLOCK:
             self.flush()
+            self.blockid = a.get("id") or ""
             if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
                 self.kind, self.level = "h", int(tag[1])
             elif tag == "li":
@@ -3807,7 +3817,99 @@ def cmd_terms(a) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- rank: which section to read first (BM25)
+
+RANK_STOP = set("a an and are as at be but by for from has have how i if in into is it its of on or that the their then "
+                "there these they this to was were what when where which who why will with you your".split())
+
+
+def rank_terms(text: str) -> list:
+    """Lowercased words with stop words dropped and a light suffix strip, so 'shingles' meets 'shingle'.
+    Plain suffix rules, not Porter: a query and a book stemmed the same way is all ranking needs."""
+    out = []
+    for w in re.findall(r"[a-z0-9]+", text.lower()):
+        if w in RANK_STOP or len(w) < 2:
+            continue
+        for suf in ("ings", "ing", "ies", "ied", "ed", "es", "s"):
+            if len(w) > len(suf) + 2 and w.endswith(suf) and not w.endswith("ss"):
+                w = w[: -len(suf)] + ("y" if suf in ("ies", "ied") else "")
+                break
+        if len(w) >= 4 and w.endswith("e"):   # shingle, shingles and shingling all meet at shingl
+            w = w[:-1]
+        out.append(w)
+    return out
+
+
+def bm25(docs: list, query: list, k1: float = 1.2, b: float = 0.75) -> list:
+    """Okapi BM25 score of each term list in docs for the query terms (Manning et al. 2008, sec. 11.4.3)."""
+    import math
+    n = len(docs)
+    avg = (sum(len(d) for d in docs) / n) if n else 0
+    counts = [collections.Counter(d) for d in docs]
+    df = {t: sum(1 for c in counts if t in c) for t in set(query)}
+    scores = []
+    for d, c in zip(docs, counts):
+        sc = 0.0
+        for t in set(query):
+            tf = c.get(t, 0)
+            if tf:
+                idf = math.log(1 + (n - df[t] + 0.5) / (df[t] + 0.5))
+                sc += idf * tf * (k1 + 1) / (tf + k1 * (1 - b + b * len(d) / (avg or 1)))
+        scores.append(sc)
+    return scores
+
+
+def cmd_rank(a) -> int:
+    if not os.path.isfile(a.file) and any(os.path.isfile(q) for q in a.query):
+        raise RWError(f"no such file: {a.file}; the file goes first: rank FILE WORDS")
+    doc = load(a.file, a.member, a.via)
+    if getattr(a, "strip_boilerplate", False):
+        strip_furniture(doc)
+    if doc.fmt == "zip":
+        raise RWError("this is a zip archive; pick a member with --member NAME")
+    query = rank_terms(" ".join(a.query))
+    if not query:
+        raise RWError("the query has no words left after stop words; name the topic, e.g. rank FILE near duplicate shingle")
+    idx = select(doc, a.section, a.title) if (a.section or a.title) else range(1, len(doc.sections) + 1)
+    units = []   # (section, paragraph index or None, terms)
+    for i in idx:
+        s = doc.sections[i - 1]
+        if a.paras:
+            units += [(i, j, rank_terms(p.text)) for j, p in enumerate(s.paras)]
+        else:
+            units.append((i, None, rank_terms(" ".join(p.text for p in s.paras))))
+    scores = bm25([u[2] for u in units], query, a.k1, a.b)
+    uq = list(dict.fromkeys(query))
+    missing = [t for t in uq if not any(t in u[2] for u in units)]
+    hit = [k for k, sc in enumerate(scores) if sc > 0]
+    rows = []
+    for k in sorted(hit, key=lambda k: -scores[k])[: a.top]:
+        i, j, terms = units[k]
+        s = doc.sections[i - 1]
+        c = collections.Counter(terms)
+        r = {"section": i, "title": s.title, "para": None if j is None else j + 1, "score": round(scores[k], 2),
+             "words": s.words() if j is None else len(s.paras[j].text.split()), "terms": {t: c[t] for t in uq if c.get(t)}}
+        if j is not None:
+            r["text"] = s.paras[j].text[: a.width]
+        rows.append(r)
+    if a.json:
+        print(json.dumps({"query": uq, "missing": missing, "results": rows}, ensure_ascii=False, indent=1))
+        return 0 if rows else 1
+    for r in rows:
+        terms = ", ".join(f"{t} {n}" for t, n in r["terms"].items())
+        where = f"[{r['section']}] {r['title']}" + (f" | para {r['para']}" if r["para"] else "")
+        print(f"{r['score']:>7}  {where}  ({r['words']:,} w; {terms})")
+        if "text" in r:
+            print("         " + " ".join(r["text"].split()) + (" ..." if len(r["text"]) >= a.width else ""))
+    print(f"[query terms: {' '.join(uq)}" + (f"; not in the book: {' '.join(missing)}" if missing else "")
+          + f"; showed {len(rows)} of {len(hit)} with a hit"
+          + ("; read the top one with read --section N, or add --paras for paragraphs" if rows and not a.paras else "") + "]")
+    return 0 if rows else 1
+
+
 def cmd_grep(a) -> int:
+    if not os.path.isfile(a.file) and os.path.isfile(a.pattern):   # grep "champion list" FILE (Manning IR reader, 2026-11-03)
+        raise RWError(f"no such file: {a.file}; the file goes first: grep FILE PATTERN")
     doc = load(a.file, a.member, a.via)
     if getattr(a, "strip_boilerplate", False):
         strip_furniture(doc)
@@ -4019,6 +4121,17 @@ def main(argv=None) -> int:
     p.add_argument("--format", choices=["txt", "md"], default="txt", help="read format the printed offsets count in")
     p.add_argument("--strip-boilerplate", action="store_true", help="as for read; use it on both so paragraph numbers agree")
     p.add_argument("--skip-code", action="store_true", help="as for read: search prose only; use it on both so paragraph numbers agree")
+    p = sub.add_parser("rank", help="sections (or paragraphs) ranked by BM25 for a few topic words: which to read first")
+    common(p)
+    p.add_argument("query", nargs="+", help="topic words; stop words and plural or -ing endings are folded")
+    p.add_argument("--paras", action="store_true", help="rank paragraphs instead of sections")
+    p.add_argument("--top", type=int, default=10, help="results shown (default 10)")
+    p.add_argument("--width", type=int, default=300, help="characters of each paragraph shown with --paras")
+    p.add_argument("--k1", type=float, default=1.2, help="BM25 term-frequency saturation (1.2 to 2.0)")
+    p.add_argument("--b", type=float, default=0.75, help="BM25 length normalisation (0 none, 1 full)")
+    p.add_argument("--section", "-s", action="append", help="as for read; repeat to add more")
+    p.add_argument("--title", "-t")
+    p.add_argument("--strip-boilerplate", action="store_true", help="as for read")
     p = sub.add_parser("note", help="the endnote a marker like [39] points at (notes restart per chapter)")
     common(p, False)
     p.add_argument("number", type=int)
@@ -4045,7 +4158,7 @@ def main(argv=None) -> int:
         a.section = ",".join(a.section)
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
-        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "note": cmd_note, "terms": cmd_terms, "dump": cmd_dump,
+        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "rank": cmd_rank, "note": cmd_note, "terms": cmd_terms, "dump": cmd_dump,
                 "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)

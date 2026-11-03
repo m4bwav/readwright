@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.20.0"
+VERSION = "0.21.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3407,6 +3407,17 @@ def doc_head(doc: Doc) -> str:
 
 # ---------------------------------------------------------------- commands
 
+def meta_swapped(meta, name):
+    """A note when the title field holds a person's name and the author field the book title, both in the file name."""
+    t, au = meta.get("title") or "", meta.get("author") or ""
+    norm = lambda s: " ".join(re.findall(r"[a-z0-9]+", s.lower()))
+    key = f" {norm(name)} "
+    if (re.fullmatch(r"[A-Z][\w'.-]*(?: [A-Z][\w'.-]*){1,3}", t) and len(au.split()) > len(t.split())
+            and f" {norm(t)} " in key and f" {norm(au.split(':')[0])} " in key):
+        return f"title and author look swapped in the metadata: the title is probably {au!r}, by {t}"
+    return ""
+
+
 def cmd_info(a) -> int:
     doc = load(a.file, a.member, a.via)
     real = a.file
@@ -3426,8 +3437,10 @@ def cmd_info(a) -> int:
     if doc.sections:
         big = max(range(len(doc.sections)), key=lambda i: doc.sections[i].words())
         info["largest_section"] = f"{big + 1} ({fmt_n(doc.sections[big].words())} words)"
-    if doc.notes:
-        info["notes"] = doc.notes
+    swapped = meta_swapped(doc.meta, os.path.basename(a.file))
+    notes = doc.notes + ([swapped] if swapped else [])
+    if notes:
+        info["notes"] = notes
     if a.json:
         print(json.dumps(info, ensure_ascii=False, indent=1))
         return 0

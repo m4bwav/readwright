@@ -1512,6 +1512,15 @@ class TestToolDiscovery(Base):
 T = rw.tools()
 
 
+class TestMetaSwapped(unittest.TestCase):
+    def test_swapped(self):
+        name = "Deborah Tannen - Conversational Style_ Analyzing Talk among Friends.epub"
+        note = rw.meta_swapped({"title": "Deborah Tannen", "author": "Conversational Style: Analyzing Talk among Friends"}, name)
+        self.assertIn("swapped", note)
+        self.assertEqual(rw.meta_swapped({"title": "Show Your Work!", "author": "Austin Kleon"}, "Show Your Work - Austin Kleon.epub"), "")
+        self.assertEqual(rw.meta_swapped({"title": "Deborah Tannen", "author": "Another Long Title Here"}, name), "")
+
+
 class TestRoutes(unittest.TestCase):
     """Every route through an external tool, on files the tool itself writes from invented text. Skipped when
     the tool is absent; CI installs them on Linux (.github/workflows/tests.yml)."""

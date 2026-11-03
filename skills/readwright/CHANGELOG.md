@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-16 · 2026-11-02 · Release 0.19.0: read --drop-epigraphs; one-pass tip for short books
+- because: L-029 `quotation-epigraphs` (a short creativity book opened most sections with a quotation and a dash attribution, about 40 of them)
+- files: scripts/rw.py (EPIGRAPH_MAX_WORDS, ATTRIB_MAX_WORDS, QUOTED_RE, ATTRIB_RE, drop_epigraphs, cmd_read, main), SKILL.md (Distilling a book), ../../tests/test_rw.py (test_drop_epigraphs), version in the five places
+`read --drop-epigraphs` drops a paragraph of 80 words or fewer wholly in straight or curly quotation marks when the next paragraph starts with an em dash, en dash or `--` and is 8 words or fewer; both go and one advice line gives the count. A quotation with no attribution line stays. Off by default. Distilling tip: read a book under about 30k tokens in one `--section A-B --out FILE` pass; with `--drop-epigraphs`, cite the author's ideas, not the people quoted. On the real book 80 paragraphs went (40 pairs) and no body text.
+
 ### C-20261102-15 · 2026-11-02 · Release 0.18.0: split a giant PDF section at running heads; collapse contents dot leaders
 - because: L-027 `pdf-running-head-split` and L-028 `contents-dot-leaders` (an Apress PDF: the outline stops at the Introduction, which held 90% of the text; its contents printed 60-character runs of U+FFFD)
 - files: scripts/rw.py (RUN_HEAD_RE, OPENER_LINE_RE, run_head_chapters, load_pdf, LEADER_RE, collapse_leaders, load), SKILL.md (Distilling a book), ../../tests/test_rw.py (test_giant_pdf_section_splits_at_running_heads, test_contents_dot_leaders_collapse), version in the five places

@@ -160,6 +160,11 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: an EPUB whose spine shows page images is OCR'd like a scanned PDF: `rw.py ocr FILE` reads the images in spine order (no rendering), keeps the text in the OCR cache, and info, toc, read and grep use it. An image-only EPUB often has a DjVu twin in the same folder with OCR text already in it: try that first.
 - Evidence: 2026-11-02, the real EPUB: 247 page images OCR'd in 35 s with Windows OCR, 88k words; `grep -i triple-take` 20 hits. Tests: TestFiveCs (epub_page_images, note, cache, engine run). Applied: C-20261102-4.
 
+### L-029 · 2026-11-02 · quotation-epigraphs: short books that open each section with a quotation and a dash attribution
+- Trigger: a short creativity EPUB carried about 40 `"Quote." / —Name` pairs across sections 5-15; reader notes credited the quoted people instead of the author.
+- Rule: `read --drop-epigraphs` drops the pair (quote of 80 words or fewer, wholly quoted; attribution of 8 words or fewer starting with a dash); a quote without the attribution line stays.
+- Evidence: 2026-11-02; test_drop_epigraphs; on the real file 80 paragraphs dropped, all epigraph pairs. Applied: C-20261102-16.
+
 ### L-028 · 2026-11-02 · contents-dot-leaders: pdftotext turns a contents page's dot leaders into runs of U+FFFD
 - Trigger: an Apress PDF's Contents section printed `About the Author` followed by 60 replacement characters and `xiii`.
 - Rule: collapse 3+ U+FFFD, or 4+ leader dots, between text and a page number to ` … ` at load so every output path is short.

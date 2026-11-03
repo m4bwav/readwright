@@ -77,3 +77,7 @@ From an everscout run on a film-technique book (image-only EPUB plus a DjVu twin
 ## [2026-11-02] update | 0.18.0 running-head chapter split and dot leaders
 
 From reading an Apress PDF whose outline stopped at the Introduction. `run_head_chapters` adds chapter starts from page-top running heads inside an oversized section (opener page `CHAPTER N` preferred); chosen over the printed contents page because that gives printed page numbers and its layout varies. `collapse_leaders` turns U+FFFD and dot leader runs into ` … `. CHANGELOG C-20261102-15, LEARNINGS L-027, L-028.
+
+## [2026-11-02] update | 0.19.0 --drop-epigraphs
+
+From reading a short quote-heavy creativity EPUB: `drop_epigraphs` drops a short wholly-quoted paragraph followed by a dash attribution of 8 words or fewer (both go); a lone quotation stays. 80 paragraphs (40 pairs) dropped on the real book. Skill tip: books under about 30k tokens are read in one `--section A-B --out FILE` pass. CHANGELOG C-20261102-16, LEARNINGS L-029.

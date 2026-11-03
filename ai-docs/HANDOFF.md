@@ -1,7 +1,9 @@
 # Handoff
 
 ## Current state
-readwright 0.18.0 (2026-11-02): a giant PDF section is also split at running heads (`Chapter N ■ Title`) where N changes, and contents dot leaders (U+FFFD runs, dot runs) print as ` … ` (CHANGELOG C-20261102-15, LEARNINGS L-027, L-028). `python tests/test_rw.py` passes; `tests/real_files.py` 38/38.
+readwright 0.19.0 (2026-11-02): `read --drop-epigraphs` drops quotation epigraphs with their dash attribution lines; distilling tip for reading short books in one pass (CHANGELOG C-20261102-16, LEARNINGS L-029). `python tests/test_rw.py`: 118 tests pass.
+
+Earlier: readwright 0.18.0 (2026-11-02): a giant PDF section is also split at running heads (`Chapter N ■ Title`) where N changes, and contents dot leaders (U+FFFD runs, dot runs) print as ` … ` (CHANGELOG C-20261102-15, LEARNINGS L-027, L-028). `python tests/test_rw.py` passes; `tests/real_files.py` 38/38.
 
 Earlier: readwright 0.17.0 (2026-11-02): a section holding over half the text (bookmarks that stop early) is cut at the chapters the printed contents page or "Chapter N, Title" lists name (CHANGELOG C-20261102-14, LEARNINGS L-026). `python tests/test_rw.py`: 117 tests; `tests/real_files.py` 38/38.
 

@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.18.0"
+  version: "0.19.0"
 ---
 
 # readwright
@@ -82,6 +82,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Reader agents read a whole chapter in one call with `--max-chars` set above its size (the toc word count x about 6), or `--out FILE` then read the file; the default 25k cap made two agents sample 60-85k-character chapters. Give them a margin: a 9,800-word chapter came to 60,750 characters, just over a 60,000 cap. 
 - Over about 150k words, split by part across parallel reader agents. Each returns principles in its own words with a citation and quotes of 25 words or fewer.
 - Read a run of sections in one call, batched by chapter, not one section per call: `RW read FILE --section 9-26 --quiet --max-words 400`. Size `--max-words` so sections x words x about 6 characters stays under 25k characters (the `--max-chars` default); each cut line gives the `--offset` to resume. Add `--drop-repeated` when every section carries the same credit or copyright line (image credits ending "All Rights Reserved"): it drops short paragraphs that recur in 30% or more of sections, verbatim or with the same last four words, and says how many went. It is off by default because a book's own templated short lines can match; check the count looks like one line per section.
+- A short book (under about 30k tokens in the `toc` header) is read in one pass: `RW read FILE --section A-B --out FILE`, not section by section. For a quote-heavy book add `--drop-epigraphs` (0.19.0: drops each short quotation followed by a dash attribution line, and the line) and cite the author's ideas, not the people quoted.
 - Cite by chapter number (`ch. 12`) or a toc section title, not by section number alone.
 - In a technical book read the Troubleshooting, Common Issues, Tips and Production sections first: they hold the most practical rules per word. Size sections with `toc`; skip long code walkthroughs or read them with `--skip-code`.
 - A textbook: read only the chapters the purpose needs (its toc parts split micro, macro and appendices cleanly), and each chapter's Conclusion section first; textbook PDFs mix sidebars, figure labels and tables into the prose, so trust prose paragraphs and check numbers against the table they came from.

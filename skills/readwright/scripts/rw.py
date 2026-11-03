@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.22.0"
+VERSION = "0.23.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1609,6 +1609,73 @@ def join_split_pages(page_paras) -> None:
             prev = pp
 
 
+def merge_wrapped(pp) -> None:
+    """Some PDFs come out of pdftotext double-spaced: a blank line after every printed line, so each line became its
+    own paragraph and a word hyphenated at a line or column break ("fre-" ... "quency") stayed split (L-030
+    `pdf-double-spaced`). Within one page a paragraph is joined to the next (lower case start) when it ends in a
+    hyphen or has no sentence end. On a double-spaced page (most paragraphs one line of about the same width) a
+    full-width line is joined to the next whatever it ends with: the paragraph went on past the line end."""
+    ps = [p for p in pp if p.kind == "p"]
+    one = sorted(len(p.text) for p in ps)
+    width = one[int(len(one) * 0.8)] if len(one) >= 8 else 0
+    double = width >= 40 and sum(width * 0.8 <= len(p.text) <= width * 1.1 for p in ps) >= len(ps) * 0.5
+    i = 0
+    while i < len(pp) - 1:
+        a, b = pp[i], pp[i + 1]
+        if a.kind == "p" and b.kind == "p" and (
+                b.text[:1].islower() and (a.text[-1:] in "-" + BREAK_HYPHENS or a.text[-1:] not in SENTENCE_END)
+                or double and width * 0.9 <= len(a.text) <= width * 1.1 and b.text[:1].isalnum()
+                and not REPO_MARK.match(b.text) and not LISTING_CAPTION.match(b.text)):
+            w = WORD.findall(a.text)[-1:] + WORD.findall(b.text)[:1]
+            if a.text.endswith("-") and len(w) == 2 and VOCAB.get((w[0] + w[1]).lower(), 0) > VOCAB.get(
+                    (w[0] + "-" + w[1]).lower(), 0):
+                a.text = a.text[:-1] + b.text   # "fre-" + "quency": the book prints "frequency" more often
+            else:
+                a.text = join_lines([a.text, b.text])
+            pp.pop(i + 1)
+            continue
+        i += 1
+
+
+CELL_RE = re.compile(r"^\S{1,10}$")   # one table cell on its own line: "0", "0.38", "v(3)"
+CELL_RUN = 6   # one-token paragraphs in a row before they are called a table
+
+
+def collapse_cells(pp) -> None:
+    """A PDF table read by pdftotext prints one cell per paragraph ("v(0)", "1", "v(1)", "0", ...). A run of
+    CELL_RUN or more one-token paragraphs becomes one row paragraph with the cells separated by " | ", so a table
+    takes a few lines instead of dozens (L-031 `pdf-table-cells`; the real layout needs block coordinates, HANDOFF)."""
+    i = 0
+    while i < len(pp):
+        j = i
+        while j < len(pp) and pp[j].kind == "p" and CELL_RE.match(pp[j].text):
+            j += 1
+        if j - i >= CELL_RUN:
+            pp[i:j] = [Para("row", " | ".join(p.text for p in pp[i:j]))]
+        i += 1
+
+
+REPO_MARK = re.compile(r"^(?:Repo \d+:\s*\S+\.(?:m|py|c|cpp|js|r|jl)\b\s*)+$", re.I)   # "Repo 2: X.m Repo 3: X.py"
+ML_LINE = re.compile(r"^\s*%|;\s*$|^\s*(?:end|function)\b")   # MATLAB comment, statement, block keyword
+LISTING_CAPTION = re.compile(r"^(?:Listing|Code) \d+[.-]\d+\b")
+
+
+def split_listing(lines: list, after_marker: bool) -> tuple:
+    """Code printed as plain lines and glued by pdftotext to the caption and prose after it (L-030
+    `pdf-listing-glued`): the leading lines of a paragraph that read as code (CODE_LINE, MATLAB comments and
+    statements) are split off. After a "Repo N: file.m" marker one code line is enough; elsewhere CODE_RUN in a row.
+    Returns (code lines, caption line or None, remaining lines)."""
+    k = 0
+    while k < len(lines) and (CODE_LINE.search(lines[k]) or ML_LINE.search(lines[k])) \
+            and not LISTING_CAPTION.match(lines[k]):
+        k += 1
+    if k == 0 or (not after_marker and k < CODE_RUN):
+        return [], None, lines
+    rest = lines[k:]
+    cap = rest.pop(0) if rest and LISTING_CAPTION.match(rest[0]) else None
+    return lines[:k], cap, rest
+
+
 def text_paras(text: str, fmt: str) -> list:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = text.split("\n")
@@ -1616,6 +1683,14 @@ def text_paras(text: str, fmt: str) -> list:
     fence = False
 
     def flush():
+        if buf and fmt == "txt":
+            code, cap, rest = split_listing(buf, bool(paras) and paras[-1].kind == "p"
+                                            and bool(REPO_MARK.match(paras[-1].text)))
+            if code:
+                paras.append(Para("pre", "\n".join(code)))
+                if cap:
+                    paras.append(Para("p", clean(cap)))
+                buf[:] = rest
         if buf:
             t = clean(join_lines(buf))
             if t:
@@ -1991,6 +2066,9 @@ def load_pdf(path) -> Doc:
     try:
         page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
         join_split_pages(page_paras)
+        for pp in page_paras:
+            collapse_cells(pp)
+            merge_wrapped(pp)
         for pp in page_paras:
             for i in range(len(pp) - 1, -1, -1):
                 if pp[i].kind not in ("h", "pre"):

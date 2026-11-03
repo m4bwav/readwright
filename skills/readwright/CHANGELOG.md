@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-20 · 2026-11-02 · Release 0.23.0: double-spaced PDF pages, glued MATLAB listings, one-cell-per-line tables
+- because: L-030 `pdf-double-spaced`, L-031 `pdf-table-cells` (a signal-processing textbook PDF: every printed line came out as its own paragraph, a word split across a column break stayed `fre- quency`, a MATLAB listing after a `Repo N: file.m` marker was glued into the prose so `--skip-code` missed it, and a table printed one cell per line)
+- files: scripts/rw.py (merge_wrapped, collapse_cells, CELL_RE, CELL_RUN, REPO_MARK, ML_LINE, LISTING_CAPTION, split_listing, text_paras, load_pdf, load_ocr), SKILL.md Distilling a book, ../../tests/test_rw.py (TestPdfDoubleSpaced), version in the five places
+Within a PDF page, a paragraph ending in a hyphen or without a sentence end joins the next when that starts lower case; on a double-spaced page (most paragraphs one line of about the same width) a full-width line joins the next too. A hyphen at the break is dropped when the book prints the joined word more often than the hyphenated one. The leading lines of a paragraph that read as code (CODE_LINE, MATLAB `%` comments, lines ending in `;`) become a `pre` block, after a Repo marker from one line, elsewhere from CODE_RUN lines; a following `Listing N.N` caption becomes its own paragraph. Six or more one-token paragraphs in a row become one row paragraph joined with ` | `. The full table layout is still open (HANDOFF).
+
 ### C-20261102-19 · 2026-11-02 · Release 0.22.0: --skip-code drops code lead-ins
 - because: a book distill (a Packt LLM tutorial EPUB, 4 sections): with the code gone, 14 sentences ending in ':' that introduced the blocks stayed behind, dangling
 - files: scripts/rw.py (skip_code, code_note), SKILL.md Distilling a book, ../../tests/test_rw.py (test_skip_code_drops_colon_lead_ins), version in the five places (SKILL.md and evergreen.json had stayed at 0.20.0)

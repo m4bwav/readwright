@@ -1,7 +1,9 @@
 # Handoff
 
 ## Current state
-readwright 0.20.0 (2026-11-02): `read --headings` lists a section's subheadings with paragraph numbers for `--at-para` and word counts (CHANGELOG C-20261102-17). `python tests/test_rw.py`: 119 tests pass.
+readwright 0.23.0 (2026-11-02): double-spaced PDF pages rejoin into paragraphs (break hyphens dropped from the book's word counts), MATLAB/Python listings glued into prose become `pre` blocks for `--skip-code`, one-cell-per-line tables collapse to ` | ` rows (CHANGELOG C-20261102-20, LEARNINGS L-030, L-031). `python -m unittest discover -s tests`: 124 tests pass. Versions 0.21.0 and 0.22.0 are in the CHANGELOG.
+
+Earlier: readwright 0.20.0 (2026-11-02): `read --headings` lists a section's subheadings with paragraph numbers for `--at-para` and word counts (CHANGELOG C-20261102-17). `python tests/test_rw.py`: 119 tests pass.
 
 Earlier: readwright 0.19.0 (2026-11-02): `read --drop-epigraphs` drops quotation epigraphs with their dash attribution lines; distilling tip for reading short books in one pass (CHANGELOG C-20261102-16, LEARNINGS L-029). `python tests/test_rw.py`: 118 tests pass.
 
@@ -28,7 +30,7 @@ Nothing half-done.
 Scan note threshold and routes (decision entry in [INDEX.md](INDEX.md)).
 
 ## Open
-- PDF tables, definition lists and sidebars still come out flat (code blocks fixed in 0.11.0, L-022). Why not done: `pdftotext -layout` lines interleave the columns of a table or a sidebar with the body, so finding them needs block coordinates. Next step: run `pdftotext -bbox-layout` (XHTML with <block>/<line>/<word> xMin/yMin per page) on pages flagged by a cheap hint (many short lines, aligned gaps of 3+ spaces in the -layout page), group lines into rows by yMin and columns by xMin, and emit `row` paragraphs (Para kind "row" exists) for tables and a separate paragraph for blocks whose xMin sits outside the body column (sidebars). Needs a real PDF with tables to calibrate; none was at hand.
+- PDF tables now collapse runs of one-cell lines into ` | ` rows (0.23.0, L-031), but rows and columns are not recovered and multi-token cell lines stay as prose; definition lists and sidebars still come out flat (code blocks fixed in 0.11.0, L-022). Why not done: `pdftotext -layout` lines interleave the columns of a table or a sidebar with the body, so finding them needs block coordinates. Next step: run `pdftotext -bbox-layout` (XHTML with <block>/<line>/<word> xMin/yMin per page) on pages flagged by a cheap hint (many short lines, aligned gaps of 3+ spaces in the -layout page), group lines into rows by yMin and columns by xMin, and emit `row` paragraphs (Para kind "row" exists) for tables and a separate paragraph for blocks whose xMin sits outside the body column (sidebars). Needs a real PDF with tables to calibrate; none was at hand.
 - Two-column PDFs were not changed: plain pdftotext already reads each column in order on the test files seen.
 - MuPDF 1.24 to 1.27 outline format unchecked (only 1.23); a DRM-protected KFX never seen on disk; pdftotext `-remove-hyphens` undecided (RESEARCH.md, Open questions).
 - ubuntu-latest moves to Ubuntu 26 from 2026-10-19; the `routes` job's apt package names may need a look then.

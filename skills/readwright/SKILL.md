@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.22.0"
+  version: "0.23.0"
 ---
 
 # readwright
@@ -89,6 +89,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Cite by chapter number (`ch. 12`) or a toc section title, not by section number alone.
 - Skim a long tutorial chapter with `RW read FILE --section N --headings` before reading it: the subheadings with word counts show which parts matter, then `--at-para P` reads just those.
 - In a technical book read the Troubleshooting, Common Issues, Tips and Production sections first: they hold the most practical rules per word. Size sections with `toc`; skip long code walkthroughs or read them with `--skip-code`.
+- A math-heavy textbook PDF: equations come out garbled (symbols on their own lines, numbers as `(9.3)` alone); read the prose sections and skip equation-only ones. Since 0.23.0 double-spaced pages are rejoined into paragraphs, glued MATLAB or Python listings are found by `--skip-code`, and tables print as ` | ` rows, still to be checked against the page.
 - A textbook: read only the chapters the purpose needs (its toc parts split micro, macro and appendices cleanly), and each chapter's Conclusion section first; textbook PDFs mix sidebars, figure labels and tables into the prose, so trust prose paragraphs and check numbers against the table they came from.
 - Note where the book is dated (library versions, prices, APIs that have since changed).
 - In EPUBs a note reference prints as `[40]` after the sentence (0.9.3). Brief reader agents that bracketed numbers are note markers, not figures; one agent read "$1.4 billion.40" as a different sum before the brackets.

@@ -85,3 +85,7 @@ From reading a short quote-heavy creativity EPUB: `drop_epigraphs` drops a short
 ## [2026-11-02] update | 0.20.0 read --headings
 
 From an everscout run on a Unity tutorial EPUB, where the reader skimmed a chapter with `awk length<70` and caught captions and code. `heading_lines` prints the `h` paragraphs of the chosen sections by level with paragraph numbers and words to the next heading; no headings gives a note pointing to `toc --group` or grep. Checked on the real book, section 12: 20 headings. CHANGELOG C-20261102-17.
+
+## [2026-11-02] update | 0.23.0 double-spaced PDF pages, glued listings, table cells
+
+From reading a signal-processing textbook PDF. `merge_wrapped` rejoins a page's one-line paragraphs (lower-case continuation, or full-width lines on a double-spaced page) and drops a break hyphen when the joined word is commoner in the book; `split_listing` makes leading code lines of a paragraph a `pre` block (one line after a `Repo N: file.m` marker); `collapse_cells` turns 6+ one-token paragraphs into a ` | ` row. Skill tip for math-heavy textbooks. CHANGELOG C-20261102-20, LEARNINGS L-030, L-031.

@@ -1963,5 +1963,45 @@ class TestHeadings(Base):
         self.assertTrue(got.startswith("Cutting rope"))
 
 
+class TestPdfDoubleSpaced(Base):   # L-030 `pdf-double-spaced`, L-031 `pdf-table-cells`
+    def test_double_spaced_lines_merge_and_hyphen_rejoins(self):
+        lines = ["The lantern keepers counted every ship that passed the harbour wall at night",
+                 "and wrote the tally in a ledger kept beside the great brass lamp of the tower.",
+                 "Most keepers used a slate or a similar",
+                 "board-like surface.",
+                 "While the keepers differed in the number of lan-",
+                 "tern wicks they trimmed, their main habit was the same each evening at dusk",
+                 "when the tide turned and the gulls settled on the stones below the lamp room.",
+                 "Short last line."] * 2
+        pp = rw.text_paras("\n\n".join(lines), "txt")
+        rw.VOCAB.update({"lantern": 5})
+        try:
+            rw.merge_wrapped(pp)
+        finally:
+            rw.VOCAB.clear()
+        texts = [p.text for p in pp]
+        self.assertIn("Most keepers used a slate or a similar board-like surface.", texts)
+        self.assertTrue(any("number of lantern wicks they trimmed" in t for t in texts))
+        self.assertTrue(any(t.startswith("The lantern keepers") and "brass lamp of the tower." in t for t in texts))
+
+    def test_listing_after_repo_marker_is_code(self):
+        page = ("A variant is shown in Listing 4.2.\n\nRepo 1: Tally.m Repo 2: Tally.py\n\n"
+                "% count the ships tally = sum(ships, 2);\n% clip negatives tally(tally<0) = 0;\n"
+                "Listing 4.2 Counting ships.\nMany keepers kept other tallies as well.")
+        pp = rw.text_paras(page, "txt")
+        kinds = [(p.kind, p.text[:12]) for p in pp]
+        self.assertIn(("pre", "% count the "), kinds)
+        self.assertIn(("p", "Listing 4.2 "), kinds)
+        self.assertEqual(pp[-1].text, "Many keepers kept other tallies as well.")
+
+    def test_table_cells_collapse_to_one_row(self):
+        page = "Table 3.1 Lamp hours.\n\n" + "\n\n".join(["w(0)", "1", "w(1)", "0", "w(2)", "0", "w(3)", "0"]) \
+               + "\n\nThe table lists the hours."
+        pp = rw.text_paras(page, "txt")
+        rw.collapse_cells(pp)
+        self.assertEqual([p.kind for p in pp], ["p", "row", "p"])
+        self.assertEqual(pp[1].text, "w(0) | 1 | w(1) | 0 | w(2) | 0 | w(3) | 0")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

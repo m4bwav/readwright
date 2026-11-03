@@ -1122,6 +1122,48 @@ class TestCommands(Base):
         _, full, _ = cli("read", dst, "--section", "2")
         self.assertIn("fresh shell", full)
 
+    def test_epub_section_splits_at_oneline_contents(self):
+        # L-039: one spine file, no headings, an outline with one entry; the contents page has one line a chapter
+        # ('1 BRASS LANTERNS') and each chapter opens with a paragraph holding just its number, then the title
+        d = lambda t: f"<div class='paragraph'><strong>{t}</strong></div>"
+        names = ["BRASS LANTERNS", "SALT ROADS", "QUIET PILOTS", "LAST LIGHT"]
+        body = d("CONTENTS") + d("INTRODUCTION") + "".join(d(f"{n}\u2002{t}") for n, t in enumerate(names, 1)) \
+            + d("EPILOGUE: THE LONG WATCH") + d("INDEX") + d("INTRODUCTION") + f"<p>{lorem(400)}</p>"
+        for n, t in enumerate(names, 1):
+            body += d(str(n)) + d(t) + "".join(f"<p>{lorem(300, 'harbour')}</p>" for _ in range(25))
+        body += d("EPILOGUE") + f"<p>{lorem(300, 'tide')}</p>"
+        x = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+             + body + "</body></html>")
+        opf = ("<?xml version='1.0' encoding='utf-8'?><package xmlns='http://www.idpf.org/2007/opf' version='2.0'>"
+               "<metadata xmlns:dc='http://purl.org/dc/elements/1.1/'><dc:title>Lanterns</dc:title></metadata>"
+               "<manifest><item id='a' href='a.xhtml' media-type='application/xhtml+xml'/>"
+               "<item id='ncx' href='toc.ncx' media-type='application/x-dtbncx+xml'/></manifest>"
+               "<spine toc='ncx'><itemref idref='a'/></spine></package>")
+        ncx = ("<?xml version='1.0'?><ncx xmlns='http://www.daisy.org/z3986/2005/ncx/' version='2005-1'><navMap>"
+               "<navPoint id='n1'><navLabel><text>Start</text></navLabel><content src='a.xhtml'/></navPoint>"
+               "</navMap></ncx>")
+        path = self.tmp / "lanterns.epub"
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip")
+            z.writestr("META-INF/container.xml", "<?xml version='1.0'?><container version='1.0' "
+                       "xmlns='urn:oasis:names:tc:opendocument:xmlns:container'><rootfiles><rootfile "
+                       "full-path='content.opf' media-type='application/oebps-package+xml'/></rootfiles></container>")
+            z.writestr("content.opf", opf)
+            z.writestr("toc.ncx", ncx)
+            z.writestr("a.xhtml", x)
+        old = rw.BIG_SECTION_CHARS
+        try:
+            rw.BIG_SECTION_CHARS = 10_000
+            titles = [t.title for t in rw.load(str(path)).sections]
+        finally:
+            rw.BIG_SECTION_CHARS = old
+        self.assertEqual(titles[1:], ["INTRODUCTION", "1. BRASS LANTERNS", "2. SALT ROADS", "3. QUIET PILOTS",
+                                      "4. LAST LIGHT", "EPILOGUE"])
+        doc = rw.load(str(path))
+        ch = doc.sections[-2].paras
+        self.assertEqual(ch[0].text, "4. LAST LIGHT")
+        self.assertTrue(all(p.text.strip() != "4" for p in ch))
+
     def test_giant_section_splits_at_printed_contents(self):
         P = lambda t: rw.Para("p", t)
         contents = [P("1"), P("Brass Lanterns and Tides"), P("3"), P("Harbour charts"), P("4"),

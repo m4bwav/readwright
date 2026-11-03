@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-9 · 2026-11-03 · Release 0.30.0: collapsed EPUB sections split at a one-line printed contents page
+- because: L-039 (a book run on an EPUB whose only outline entry was Start: one section held 90% of the text and two contents-page lines opened false sections)
+- files: scripts/rw.py (oneline_contents, chapter_list, split_at_contents, contents_entry, refine), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places
+A printed contents page with one chapter per line (`1 TITLE`, no page numbers) now gives the chapter list for the giant-section split, ahead of the two-line PDF reader, which took the body's own `1` / `TITLE` openers for contents entries and so found nothing to cut. When the chapter number sits in its own paragraph above the title, the cut is at the number. A heading-like line (`INTRODUCTION`, `EPILOGUE: ...`) that opens a later cut with the same first word and sits among short lines is a contents-page line and no longer starts a section. Books that do not trigger keep their section ids.
+
 ### C-20261103-8 · 2026-11-03 · Release 0.29.0: Cengage textbook PDF fixes (printed pages in outline titles, copyright footers, smart-case grep, symbol-font math warning)
 - because: L-035, L-036, L-037, L-038 (a book run on Arnold, *Economics*, 11th ed., Cengage PDF)
 - files: scripts/rw.py (printed_span, printed_labels, drop_page_footers, pdf_math_fonts, math_note, smart_case, cmd_grep, tools), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places

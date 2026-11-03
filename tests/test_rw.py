@@ -677,6 +677,34 @@ class TestFormats(Base):
         self.assertEqual(code, 1)
         self.assertIn("1 matches with -i", out)
 
+    def test_rank_puts_the_dense_short_section_first(self):
+        p = self.f("ir.md")
+        p.write_text("# Long\n\n" + "Crawlers fetch pages. " * 200 + "One shingle here.\n\n"
+                     "# Dupes\n\nNear duplicate pages share shingles; shingling finds near duplicates.\n\n"
+                     "# Other\n\nNothing relevant.\n", encoding="utf-8")
+        code, out, _ = cli("rank", p, "near", "duplicates", "shingling")
+        self.assertEqual(code, 0)
+        self.assertTrue(out.splitlines()[0].strip().split("  ")[1].startswith("[2] Dupes"), out)
+        self.assertNotIn("Other", out)
+        code, out, _ = cli("rank", p, "shingle", "--paras", "--json")
+        self.assertEqual(json.loads(out)["results"][0]["section"], 2)
+        code, out, _ = cli("rank", p, "zebra")
+        self.assertEqual(code, 1)
+        self.assertIn("not in the book: zebra", out)
+
+    def test_rank_terms_fold_endings_and_stop_words(self):
+        self.assertEqual(rw.rank_terms("The shingles of shingling"), ["shingl", "shingl"])
+        self.assertEqual(rw.rank_terms("queries"), ["query"])
+        self.assertEqual(rw.rank_terms("page pages uses use"), ["pag", "pag", "use", "use"])
+        self.assertEqual(rw.rank_terms("class"), ["class"])
+
+    def test_grep_with_swapped_arguments_says_file_first(self):
+        p = self.f("t.md")
+        p.write_text("# One\n\nchampion list\n", encoding="utf-8")
+        code, _, err = cli("grep", "champion list", p)
+        self.assertEqual(code, rw.EXIT_ERR)
+        self.assertIn("the file goes first", err)
+
     def test_ocr_without_an_engine_says_how(self):
         p = self.f("plates.pdf")
         make_pdf(p, pages=("",))
@@ -1752,6 +1780,19 @@ class TestFiveCs(Base):
                         {"img/cover.jpg": b"x", "img/p2.jpg": b"x", "img/p3.jpg": b"x"})
         self.assertEqual(rw.epub_page_images(str(p)), ["OEBPS/img/p2.jpg", "OEBPS/img/p3.jpg", "OEBPS/img/cover.jpg"])
         self.assertEqual(rw.epub_page_images(str(self.f("missing.epub"))), [])
+
+    def test_equation_pictures_and_subscripts_are_marked(self):   # Manning IR EPUB, 2026-11-03
+        p = self.f("ir.epub")
+        make_epub_pages(p, {"a.xhtml": "<h1>BM25</h1><p>We improve on it by length:</p>"
+                            "<p id='eq_11_32' class='image'><img src='e.jpg' alt='image'/></p>"
+                            "<p>Here, tf<sub><em>td</em></sub> is the frequency, and k<sub>1</sub> a parameter. "
+                            "In positions k1 and k2, then <img src='f.jpg' alt='image'/> holds.</p>"},
+                        {"e.jpg": b"x", "f.jpg": b"x"})
+        code, out, _ = cli("read", p, "--section", "1", "--no-cache")
+        self.assertIn("[equation 11.32: image]", out)
+        self.assertIn("tf_td is the frequency", out)
+        self.assertIn("k_1 a parameter", out)
+        self.assertIn("then [formula: image] holds", out)
 
     def test_image_only_epub_note_offers_ocr(self):
         p = self.f("scan.epub")

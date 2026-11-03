@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.25.0"
+VERSION = "0.26.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1549,7 +1549,11 @@ def rejoin_spaced_words(text: str) -> str:
 
 CODE_LINE = re.compile(r"[{};]\s*$|^\s*(?:def|class|return|import|from|for|while|if|elif|else|try|except|public|private|"
                        r"static|void|var|let|const|function|async|await|package|#include|#define|SELECT|INSERT)\b|"
-                       r"^\s*(?:[}\])]|//|/\*|\*/|#!|>>>|\$ )|\w\([^ ]*\)\s*;?$|^\s*[\w.\[\]]+\s*[-+*/]?=\s*\S")
+                       r"^\s*(?:[}\])]|//|/\*|\*/|#!|>>>|\$ )|\w\([^ ]*\)\s*;?$|^\s*[\w.\[\]]+\s*[-+*/]?=\s*\S|"
+                       # a line that is one whole call, spaces inside allowed: print(f"Top hits"), co.rerank(query=q, top_n=3)
+                       r"^\s*[\w.]+\(.*\)\s*;?$|"
+                       # a Python or shell comment line (# Load the model); a PDF has no Markdown headings to mistake for it
+                       r"^\s*# [\w`'\"(]")
 PRE_OPEN, PRE_CLOSE = "PRE", "/PRE"   # fences text_paras() turns into a `pre` paragraph (private use:
 #                                                  str.strip() eats \x1c-\x1f)
 CODE_RUN = 3   # code lines in a row (blank lines allowed) before a stretch is called a code block
@@ -1597,7 +1601,7 @@ def mark_code(page: str, layout: str | None) -> str:
     return page
 
 
-CODE_HINT = re.compile(r"(?m)[{}]\s*$|\bdef \w+\(|\w\([^\s)]*\)\s*[;{:]|^\s*(?:#include|import \w|>>> )")
+CODE_HINT = re.compile(r"(?m)[{}]\s*$|\bdef \w+\(|\w\([^\s)]*\)\s*[;{:]|^\s*(?:#include|import \w|>>> |from [\w.]+ import \w)")
 
 
 CAPTION_SPLIT = re.compile(r"(?<=[.!?:\u201d\"])\s+(?=(?:Figure|Table|Example) \d+[-.]\d+\. )")

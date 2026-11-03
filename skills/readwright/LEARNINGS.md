@@ -102,3 +102,23 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Trigger: everscout book run (Styhre, *Indie Video Game Development Work*, Palgrave 2020 PDF). The printed page is PDF minus 10 at ch. 5, 9 at ch. 6, 8 at ch. 7 and 7 at ch. 8; `printed_offset` found no majority and printed nothing, and two reader agents each took one chapter's offset for the whole book.
 - Rule: when no single shift holds, label each page from its own number (bare, beside an upper-case running head, or under a copyright footer within the last four lines), keep a number only when a page within three shares its offset, fill gaps between anchors of one offset, and let `read --section pN` select by printed page.
 - Evidence: 2026-11-03, 237 of 252 pages labelled, every chapter opener right; test_printed_labels_follow_a_drifting_offset. Applied: C-20261103-7.
+
+### L-035 · 2026-11-03 · outline-printed-pages: outline titles gave PDF pages only
+- Trigger: a reader of Arnold's *Economics* (Cengage PDF) saw `6-1 ... (p. 165-170)` in `toc` while the page prints 129, and guessed the offset drifted from 36 to 35. It does not: every running head in the book gives PDF minus 36.
+- Rule: an outline section title carries `printed A-B` beside its PDF pages whenever a shift or per-page labels are known; `printed_labels` also reads a mixed-case running head on the top line.
+- Evidence: 2026-11-03, 850 of 871 labelled pages agree on -36. Test: test_outline_titles_carry_printed_pages. Applied: C-20261103-8.
+
+### L-036 · 2026-11-03 · symbol-font-math: '=' reads as '5' in Mathematical Pi fonts
+- Trigger: the same book printed `CPI 5 _$ _1_6_7_3 100`: '=' as '5', '+' as '1', minus as '2', times as '3', fraction bars as underscores.
+- Rule: detect by font name (pdffonts lists `MathematicalPiLTStd`), warn in `info`/`toc`, and do not repair: pdftotext's plain text does not say which font each character came from, so mapping '5' back to '=' would also turn real fives into equals signs. Repair needs per-glyph font data (pdftotext -bbox-layout gives none; mutool stext does), left open in HANDOFF.
+- Evidence: 2026-11-03, pdffonts on the book (about 7 s, cached). Test: test_symbol_font_math_warning. Applied: C-20261103-8.
+
+### L-037 · 2026-11-03 · per-page-copyright-footer: a 60-word footer on every page
+- Trigger: the Cengage footer ('Copyright 2013 Cengage Learning. All Rights Reserved. May not be copied...') is too long for page furniture (120 characters) and for `--drop-repeated` (40 words), so it stayed in every read, about 10% of the text.
+- Rule: drop by default a paragraph that starts with Copyright or (c), carries rights wording, and recurs on 30% of pages, plus a repeated paragraph right after it.
+- Evidence: 2026-11-03, 719 copies dropped, chars 3.28M to 2.95M. Test: test_page_copyright_footer_dropped. Applied: C-20261103-8.
+
+### L-038 · 2026-11-03 · grep-smart-case: readers kept missing capitalised terms
+- Trigger: `grep "consumer price index"` found nothing and only said how many `-i` would find.
+- Rule: smart case as in ripgrep: no capital letter outside a regex escape means any case; `--case-sensitive` forces exact case.
+- Evidence: Test: test_grep_smart_case. Applied: C-20261103-8.

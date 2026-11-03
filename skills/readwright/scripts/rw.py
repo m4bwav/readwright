@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.28.0"
+VERSION = "0.29.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -234,11 +234,11 @@ def tool_dirs(name: str) -> list:
             except KeyError:
                 pass
         dirs.append(os.path.dirname(sys.executable))
-    if name in ("pdftotext", "pdfinfo", "pdftoppm"):   # winget's poppler package is a portable zip under WinGet\Packages
+    if name in ("pdftotext", "pdfinfo", "pdftoppm", "pdffonts"):   # winget's poppler package is a portable zip under WinGet\Packages
         pk = Path(local, "Microsoft", "WinGet", "Packages") if local else None
         if pk and pk.is_dir():
             dirs += [str(d) for d in sorted(pk.glob("oschwartz10612.Poppler_*/poppler-*/Library/bin"), reverse=True)]
-    if name in ("pdftotext", "pdfinfo", "pdftoppm", "antiword"):   # Git for Windows ships these in its MSYS2 tree
+    if name in ("pdftotext", "pdfinfo", "pdftoppm", "pdffonts", "antiword"):   # Git for Windows ships these in its MSYS2 tree
         dirs += [os.path.join(p, "Git", "mingw64", "bin") for p in pf] + [os.path.join(p, "Git", "usr", "bin") for p in pf]
     dirs += windows_path_dirs()
     dirs += [env_dir("LOCALAPPDATA", "Microsoft", "WinGet", "Links")] + [os.path.join(p, "WinGet", "Links") for p in pf]
@@ -267,6 +267,7 @@ def tools() -> dict:
     found = {
         "pdftotext": find_tool("pdftotext"),
         "pdfinfo": find_tool("pdfinfo"),
+        "pdffonts": find_tool("pdffonts"),
         "mutool": find_tool("mutool"),
         "ebook-convert": find_tool("ebook-convert"),
         "soffice": find_tool("soffice") or find_tool("libreoffice"),
@@ -2072,6 +2073,9 @@ def load_pdf(path) -> Doc:
     if shift:
         doc.meta["page_shift"] = shift
         doc.meta["printed_pages"] = f"PDF page {'+' if shift > 0 else '-'} {abs(shift)} (from the page numbers on the pages)"
+    math = pdf_math_fonts(path, tl)
+    if math:
+        doc.notes.append(math_note(math))
     outline = pdf_outline(path, tl["mutool"]) if tl["mutool"] else []
     raw_pages = pages
     on_page = {}
@@ -2112,6 +2116,9 @@ def load_pdf(path) -> Doc:
         for p in pp:
             if p.kind == "h":
                 p.kind = "p"
+    gone = drop_page_footers(page_paras)
+    if gone:
+        doc.notes.append(f"dropped {gone} copies of a copyright footer printed on most pages (RW_KEEP_FOOTERS=1 keeps them)")
     doc.furniture = page_furniture(page_paras)
     if outline:
         seen, starts = set(), []
@@ -2138,7 +2145,8 @@ def load_pdf(path) -> Doc:
             end = starts[k + 1][0] - 1 if k + 1 < len(starts) else len(pages)
             end = max(end, pg)
             stop = cuts[k + 1] if k + 1 < len(starts) else len(flat)
-            doc.sections.append(Section(f"{t} (p. {pg}-{end})", flat[cuts[k]:stop], d, f"page{pg}"))
+            doc.sections.append(Section(f"{t} (p. {pg}-{end}{printed_span(pg, end, shift, labels)})",
+                                        flat[cuts[k]:stop], d, f"page{pg}"))
     else:
         for n, pp in enumerate(page_paras, 1):
             first = pp[0].text[:50] if pp else ""
@@ -2287,6 +2295,42 @@ def respace_title(title: str, line: str) -> str:
             out.append(a[i])
             i += 1
     return "".join(out)
+
+
+FOOTER_RE = re.compile(r"^\W{0,3}(copyright|\u00a9|\(c\))", re.I)
+FOOTER_WORDS_RE = re.compile(r"all rights reserved|may not be (copied|reproduced|scanned|duplicated)|"
+                             r"not for (sale|distribution)", re.I)
+FOOTER_MAX_WORDS = 150
+
+
+def drop_page_footers(page_paras, share: float = 0.3, least: int = 5) -> int:
+    """Drop a publisher's copyright footer ('Copyright 2013 Cengage Learning. All Rights Reserved. May not be
+    copied...') from every page it is printed on, by default: a paragraph that starts with Copyright or (c), says
+    'all rights reserved' or 'may not be copied', and recurs (digits folded) on at least `share` of the pages, plus a
+    repeated paragraph right after it (the footer's second line). Too long for page_furniture and drop_repeated, it
+    ate a tenth of every read (L-037 `per-page-copyright-footer`). RW_KEEP_FOOTERS=1 turns it off. Returns how many
+    paragraphs went."""
+    if os.environ.get("RW_KEEP_FOOTERS") or len(page_paras) < least:
+        return 0
+    key = lambda t: re.sub(r"\s+", " ", re.sub(r"\d+", "#", t.lower())).strip()
+    count = collections.Counter()
+    for pp in page_paras:
+        count.update({key(q.text) for q in pp if len(q.text.split()) <= FOOTER_MAX_WORDS})
+    need = max(least, share * len(page_paras))
+    gone = 0
+    for pp in page_paras:
+        keep, prev_bad = [], False
+        for q in pp:
+            k = key(q.text)
+            common = count.get(k, 0) >= need and len(q.text.split()) <= FOOTER_MAX_WORDS
+            bad = common and (bool(FOOTER_RE.match(q.text) and FOOTER_WORDS_RE.search(q.text)) or prev_bad)
+            if bad:
+                gone += 1
+            else:
+                keep.append(q)
+            prev_bad = bad
+        pp[:] = keep
+    return gone
 
 
 def furniture_key(text: str) -> str:
@@ -2758,6 +2802,7 @@ def refine(doc: Doc) -> Doc:
 
 
 RUNNING_HEAD_NUM = (re.compile(r"(\d{1,4})\s+([^a-z\d]{3,60})"), re.compile(r"([^a-z]{3,80}?)\s+(\d{1,4})"))
+HEAD_NUM_MIXED = (re.compile(r"(\d{1,4})\s+([A-Z][^.!?]{2,80})"), re.compile(r"[A-Z][^.!?]{2,80}?\s(\d{1,4})"))
 FOOTER_NUM = re.compile(r"(?:©|\(c\)|copyright).{0,80}?\s(\d{1,4})", re.I)
 
 
@@ -2784,6 +2829,10 @@ def printed_labels(pages: list) -> dict:
             m = FOOTER_NUM.fullmatch(ln)
             if m:
                 vs.add(int(m.group(1)))
+        if lines:   # a mixed-case running head on the top line: '130 PART 2 Fundamentals', 'Chapter 6 Prices 131'
+            m = HEAD_NUM_MIXED[0].fullmatch(lines[0]) or HEAD_NUM_MIXED[1].fullmatch(lines[0])
+            if m:
+                vs.add(int(m.group(1)))
         cand[n] = vs
     labels = {}
     for n, vs in cand.items():
@@ -2799,6 +2848,41 @@ def printed_labels(pages: list) -> dict:
             for m in range(a + 1, b):
                 labels[m] = m + labels[a] - a
     return labels if len(keys) >= 5 else {}
+
+
+def printed_span(first: int, last: int, shift: int, labels: dict) -> str:
+    """', printed 129-134' after an outline section's PDF pages, so an outline title gives the page a reader of the
+    printed book cites (L-035 `outline-printed-pages`); '' when the book has no printed numbers."""
+    if not (shift or labels):
+        return ""
+    a = labels.get(first, first + shift if shift else None)
+    b = labels.get(last, last + shift if shift else None)
+    if not a or a < 1:
+        return ""
+    return f", printed {a}" + (f"-{b}" if b and b > a else "")
+
+
+MATH_FONT_RE = re.compile(r"MathematicalPi|MathPi|Universal-?(Greek|News)", re.I)
+
+
+def pdf_math_fonts(path: str, tl: dict) -> list:
+    """Names of symbol fonts with a known broken text map (Linotype Mathematical Pi, Universal Greek/News), from
+    pdffonts, cached: pdftotext reads their '=' '+' '-' 'x' as '5' '1' '2' '3' (L-036 `symbol-font-math`).
+    [] when pdffonts is missing."""
+    if not tl.get("pdffonts"):
+        return []
+    cp = cache_path(path, "pdffonts", ".txt")
+    if not cp.exists():
+        r = run([tl["pdffonts"], path], 180)
+        cp.write_bytes(r.stdout)
+    names = [ln.split()[0] for ln in cp.read_bytes().decode("utf-8", "replace").splitlines()[2:] if ln.strip()]
+    return sorted({re.sub(r"^[A-Z]{6}[+]", "", n) for n in names if MATH_FONT_RE.search(n)})
+
+
+def math_note(fonts: list) -> str:
+    return (f"math symbols are likely garbled: the PDF sets them in {', '.join(fonts[:3])}, a symbol font whose text "
+            "map is wrong, so '=' reads as '5', '+' as '1', '-' (minus) as '2', 'x' (times) as '3', and fraction bars "
+            "come out as underscores; check formulas against the page image or a second source")
 
 
 def printed_offset(pages: list) -> int:
@@ -4037,6 +4121,12 @@ def cmd_rank(a) -> int:
     return 0 if rows else 1
 
 
+def smart_case(pattern: str, fixed: bool = False) -> bool:
+    """True when the pattern has no capital letter outside a regex escape (\\S, \\W, \\B), so it should match
+    any case (L-038 `grep-smart-case`)."""
+    return not re.search(r"[A-Z]", pattern if fixed else re.sub(r"\\.", "", pattern))
+
+
 def cmd_grep(a) -> int:
     if not os.path.isfile(a.file) and os.path.isfile(a.pattern):   # grep "champion list" FILE (Manning IR reader, 2026-11-03)
         raise RWError(f"no such file: {a.file}; the file goes first: grep FILE PATTERN")
@@ -4048,6 +4138,8 @@ def cmd_grep(a) -> int:
     skipped = skip_code(doc) if getattr(a, "skip_code", False) else None
     pat = re.escape(a.pattern) if a.fixed else a.pattern
     try:
+        if smart_case(a.pattern, a.fixed) and not getattr(a, "case_sensitive", False):
+            a.ignore_case = True   # smart case, as in ripgrep -S: 'consumer price index' finds 'Consumer Price Index'
         rx = re.compile(pat, re.I if a.ignore_case else 0)
     except re.error as e:
         raise RWError(f"bad pattern: {e}")
@@ -4251,7 +4343,8 @@ def main(argv=None) -> int:
     p.add_argument("-C", "--context", type=int, default=0, help="paragraphs of context")
     p.add_argument("-A", "--after", type=int, default=0, help="paragraphs after each hit, shown up to --width "
                    "(the code block after the prose that names it)")
-    p.add_argument("-i", "--ignore-case", action="store_true")
+    p.add_argument("-i", "--ignore-case", action="store_true", help="match any case (the default when the pattern is all lower case)")
+    p.add_argument("--case-sensitive", action="store_true", help="match case exactly even for an all-lower-case pattern")
     p.add_argument("-F", "--fixed", action="store_true", help="pattern is a plain string")
     p.add_argument("--max", type=int, default=20, help="paragraphs shown (default 20)")
     p.add_argument("--per-section", type=int, default=0, metavar="N",

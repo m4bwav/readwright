@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.27.0"
+VERSION = "0.28.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2064,6 +2064,11 @@ def load_pdf(path) -> Doc:
     if pages and not pages[-1].strip():
         pages.pop()
     shift = printed_offset(pages)
+    labels = {} if shift else printed_labels(pages)
+    if labels:
+        doc.meta["printed_labels"] = labels
+        doc.meta["printed_pages"] = (f"numbers found on {len(labels)} of {len(pages)} pages and the offset drifts; "
+                                     f"toc shows each page's (p. N), and read --section p{min(labels.values())} reads by printed page")
     if shift:
         doc.meta["page_shift"] = shift
         doc.meta["printed_pages"] = f"PDF page {'+' if shift > 0 else '-'} {abs(shift)} (from the page numbers on the pages)"
@@ -2137,7 +2142,8 @@ def load_pdf(path) -> Doc:
     else:
         for n, pp in enumerate(page_paras, 1):
             first = pp[0].text[:50] if pp else ""
-            doc.sections.append(Section(f"page {n}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
+            lab = f" (p. {labels[n]})" if n in labels else ""
+            doc.sections.append(Section(f"page {n}{lab}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
     return doc
 
 
@@ -2751,6 +2757,50 @@ def refine(doc: Doc) -> Doc:
     return doc
 
 
+RUNNING_HEAD_NUM = (re.compile(r"(\d{1,4})\s+([^a-z\d]{3,60})"), re.compile(r"([^a-z]{3,80}?)\s+(\d{1,4})"))
+FOOTER_NUM = re.compile(r"(?:©|\(c\)|copyright).{0,80}?\s(\d{1,4})", re.I)
+
+
+def printed_labels(pages: list) -> dict:
+    """Printed page number of each PDF page {pdf page: printed}, for books whose offset drifts (a dropped blank page
+    per chapter) so printed_offset finds no single shift (L-034 `printed-page-drift`). Reads bare numbers, numbers
+    beside an upper-case running head ('154 A. STYHRE', 'IN THE VENTURE CAPITAL MARKET 155') and a copyright footer
+    ending in a number; keeps a number only when a page within three has the same offset, then fills the pages
+    between two anchors of one offset. {} when fewer than five pages agree."""
+    cand = {}
+    for n, t in enumerate(pages, 1):
+        lines = [ln.strip() for ln in t.splitlines() if ln.strip()]
+        vs = set()
+        for ln in lines[:2] + lines[-4:]:   # a chapter opener's number sits above a two-line DOI footer
+            if re.fullmatch(r"\d{1,4}", ln):
+                vs.add(int(ln))
+                continue
+            m = RUNNING_HEAD_NUM[0].fullmatch(ln)
+            if m and re.search(r"[A-Z]{2}", m.group(2)):
+                vs.add(int(m.group(1)))
+            m = RUNNING_HEAD_NUM[1].fullmatch(ln)
+            if m and re.search(r"[A-Z]{2}", m.group(1)):
+                vs.add(int(m.group(2)))
+            m = FOOTER_NUM.fullmatch(ln)
+            if m:
+                vs.add(int(m.group(1)))
+        cand[n] = vs
+    labels = {}
+    for n, vs in cand.items():
+        for v in sorted(vs):
+            if v < 1 or v > n + 60:
+                continue
+            if any(w - m == v - n for m in range(n - 3, n + 4) if m != n for w in cand.get(m, ())):
+                labels[n] = v
+                break
+    keys = sorted(labels)
+    for a, b in zip(keys, keys[1:]):
+        if labels[a] - a == labels[b] - b:
+            for m in range(a + 1, b):
+                labels[m] = m + labels[a] - a
+    return labels if len(keys) >= 5 else {}
+
+
 def printed_offset(pages: list) -> int:
     """Printed page number minus PDF page number, from bare numbers in each page's first or last lines; 0 when
     they agree or too few pages say (L-019 `printed-page-offset`)."""
@@ -3196,8 +3246,39 @@ def parse_selector(spec: str, n: int) -> list:
     return res
 
 
+def printed_selector(doc: Doc, spec: str) -> str:
+    """`p153`, `p153-p160` or `p153-160`: printed page numbers turned into the page sections that carry them."""
+    labels = doc.meta.get("printed_labels") or {}
+    shift = doc.meta.get("page_shift", 0)
+    inv = {v: k for k, v in sorted(labels.items(), reverse=True)}
+
+    def one(tok: str) -> str:
+        tok = tok.strip()
+        if not tok.lower().startswith("p"):
+            return tok
+        if not tok[1:].isdigit():
+            raise RWError(f"bad --section {spec!r}: printed pages are pN or pN-pM")
+        v = int(tok[1:])
+        if labels:
+            if v not in inv:
+                raise RWError(f"no page carries the printed number {v}; toc shows each page's (p. N)")
+            return str(inv[v])
+        if shift:
+            return str(v - shift)
+        raise RWError("this document has no printed page numbers to go by; use section numbers")
+    out = []
+    for part in spec.split(","):
+        a, sep, b = part.partition("-")
+        if sep and a.strip().lower().startswith("p") and b.strip().isdigit():
+            b = "p" + b.strip()
+        out.append(one(a) + (sep + one(b) if sep and b.strip() else sep))
+    return ",".join(out)
+
+
 def select(doc: Doc, section: str | None, title: str | None) -> list:
     n = len(doc.sections)
+    if section and "p" in section.lower():
+        section = printed_selector(doc, section)
     idx = parse_selector(section, n) if section else []
     if title:
         try:
@@ -3574,7 +3655,7 @@ def cmd_info(a) -> int:
         return 0
     sm = summary(doc)
     info = {"file": doc.path, "format": doc.fmt, "bytes": os.path.getsize(real)}
-    info |= {k: v for k, v in doc.meta.items() if v}
+    info |= {k: v for k, v in doc.meta.items() if v and k != "printed_labels"}
     info |= {"sections": len(doc.sections), "words": sm["words"], "chars": sm["chars"], "tokens_approx": sm["tokens"]}
     if doc.sections:
         big = max(range(len(doc.sections)), key=lambda i: doc.sections[i].words())

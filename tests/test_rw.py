@@ -1239,6 +1239,26 @@ class TestTocChapters(Base):
         self.assertTrue(any("4-6. Testimonial Injustice  (150 w)" in l for l in rw.group_lines(doc)))
         self.assertEqual(rw.page_groups(rw.Doc("x.epub", "epub", sections=[rw.Section("Chapter 1")])), [])
 
+    def test_page_join_moves_only_the_run_on_sentence(self):   # L-033 `page-join-empties-page`
+        P = rw.Para
+        pages = [[P("p", "We showed it to people and")], [P("p", "they sent us feedback. Then " + lorem(30))]]
+        rw.join_split_pages(pages)
+        self.assertEqual(pages[0][0].text, "We showed it to people and they sent us feedback.")
+        self.assertTrue(pages[1] and pages[1][0].text.startswith("Then lorem"))
+
+    def test_group_uses_printed_contents(self):   # L-032 `contents-title-then-page`
+        P = rw.Para
+        def pg(n, *paras):
+            return rw.Section(f"page {n}: {paras[0][:20]}" if paras else f"page {n}", [P("p", t) for t in paras], 1, f"page{n}")
+        secs = [pg(1, "Title page"), pg(2, "Contents", "Foreword", "3", "1 Money", "4", "2 Press", "6")]
+        secs += [pg(n, f"body {n} " + lorem(20)) for n in range(3, 9)]
+        doc = rw.Doc("x.pdf", "pdf", sections=secs)
+        self.assertEqual([(f, l, t) for f, l, t, _ in rw.contents_groups(doc)],
+                         [(1, 2, "(front matter)"), (3, 3, "Foreword"), (4, 5, "1 Money"), (6, 8, "2 Press")])
+        self.assertTrue(any("4-5. 1 Money" in l for l in rw.group_lines(doc)))
+        doc.meta["page_shift"] = -1   # printed page 3 is PDF page 4
+        self.assertEqual(rw.contents_groups(doc)[1][:3], (4, 4, "Foreword"))
+
     def test_strip_drops_repeated_running_head_on_pages(self):   # L-024 `page-running-head`
         P = rw.Para
         doc = rw.Doc("x.pdf", "pdf", sections=[

@@ -160,6 +160,16 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: an EPUB whose spine shows page images is OCR'd like a scanned PDF: `rw.py ocr FILE` reads the images in spine order (no rendering), keeps the text in the OCR cache, and info, toc, read and grep use it. An image-only EPUB often has a DjVu twin in the same folder with OCR text already in it: try that first.
 - Evidence: 2026-11-02, the real EPUB: 247 page images OCR'd in 35 s with Windows OCR, 88k words; `grep -i triple-take` 20 hits. Tests: TestFiveCs (epub_page_images, note, cache, engine run). Applied: C-20261102-4.
 
+### L-033 · 2026-11-03 · page-join-empties-page: joining a run-on page moved the whole page
+- Trigger: the same handbook PDF: a page whose single paragraph starts lower case was moved onto the previous page, chained across pages, so 172 held 172-175 and cites were off by up to three pages.
+- Rule: across a page break move only the run-on sentence (to the first sentence end) when at least 20 words stay behind.
+- Evidence: 2026-11-03; test_page_join_moves_only_the_run_on_sentence; empty pages 45 to 4 on the real file. Applied: C-20261103-2.
+
+### L-032 · 2026-11-03 · contents-title-then-page: a contents page with the page number on the next line
+- Trigger: a 2017 game-business handbook PDF with no outline and no running heads listed as 277 one-page sections; its contents page read `1 Personal Finance` then `15`.
+- Rule: with no running heads, fold pages by the printed contents: title line, then page-number line, pages rising; shift by the printed-page offset.
+- Evidence: 2026-11-03; test_group_uses_printed_contents; the real file went from 277 lines to 17 parts. Applied: C-20261103-2.
+
 ### L-031 · 2026-11-02 · pdf-table-cells: pdftotext prints a table one cell per paragraph
 - Trigger: a textbook table of key profiles came out as dozens of lines of `0` and `v(3)`.
 - Rule: collapse six or more one-token paragraphs in a row into one row paragraph joined with ` | `; real row and column layout still needs `pdftotext -bbox-layout`.

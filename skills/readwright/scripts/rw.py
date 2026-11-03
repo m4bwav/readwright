@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.24.0"
+VERSION = "0.25.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1603,6 +1603,9 @@ CODE_HINT = re.compile(r"(?m)[{}]\s*$|\bdef \w+\(|\w\([^\s)]*\)\s*[;{:]|^\s*(?:#
 CAPTION_SPLIT = re.compile(r"(?<=[.!?:\u201d\"])\s+(?=(?:Figure|Table|Example) \d+[-.]\d+\. )")
 
 
+SPLIT_TAIL_RE = re.compile(r"[.?!][\"”’)]*\s+(?=[\"“‘(]?[A-Z0-9])")
+
+
 def join_split_pages(page_paras) -> None:
     """A word hyphenated across a page break ("conven-" at the bottom, "tions" at the top of the next), or a sentence
     that runs on (no . ? ! : or closing quote before the break, a lower-case letter after it), becomes one paragraph:
@@ -1613,8 +1616,14 @@ def join_split_pages(page_paras) -> None:
                 prev[-1].text[-1:] in BREAK_HYPHENS and pp[0].text[:1].isalpha()
                 or prev[-1].text[-1:] == "-" and pp[0].text[:1].islower()
                 or prev[-1].text[-1:] not in SENTENCE_END and pp[0].text[:1].islower()):
-            prev[-1].text = join_lines([prev[-1].text, pp[0].text])
-            pp.pop(0)
+            m = SPLIT_TAIL_RE.search(pp[0].text)
+            if m and len(pp[0].text[m.end():].split()) >= 20:
+                # only the run-on sentence moves; the rest stays on its own page (L-033 `page-join-empties-page`)
+                prev[-1].text = join_lines([prev[-1].text, pp[0].text[:m.end()].rstrip()])
+                pp[0].text = pp[0].text[m.end():].lstrip()
+            else:
+                prev[-1].text = join_lines([prev[-1].text, pp[0].text])
+                pp.pop(0)
         if pp:
             prev = pp
 
@@ -2052,6 +2061,7 @@ def load_pdf(path) -> Doc:
         pages.pop()
     shift = printed_offset(pages)
     if shift:
+        doc.meta["page_shift"] = shift
         doc.meta["printed_pages"] = f"PDF page {'+' if shift > 0 else '-'} {abs(shift)} (from the page numbers on the pages)"
     outline = pdf_outline(path, tl["mutool"]) if tl["mutool"] else []
     raw_pages = pages
@@ -3460,9 +3470,42 @@ def page_groups(doc: Doc) -> list:
     return groups
 
 
+CONTENTS_HEAD_RE = re.compile(r"(table of )?contents", re.I)
+
+
+def contents_groups(doc: Doc) -> list:
+    """Page runs from a printed contents page whose entries sit on two lines, the title ('1 Personal Finance',
+    'Foreword') then its page number ('15'), for a PDF with no outline and no running heads (L-032
+    `contents-title-then-page`): [(first, last, title, words)] like page_groups. Needs three entries with rising
+    pages; [] otherwise."""
+    if not page_groups(doc):
+        return []
+    shift = doc.meta.get("page_shift", 0)
+    n = len(doc.sections)
+    for si, s in enumerate(doc.sections[: max(20, n // 10)]):
+        ps = [p.text.strip() for p in s.paras]
+        if not ps or not CONTENTS_HEAD_RE.fullmatch(ps[0]):
+            continue
+        ents = []
+        for a, b in zip(ps[1:], ps[2:]):
+            if re.fullmatch(r"\d{1,4}", b) and re.match(r"(\d{1,3}\s+)?[^\W\d_]", a) and len(a.split()) <= 12:
+                pg = int(b) - shift
+                if (not ents or pg > ents[-1][1]) and si + 1 < pg <= n:
+                    ents.append((a, pg))
+        if len(ents) < 3:
+            continue
+        out = [(1, ents[0][1] - 1, "(front matter)")] if ents[0][1] > 1 else []
+        out += [(pg, (ents[k + 1][1] - 1 if k + 1 < len(ents) else n), t) for k, (t, pg) in enumerate(ents)]
+        return [(f, l, t, sum(doc.sections[i - 1].words() for i in range(f, l + 1))) for f, l, t in out]
+    return []
+
+
 def group_lines(doc: Doc) -> list:
     out = []
-    for f, l, h, w in page_groups(doc):
+    groups = page_groups(doc)
+    if len(groups) * 3 >= len(doc.sections):   # no running heads to fold by: try the printed contents
+        groups = contents_groups(doc) or groups
+    for f, l, h, w in groups:
         rng = f"{f}-{l}" if l > f else str(f)
         out.append(f"{rng:>9}. {h or '(no text)'}  ({fmt_n(w)} w)")
     return out
@@ -3585,6 +3628,8 @@ def cmd_toc(a) -> int:
     groups = page_groups(doc)
     if len(doc.sections) > 40 and groups and len(groups) * 3 < len(doc.sections):
         print(f"note: {len(doc.sections)} pages share {len(groups)} running heads; rw.py toc FILE --group lists them as page ranges")
+    elif len(doc.sections) > 40 and groups and (cg := contents_groups(doc)):
+        print(f"note: the printed contents page lists {len(cg)} parts; rw.py toc FILE --group lists them as page ranges")
     for n in big_section_notes(doc):
         print(n)
     return 0

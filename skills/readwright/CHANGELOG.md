@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-2 · 2026-11-03 · Release 0.25.0: toc --group from a printed contents page; a page join no longer empties the page
+- because: L-032 `contents-title-then-page` (an everscout book run, Futter, *The GameDev Business Handbook* PDF: no outline, no running heads, so `toc` listed 277 pages and `--group` folded nothing)
+- files: scripts/rw.py (join_split_pages, SPLIT_TAIL_RE, contents_groups, CONTENTS_HEAD_RE, group_lines, cmd_toc note, load_pdf page_shift), SKILL.md Step 2 toc, ../../tests/test_rw.py, version in the five places
+When pages share no running heads, `--group` reads a page that opens with Contents, takes each title line followed by a bare page number (shifted by the printed-page offset) and prints the page runs, front matter first. Plain `toc` notes it. Index entries with no page number join the last part. A page that opens mid-sentence gives only that run-on sentence to the previous page; before, pdftotext's one-paragraph pages moved whole and the book showed about 45 empty pages with their text piled on the page before (L-033).
+
 ### C-20261103-1 · 2026-11-03 · Release 0.24.0: rank sections by BM25; equation pictures marked; grep names swapped arguments
 - because: user request (every book run adds a reader feature); the reader of Manning, Raghavan and Schutze, *Introduction to Information Retrieval* got grep hits in book order with no ranking, and `grep "champion list" FILE` failed with a bare no-such-file
 - files: scripts/rw.py (RANK_STOP, rank_terms, bm25, cmd_rank, cmd_grep, rank parser, the HTML parser img and sub handling), SKILL.md Step 4 and Distilling a book, ../../tests/test_rw.py, version in the five places

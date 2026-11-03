@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.15.0"
+VERSION = "0.15.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3319,13 +3319,18 @@ def cmd_read(a) -> int:
         return 0
     text = shape(compose(doc, idx, a.format, a.max_words, flags))
     if a.out:
-        if a.offset:
-            text = text[a.offset:]
-        if a.max_chars:
-            text = text[:a.max_chars]
+        full, start = len(text), a.offset or 0
+        text = text[start:]
+        cut = bool(a.max_chars) and len(text) > a.max_chars
+        if cut:   # same clean break as the stdout path, and say where to resume (a reader could not tell it was cut)
+            text = clean_cut(text[:a.max_chars])
         write_out(a.out, text)
         print(f"wrote {fmt_n(len(text))} chars ({fmt_n(len(text.split()))} words, ~{fmt_n(len(text) // 4)} tokens) "
               f"from {len(idx)} section(s) to {a.out}")
+        if cut:
+            end = start + len(text)
+            print(f"[readwright: cut at chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(full)}; write the rest with "
+                  f"--offset {end}, or drop --max-chars to write it all]")
         if hints and not getattr(a, "quiet", False):
             print("[readwright: " + "; ".join(hints) + "]")
         return 0

@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.15.0"
+  version: "0.15.1"
 ---
 
 # readwright
@@ -45,7 +45,7 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 - `--section` takes a list and ranges in one call: `--section 61,80,87` or `--section 12,189-190`. Sections print in that order, each with its own header.
 - A short selection ends with a hint naming the next section when that section probably carries on the text: the selection is a title page or epigraph (under 60 words), or the next section is untitled, marked continued, or repeats the title (0.15.0; it no longer fires on every small subsection).
 - `read` without a selector refuses when the text is over the limit (exit code 2) and prints the toc instead. That refusal is the tool working: pick sections.
-- `--format md` keeps headings and lists as Markdown; `--out FILE` writes the selection to a file. `--compact` drops the blank line between paragraphs (0.13.0); give it again with `--offset`.
+- `--format md` keeps headings and lists as Markdown; `--out FILE` writes the selection to a file; with `--max-chars` it cuts at a clean break and prints `cut at chars A-B of N; write the rest with --offset B` (0.15.1). `--compact` drops the blank line between paragraphs (0.13.0); give it again with `--offset`.
 
 ## Step 4: search
 

@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-11 · 2026-11-02 · Release 0.15.1: `read --out` says when --max-chars cut the selection
+- because: an AI Superpowers reader agent (everscout global-economics run) could tell a 40,000-character `--out` file was cut only by comparing word counts; the stdout path already had a footer
+- files: scripts/rw.py (cmd_read --out branch), SKILL.md (Reading), ../../tests/test_rw.py (test_read_out_cut_says_where_to_resume), version in the five places
+`read --out FILE --max-chars N` now cuts at the same clean break as stdout and prints where to resume (`--offset B`). Also noted from that run, not built: grep's first 20 hits can all come from early chapters; narrow with `--section`.
+
 ### C-20261102-10 · 2026-11-02 · Release 0.15.0: code listings, grep --after, quieter continue hint, cut footer after --offset
 - because: two reader agents on a programming-book run (Python scripting for Blender animation) reported a lost indent in a `--compact` read, a misleading cut footer after `--offset`, no way to see the code after a prose grep hit, and the short-selection hint on nearly every subsection (L-025 `pre-crlf-nbsp-code`)
 - files: scripts/rw.py (HTMLText.flush, render_paras, cmd_read footer and hint, continues, cmd_grep, grep parser, usage), SKILL.md (Reading, search, Distilling a book), ../../tests/test_rw.py (TestReaderFixes), version in the five places AGENTS.md lists

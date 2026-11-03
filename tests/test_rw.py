@@ -1804,5 +1804,27 @@ class TestReaderFixes(Base):
         self.assertIn("may continue in section 5", cli("read", p, "--section", "4")[1])
 
 
+class TestGlossaryTerms(Base):
+    """0.16.0: `terms` lists a glossary's headwords, run-together or with a colon."""
+
+    def test_glossary_term_split(self):
+        self.assertEqual(rw.glossary_term("Backlight A process by which the primary light comes from behind.")[0], "Backlight")
+        self.assertEqual(rw.glossary_term("Anamorphic lens A lens used to create a widescreen image.")[0], "Anamorphic lens")
+        self.assertEqual(rw.glossary_term("Dolly: a wheeled platform that carries the camera.")[0], "Dolly")
+        self.assertIsNone(rw.glossary_term("Short."))
+
+    def test_terms_finds_glossary_section(self):
+        p = self.f("gloss.epub")
+        make_epub_pages(p, {"a.xhtml": "<h1>Gulls</h1><p>" + lorem(40) + "</p>",
+                            "g.xhtml": "<h1>Glossary</h1><p>Backlight A process by which the light comes from behind the subject.</p>"
+                                       "<p>Bleach bypass A process in which the bleach stage is skipped in processing.</p>"})
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rw.main(["terms", str(p)])
+        self.assertIn("Backlight  |", out.getvalue())
+        self.assertIn("Bleach bypass  |", out.getvalue())
+        self.assertIn("2 terms", out.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

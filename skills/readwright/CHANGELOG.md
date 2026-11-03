@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-12 · 2026-11-02 · Release 0.16.0: `terms` lists a glossary's headwords
+- because: the FilmCraft run (everscout ai-video): its glossary runs each term into its definition (`Backlight A process...`), so picking vocab meant reading 2,000 words by eye
+- files: scripts/rw.py (glossary_term, cmd_terms), SKILL.md (Reading), ../../tests/test_rw.py (TestGlossaryTerms), version in the five places
+`RW terms FILE` finds sections titled Glossary, Key terms or Definitions (or `--section N`) and prints one headword per line with the opening of its definition.
+
 ### C-20261102-11 · 2026-11-02 · Release 0.15.1: `read --out` says when --max-chars cut the selection
 - because: an AI Superpowers reader agent (everscout global-economics run) could tell a 40,000-character `--out` file was cut only by comparing word counts; the stdout path already had a footer
 - files: scripts/rw.py (cmd_read --out branch), SKILL.md (Reading), ../../tests/test_rw.py (test_read_out_cut_says_where_to_resume), version in the five places

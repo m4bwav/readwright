@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.26.0"
+VERSION = "0.27.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3981,6 +3981,14 @@ def cmd_grep(a) -> int:
             if ms:
                 per[i] = per.get(i, 0) + len(ms)
                 hits.append((i, j, ms[0]))
+    capped = 0
+    if getattr(a, "per_section", 0):   # one code-heavy section took every hit (Wei, Advanced RAG reader, 2026-11-03)
+        seen, kept = {}, []
+        for h in hits:
+            seen[h[0]] = seen.get(h[0], 0) + 1
+            if seen[h[0]] <= a.per_section:
+                kept.append(h)
+        capped, hits = len(hits) - len(kept), kept
     pcache = {}
 
     def off(i, j, m):
@@ -4025,7 +4033,9 @@ def cmd_grep(a) -> int:
         n_i = sum(len(rxi.findall(p.text)) for i in idx for p in doc.sections[i - 1].paras)
         if n_i:
             code_skipped = (code_skipped + "; " if code_skipped else "") + f"{n_i} matches with -i (grep is case-sensitive)"
-    print(f"[{total} matches in {len(hits)} paragraphs across {len(per)} sections; showed {shown}"
+    if capped:
+        code_skipped = (code_skipped + "; " if code_skipped else "") + f"{capped} paragraphs past --per-section {a.per_section} not shown"
+    print(f"[{total} matches in {len(hits) + capped} paragraphs across {len(per)} sections; showed {shown}"
           + (f"; raise --max, use --count, or narrow with --section N-M" if len(hits) > a.max else "")
           + (f"; {code_skipped}" if code_skipped else "") + "]")
     return 0 if hits else 1
@@ -4163,6 +4173,8 @@ def main(argv=None) -> int:
     p.add_argument("-i", "--ignore-case", action="store_true")
     p.add_argument("-F", "--fixed", action="store_true", help="pattern is a plain string")
     p.add_argument("--max", type=int, default=20, help="paragraphs shown (default 20)")
+    p.add_argument("--per-section", type=int, default=0, metavar="N",
+                   help="at most N paragraphs from each section, so one busy section does not take every hit")
     p.add_argument("--width", type=int, default=600, help="characters shown per matching paragraph")
     p.add_argument("--count", action="store_true", help="only counts per section")
     p.add_argument("--section", "-s", action="append", help="as for read; repeat to add more")

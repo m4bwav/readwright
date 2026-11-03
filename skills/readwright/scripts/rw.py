@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.30.0"
+VERSION = "0.31.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -473,6 +473,9 @@ class HTMLText(HTMLParser):
             self.depth += 1
         if tag == "title":
             self.in_title = True
+        if tag == "math" and not self.skip:   # MathML is skipped; say so, with its alttext when it has one
+            alt = clean(a.get("alttext") or "")
+            self.buf.append(f" [math: {alt}] " if alt else " [math omitted] ")
         if tag in SKIP:
             self.skip += 1
             return
@@ -500,6 +503,11 @@ class HTMLText(HTMLParser):
                 self.buf.append(f" [equation {re.sub(r'[_-]', '.', m.group(1))}: image] ")
             elif not self.pre and clean("".join(self.buf)):   # a picture mid-sentence is an inline formula: "then ." loses it
                 self.buf.append(" [formula: image] ")
+            elif not self.pre and self.kind != "h" and self.cells is None:   # a picture in its own block (a table or
+                alt = clean(a.get("alt") or "")                              # formula set as an image) is marked, not dropped
+                name = posixpath.basename(a.get("src") or "")
+                self.buf.append(f" [image: {alt}] " if len(alt) > 1 and alt.lower() not in ("image", "img", "figure", name.lower())
+                                else f" [image omitted: {name}] " if name else " [image omitted] ")
         if tag == "sub" and self.buf and self.buf[-1][-1:].isalnum():   # tf<sub>td</sub> reads tf_td, not tftd
             self.buf.append("_")
         if tag in ("td", "th"):
@@ -736,7 +744,15 @@ def load_epub(path) -> Doc:
                 if key == "author" and "author" in meta:
                     meta[key] += "; " + el.text.strip()
                 elif key not in meta:
-                    meta[key] = clean(el.text) if key != "description" else clean(re.sub(r"<[^>]+>", " ", el.text))[:300]
+                    meta[key] = clean(el.text) if key != "description" else \
+                        clean(html.unescape(re.sub(r"<[^>]+>", " ", el.text)))[:300]
+                if t == "identifier" and "isbn" not in meta:   # urn:isbn:978..., opf:scheme="ISBN", or a bare 10/13 digits
+                    raw = el.text.strip()
+                    scheme = " ".join(v for k, v in el.attrib.items() if local(k) == "scheme").lower()
+                    digits = re.sub(r"[\s-]", "", re.sub(r"(?i)^urn:isbn:|^isbn:?", "", raw))
+                    if re.fullmatch(r"(97[89])?\d{9}[\dXx]", digits) and ("isbn" in scheme or "isbn" in raw.lower()
+                                                                          or re.fullmatch(r"[\d\s-]+[\dXx]", raw)):
+                        meta["isbn"] = digits.upper()
             elif t == "item":
                 manifest[el.get("id")] = (resolve(el.get("href", "")), el.get("media-type", ""), el.get("properties", "") or "")
                 if "nav" in (el.get("properties") or "").split():
@@ -3929,7 +3945,21 @@ def cmd_read(a) -> int:
             print(f"{path}  {fmt_n(len(body))} chars (~{fmt_n(len(body) // 4)} tokens)")
         print(f"wrote {len(idx)} section file(s), {fmt_n(total)} chars (~{fmt_n(total // 4)} tokens) to {a.out_dir}")
         return 0
-    text = shape(compose(doc, idx, a.format, a.max_words, flags))
+    each = getattr(a, "each_chars", None)
+    if each is not None and each < 1:
+        raise RWError("--each-chars must be 1 or more")
+    if each and not a.at_para:   # several sections in one call, each cut on its own so a long one cannot crowd out the rest
+        parts = []
+        for i in idx:
+            body = shape(compose(doc, [i], a.format, a.max_words, flags))
+            if len(body) > each:
+                cut = clean_cut(body[:each]).rstrip("\n")
+                body = (f"{cut}\n[readwright: section {i} cut at chars 0-{fmt_n(len(cut))} of {fmt_n(len(body))}; "
+                        f"continue with --section {i} --offset {len(cut)}{flags}]\n\n")
+            parts.append(body)
+        text = "".join(parts)
+    else:
+        text = shape(compose(doc, idx, a.format, a.max_words, flags))
     if a.out:
         full, start = len(text), a.offset or 0
         text = text[start:]
@@ -4361,6 +4391,8 @@ def main(argv=None) -> int:
     p.add_argument("--title", "-t", help="regex matched against section titles and ids (case-insensitive)")
     p.add_argument("--max-chars", type=int, default=None, help=f"cap on characters printed (default {DEFAULT_MAX_CHARS})")
     p.add_argument("--offset", type=int, default=0, help="start this many characters into the selection")
+    p.add_argument("--each-chars", type=int, default=None, metavar="N", help="with several sections: cap each one at N "
+                   "chars (a resume line per cut section); --max-chars still caps the total")
     p.add_argument("--at-para", type=int, default=None, help="with --section: start at this paragraph (numbers from grep)")
     p.add_argument("--out", help="write the selection to this file instead of stdout")
     p.add_argument("--out-dir", help="write each selected section to its own file in this folder (NNN-title.txt) and list their sizes")

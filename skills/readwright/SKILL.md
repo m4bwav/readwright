@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.30.0"
+  version: "0.31.0"
 ---
 
 # readwright
@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- Read several sections in one call: `RW read FILE --section 83,87,90-92 --each-chars 4000` caps each section on its own and prints a resume line per cut one (0.31.0). Pictures in their own paragraph show as `[image omitted: t0243-01.jpg]` (a table or formula set as an image: view it if the text leans on it), MathML as `[math: alttext]`; `info` prints authors, date and `isbn` from the OPF.
 - EPUB metadata can have title and author swapped; `info` says so in a note (0.21.0). Take the title from the note or the file name, not the `title:` line.
 - A Packt-style tutorial: read with `--skip-code --compact` and list only the theory sections; `--skip-code` also drops the line ending in ':' that introduced each block (0.22.0). A tool output over about 30 KB gets cut off by the harness, so read 4 or 5 sections per call.
 - Cite printed pages, not PDF pages: when the page numbers on the pages differ from the PDF's, `info` prints `printed_pages: PDF page + N`. When the offset drifts (a blank page dropped per chapter, as in Palgrave PDFs), `toc` shows each page's own `(p. N)` since 0.28.0 and `read --section p153-p160` reads by printed page; never carry one chapter's offset to another, and give reader agents the `pN` form instead of an offset.

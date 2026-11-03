@@ -15,6 +15,8 @@ A novel is 150,000 to 300,000 tokens. Dumping it with a converter (`epr -d`, `pa
 
 Read [evergreen.json](evergreen.json). If `contradiction` is set or today is on or after `next_due`, say so in one line, do the task, then refresh (MAINTENANCE.md). Converter versions and ebook formats change; the procedure below does not depend on them.
 
+Discord: a live channel is not a file; read it with everscout's `scripts/es_discord.py` (the user's own invited bot, everscout `kb/discord.md`). A channel export the user made (JSON or HTML) reads like any JSON or HTML file here.
+
 ## Step 1: size it up
 
 Run `RW info FILE`. It prints the detected format (from the file's bytes, not its extension), title, author, language, section count, words and approximate tokens (characters divided by 4). Under about 6,000 tokens (25,000 characters), `RW read FILE` prints the whole text and you can stop here.

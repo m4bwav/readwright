@@ -160,6 +160,16 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: an EPUB whose spine shows page images is OCR'd like a scanned PDF: `rw.py ocr FILE` reads the images in spine order (no rendering), keeps the text in the OCR cache, and info, toc, read and grep use it. An image-only EPUB often has a DjVu twin in the same folder with OCR text already in it: try that first.
 - Evidence: 2026-11-02, the real EPUB: 247 page images OCR'd in 35 s with Windows OCR, 88k words; `grep -i triple-take` 20 hits. Tests: TestFiveCs (epub_page_images, note, cache, engine run). Applied: C-20261102-4.
 
+### L-031 · 2026-11-02 · pdf-table-cells: pdftotext prints a table one cell per paragraph
+- Trigger: a textbook table of key profiles came out as dozens of lines of `0` and `v(3)`.
+- Rule: collapse six or more one-token paragraphs in a row into one row paragraph joined with ` | `; real row and column layout still needs `pdftotext -bbox-layout`.
+- Evidence: 2026-11-02; test_table_cells_collapse_to_one_row; the real table went from about 40 lines to 4. Applied: C-20261102-20.
+
+### L-030 · 2026-11-02 · pdf-double-spaced: some PDFs give a blank line after every printed line
+- Trigger: a signal-processing textbook PDF: each line became a paragraph, `fre-` and `quency` sat in two paragraphs, and a MATLAB listing (after a `Repo 2: X.m Repo 3: X.py` marker) was glued to its caption and the next paragraph, so `--skip-code` kept it.
+- Rule: merge a page's paragraphs back when the next starts lower case after a hyphen or a missing sentence end, or when the page is double-spaced and the line is full width; drop the break hyphen when the book prints the joined word more often; split leading code-looking lines off a paragraph as `pre` (one is enough after a Repo marker).
+- Evidence: 2026-11-02; TestPdfDoubleSpaced; on the real file section 186 reads as paragraphs, `frequency` rejoined, the listing dropped by `--skip-code`. Applied: C-20261102-20.
+
 ### L-029 · 2026-11-02 · quotation-epigraphs: short books that open each section with a quotation and a dash attribution
 - Trigger: a short creativity EPUB carried about 40 `"Quote." / —Name` pairs across sections 5-15; reader notes credited the quoted people instead of the author.
 - Rule: `read --drop-epigraphs` drops the pair (quote of 80 words or fewer, wholly quoted; attribution of 8 words or fewer starting with a dash); a quote without the attribution line stays.

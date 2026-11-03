@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-17 · 2026-11-02 · Release 0.20.0: read --headings
+- because: an everscout book run (a Unity for Android tutorial EPUB): to skim a long chapter the reader wanted only its subheadings and filtered short lines with awk, which also caught figure captions and code
+- files: scripts/rw.py (flags_used, heading_lines, cmd_read, main), SKILL.md (Reading options, Distilling a book), ../../tests/test_rw.py (TestHeadings), version in the five places
+`read --section N --headings` prints the heading paragraphs (Para kind `h`) of each chosen section, indented by level, with the paragraph number `--at-para` takes and the words up to the next heading; a heading equal to the section title is left out. A section without headings says so and points to `toc --group` or grep. The last line repeats any paragraph-dropping flags to pass with `--at-para`, since they change the numbering. On the real book, section 12 listed 20 headings in three levels.
+
 ### C-20261102-16 · 2026-11-02 · Release 0.19.0: read --drop-epigraphs; one-pass tip for short books
 - because: L-029 `quotation-epigraphs` (a short creativity book opened most sections with a quotation and a dash attribution, about 40 of them)
 - files: scripts/rw.py (EPIGRAPH_MAX_WORDS, ATTRIB_MAX_WORDS, QUOTED_RE, ATTRIB_RE, drop_epigraphs, cmd_read, main), SKILL.md (Distilling a book), ../../tests/test_rw.py (test_drop_epigraphs), version in the five places

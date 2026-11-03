@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.19.0"
+VERSION = "0.20.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3482,6 +3482,34 @@ def cmd_toc(a) -> int:
     return 0
 
 
+def flags_used(a) -> str:
+    """The paragraph-dropping flags given, to repeat with --at-para (paragraph numbers count what is left)."""
+    return "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
+                                   (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
+                                   (" --drop-repeated", getattr(a, "drop_repeated", False)),
+                                   (" --drop-epigraphs", getattr(a, "drop_epigraphs", False))) if on)
+
+
+def heading_lines(doc: Doc, idx: list) -> list:
+    """`read --headings`: each heading paragraph of the selected sections, indented by level, with its paragraph
+    number (for --at-para) and the words up to the next heading."""
+    out = []
+    for i in idx:
+        s = doc.sections[i - 1]
+        out.append(f"[{i}] {s.title} ({fmt_n(s.words())} words)")
+        hs = [k for k, p in enumerate(s.paras) if p.kind == "h" and clean(p.text).lower() != clean(s.title).lower()]
+        if not hs:
+            out.append("  (no headings under the title in this section; a PDF without structure has none: try toc --group, "
+                       "or grep for the words you want)")
+            continue
+        top = min(s.paras[k].level for k in hs)
+        for n, k in enumerate(hs):
+            end = hs[n + 1] if n + 1 < len(hs) else len(s.paras)
+            w = sum(len(p.text.split()) for p in s.paras[k + 1:end])
+            out.append(f"{'  ' * (1 + s.paras[k].level - top)}{s.paras[k].text}  (para {k + 1}, {fmt_n(w)} words)")
+    return out
+
+
 def cmd_read(a) -> int:
     doc = load(a.file, a.member, a.via)
     if getattr(a, "strip_boilerplate", False):
@@ -3509,6 +3537,10 @@ def cmd_read(a) -> int:
         if (a.with_next or short) and i < len(doc.sections) and i + 1 not in idx:
             idx.insert(idx.index(i) + 1, i + 1)
             added.append(i + 1)
+    if getattr(a, "headings", False):
+        print("\n".join(heading_lines(doc, idx)))
+        print(f"jump to one: rw.py read FILE --section N --at-para P{flags_used(a)}")
+        return 0
     if a.max_words is not None and a.max_words < 1:
         raise RWError("--max-words must be 1 or more")
     if skipped is not None:
@@ -3870,6 +3902,8 @@ def main(argv=None) -> int:
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")
     p.add_argument("--drop-epigraphs", action="store_true", help="drop quotations of 80 words or fewer followed by a "
                    "dash attribution line of 8 words or fewer (both paragraphs)")
+    p.add_argument("--headings", action="store_true", help="list only the headings of the selected sections, indented "
+                   "by level, with paragraph numbers for --at-para and the words under each")
     p.add_argument("--quiet", "-q", action="store_true", help="no [readwright: ...] advice lines (cut footers stay)")
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)

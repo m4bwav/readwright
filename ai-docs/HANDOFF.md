@@ -1,7 +1,9 @@
 # Handoff
 
 ## Current state
-readwright 0.19.0 (2026-11-02): `read --drop-epigraphs` drops quotation epigraphs with their dash attribution lines; distilling tip for reading short books in one pass (CHANGELOG C-20261102-16, LEARNINGS L-029). `python tests/test_rw.py`: 118 tests pass.
+readwright 0.20.0 (2026-11-02): `read --headings` lists a section's subheadings with paragraph numbers for `--at-para` and word counts (CHANGELOG C-20261102-17). `python tests/test_rw.py`: 119 tests pass.
+
+Earlier: readwright 0.19.0 (2026-11-02): `read --drop-epigraphs` drops quotation epigraphs with their dash attribution lines; distilling tip for reading short books in one pass (CHANGELOG C-20261102-16, LEARNINGS L-029). `python tests/test_rw.py`: 118 tests pass.
 
 Earlier: readwright 0.18.0 (2026-11-02): a giant PDF section is also split at running heads (`Chapter N ■ Title`) where N changes, and contents dot leaders (U+FFFD runs, dot runs) print as ` … ` (CHANGELOG C-20261102-15, LEARNINGS L-027, L-028). `python tests/test_rw.py` passes; `tests/real_files.py` 38/38.
 

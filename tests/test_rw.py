@@ -1910,5 +1910,28 @@ class TestGlossaryTerms(Base):
         self.assertIn("2 terms", out.getvalue())
 
 
+class TestHeadings(Base):
+    """0.20.0: `read --headings` lists a chapter's subheadings with paragraph numbers for --at-para."""
+
+    def test_read_headings(self):
+        p = self.f("tut.epub")
+        make_epub_pages(p, {
+            "a.xhtml": "<h1>Building the Raft</h1><p>Intro words for the raft.</p><h2>Gathering logs</h2>"
+                       "<p>one two three four</p><p>Figure 3-1. A short caption</p><h3>Cutting rope</h3>"
+                       "<p>five six</p><pre>tie(knot)</pre><h2>Launching</h2><p>seven</p>",
+            "b.xhtml": "<h1>Plain Chapter</h1><p>" + lorem(30) + "</p>"})
+        code, out, _ = cli("read", p, "--section", "1-", "--headings")
+        self.assertEqual(code, 0)
+        lines = out.splitlines()
+        self.assertIn("  Gathering logs  (para 3, 9 words)", lines)
+        self.assertIn("    Cutting rope  (para 6, 3 words)", lines)
+        self.assertIn("  Launching  (para 9, 1 words)", lines)
+        self.assertNotIn("Figure", out)
+        self.assertNotIn("tie(knot)", out)
+        self.assertIn("no headings under the title", out)
+        code, got, _ = cli("read", p, "--section", "1", "--at-para", "6", "--max-chars", "12")
+        self.assertTrue(got.startswith("Cutting rope"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

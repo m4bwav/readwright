@@ -81,3 +81,7 @@ From reading an Apress PDF whose outline stopped at the Introduction. `run_head_
 ## [2026-11-02] update | 0.19.0 --drop-epigraphs
 
 From reading a short quote-heavy creativity EPUB: `drop_epigraphs` drops a short wholly-quoted paragraph followed by a dash attribution of 8 words or fewer (both go); a lone quotation stays. 80 paragraphs (40 pairs) dropped on the real book. Skill tip: books under about 30k tokens are read in one `--section A-B --out FILE` pass. CHANGELOG C-20261102-16, LEARNINGS L-029.
+
+## [2026-11-02] update | 0.20.0 read --headings
+
+From an everscout run on a Unity tutorial EPUB, where the reader skimmed a chapter with `awk length<70` and caught captions and code. `heading_lines` prints the `h` paragraphs of the chosen sections by level with paragraph numbers and words to the next heading; no headings gives a note pointing to `toc --group` or grep. Checked on the real book, section 12: 20 headings. CHANGELOG C-20261102-17.

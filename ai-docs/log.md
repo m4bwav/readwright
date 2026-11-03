@@ -69,3 +69,7 @@ Reader reports from an O'Reilly PDF. Added running_head_keys (frequency or outli
 ## 2026-11-02: 0.11.0 image-only EPUB OCR, ALL-CAPS heading split, PDF code blocks
 
 From an everscout run on a film-technique book (image-only EPUB plus a DjVu twin). `rw.py ocr` now takes EPUBs made of page images; one-section books split at ALL-CAPS headings (running heads become chapters); PDF code blocks come back with indentation via a gated `pdftotext -layout` pass. See CHANGELOG C-20261102-4, LEARNINGS L-020 to L-022. Left open: PDF tables, definition lists, sidebars (HANDOFF Open).
+
+## [2026-11-02] update | 0.15.0 reader fixes from a programming-book run
+
+`<pre>` CRLF and no-break-space indents normalised, split one-line listings joined, `grep --after N`, short-selection hint only for title pages and continued sections, cut footer after `--offset` fixed, multi-section `--section` list documented. The reported lost indent was in the EPUB source. CHANGELOG C-20261102-10, LEARNINGS L-025.

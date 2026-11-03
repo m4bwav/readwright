@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-10 · 2026-11-02 · Release 0.15.0: code listings, grep --after, quieter continue hint, cut footer after --offset
+- because: two reader agents on a programming-book run (Python scripting for Blender animation) reported a lost indent in a `--compact` read, a misleading cut footer after `--offset`, no way to see the code after a prose grep hit, and the short-selection hint on nearly every subsection (L-025 `pre-crlf-nbsp-code`)
+- files: scripts/rw.py (HTMLText.flush, render_paras, cmd_read footer and hint, continues, cmd_grep, grep parser, usage), SKILL.md (Reading, search, Distilling a book), ../../tests/test_rw.py (TestReaderFixes), version in the five places AGENTS.md lists
+`<pre>` text loses CR line ends and no-break-space indents become spaces; consecutive one-line `<pre>` blocks print as one listing. The reported unindented `ob.select_set(False)` is in the EPUB's own source, so it stays. After `--offset K` the footer says `show the rest with --offset K --max-chars N`. `grep --after N` shows the paragraphs after each hit up to `--width`. The short-selection hint fires only for a title page (under 60 words) or a next section that is untitled, continued, or same-titled. `--section 61,80,87` and `12,189-190` already worked; now documented.
+
 ### C-20261102-9 · 2026-11-02 · Release 0.14.0: toc --group folds outline-less PDF pages into chapters
 - because: L-023 `pdf-pages-by-running-head` (everscout run on Fricker, Epistemic Injustice)
 - files: scripts/rw.py (page_groups, group_lines, cmd_toc, toc parser), SKILL.md (toc), README.md (toc), tests/test_rw.py, version in the five places AGENTS.md lists

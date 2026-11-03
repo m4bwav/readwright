@@ -160,6 +160,11 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Rule: an EPUB whose spine shows page images is OCR'd like a scanned PDF: `rw.py ocr FILE` reads the images in spine order (no rendering), keeps the text in the OCR cache, and info, toc, read and grep use it. An image-only EPUB often has a DjVu twin in the same folder with OCR text already in it: try that first.
 - Evidence: 2026-11-02, the real EPUB: 247 page images OCR'd in 35 s with Windows OCR, 88k words; `grep -i triple-take` 20 hits. Tests: TestFiveCs (epub_page_images, note, cache, engine run). Applied: C-20261102-4.
 
+### L-025 · 2026-11-02 · pre-crlf-nbsp-code: a publisher's EPUB writes code with CRLF and no-break-space indents
+- Trigger: reader agents on a Python-for-Blender book saw one listing whose loop body had no indent and suspected `--compact`.
+- Rule: the missing indent was in the EPUB source itself (the book's error); readwright now turns `<pre>` CR line ends into LF and U+00A0 into spaces, and joins listings the publisher split into one `<pre>` per line. When a reader reports mangled code, check the raw XHTML before blaming the renderer, and tell readers to trust code over prose but check API names against current docs.
+- Evidence: 2026-11-02, the book's chapter 2 and 4 XHTML; TestReaderFixes. Applied: C-20261102-10.
+
 ### L-023 · 2026-11-02 · pdf-pages-by-running-head: a PDF with no outline listed 199 one-page sections
 - Trigger: everscout book run (Fricker, Epistemic Injustice, OUP 2007): no PDF outline, so `toc` printed one line per page; the chapter showed only as each page's running head ("page 21: Testimonial Injustice").
 - Rule: `toc --group` folds runs of pages that share a running head into page ranges with word counts; a chapter's opening page (head plus first words) joins the run. Plain `toc` adds a note offering it when pages outnumber heads three to one.

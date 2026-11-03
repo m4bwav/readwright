@@ -11,9 +11,9 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
   toc   FILE [--limit N] [--ids] [--depth N] [--group] numbered sections with titles and word counts (ids on request)
-  read  FILE [--section N|N-M|N,M] [--title REGEX] [--max-words N] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
+  read  FILE [--section N|N-M|N,M,P-Q] [--title REGEX] [--max-words N] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
                                     [--with-next]
-  grep  FILE PATTERN [-C N] [-i] [-F] [--max N] [--width N] [--count]
+  grep  FILE PATTERN [-C N] [-A N] [-i] [-F] [--max N] [--width N] [--count]
   dump  FILE --out FILE [--format txt|md]
   formats                           supported formats and which external tools are present
 
@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.14.0"
+VERSION = "0.15.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -129,7 +129,8 @@ def render_paras(paras, fmt="txt") -> str:
         else:
             t = p.text
         if out:
-            out.append("\n" if (prev in ("row", "li") and p.kind == prev) else "\n\n")
+            # rows, list items and one-line-per-<pre> code listings stay together
+            out.append("\n" if (prev in ("row", "li") or (prev == "pre" and fmt != "md")) and p.kind == prev else "\n\n")
         out.append(t)
         prev = p.kind
     return "".join(out)
@@ -451,8 +452,8 @@ class HTMLText(HTMLParser):
             return
         raw = "".join(self.buf)
         self.buf = []
-        if self.pre:
-            t = raw.strip("\n")
+        if self.pre:   # CRLF line ends and no-break-space indents become plain lines and spaces
+            t = raw.replace("\r\n", "\n").replace("\r", "\n").replace("\u00a0", " ").strip("\n")
             if t.strip():
                 self.paras.append(Para("pre", t))
         else:
@@ -3352,19 +3353,39 @@ def cmd_read(a) -> int:
     if end < len(text):
         if not piece.endswith("\n"):
             sys.stdout.write("\n")
+        rest = (f"show the rest with --offset {start} --max-chars {len(text) - start}" if start
+                else f"show it all with --max-chars {len(text)}")
         print(f"[readwright: shown chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(len(text))}; continue with "
-              f"--offset {end}, show it all with --max-chars {len(text) - start}, or write it all with --out FILE]")
+              f"--offset {end}, {rest}, or write it all with --out FILE]")
     if added and not a.with_next:
         hints.append(f"the title matched a short section, so the section after it was added ({', '.join(map(str, added))}): "
                      f"a chapter's body often follows its title page; use --section to read exactly one section")
     last = idx[-1]
-    if sum(doc.sections[i - 1].words() for i in idx) < SHORT_WORDS and last < len(doc.sections) and last + 1 not in idx:
-        nxt = doc.sections[last]   # chapter-opener pages often hold only a title and an epigraph
+    nxt = doc.sections[last] if last < len(doc.sections) else None
+    if (nxt is not None and last + 1 not in idx and sum(doc.sections[i - 1].words() for i in idx) < SHORT_WORDS
+            and continues(doc, last, idx)):   # a chapter opener or a split section, not every small subsection
         hints.append(f"the selection is short; the text may continue in section {last + 1}: {nxt.title} "
                      f"({fmt_n(nxt.words())} words), read it with --section {last + 1}")
     if hints and not getattr(a, "quiet", False):   # one combined line at the end, however many sections were read
         print("[readwright: " + "; ".join(hints) + "]")
     return 0
+
+
+TITLE_PAGE_WORDS = 60   # a selection this short is a title page or an epigraph, so the next section is the text
+
+
+def continues(doc: Doc, last: int, idx: list) -> bool:
+    """True when section last+1 probably carries on section last: the selection is only a title page, or the next
+    section is untitled, marked continued, or repeats the last one's title."""
+    if sum(doc.sections[i - 1].words() for i in idx) < TITLE_PAGE_WORDS:
+        return True
+    cur, nxt = doc.sections[last - 1], doc.sections[last]
+
+    def key(t):
+        return re.sub(r"\W+", " ", re.sub(r"(?i)\(?\bcont(inued|'d|\.)?\)?\s*$", "", t)).strip().lower()
+    if not nxt.title.strip() or nxt.title.startswith("(untitled") or re.search(r"(?i)\bcont(inued|'d)\b", nxt.title):
+        return True
+    return key(nxt.title) == key(cur.title)
 
 
 def chapter_key(title: str) -> str:
@@ -3446,7 +3467,7 @@ def cmd_grep(a) -> int:
     for i, j, m in hits[:a.max]:
         s = doc.sections[i - 1]
         print(f"--- [{i}] {s.title} | para {j + 1}/{len(s.paras)} | offset {off(i, j, m)}")
-        lo, hi = max(0, j - a.context), min(len(s.paras), j + a.context + 1)
+        lo, hi = max(0, j - a.context), min(len(s.paras), j + max(a.context, a.after) + 1)
         if a.context:   # a boxed callout gives one paragraph per PDF line: widen context over short lines
             budget = 8
             while budget and lo > 0 and len(s.paras[lo].text) < SHORT_LINE:
@@ -3458,6 +3479,8 @@ def cmd_grep(a) -> int:
             t = s.paras[k].text
             if k == j:
                 print("> " + trim(t, m, a.width))
+            elif j < k <= j + a.after:   # --after: the code block or list after a prose hit, up to --width
+                print("  " + (t if len(t) <= a.width else t[:a.width] + " ...").replace("\n", "\n  "))
             else:
                 print("  " + (t if len(t) <= a.width // 2 else t[:a.width // 2] + " ..."))
     shown = min(len(hits), a.max)
@@ -3595,6 +3618,8 @@ def main(argv=None) -> int:
     common(p)
     p.add_argument("pattern")
     p.add_argument("-C", "--context", type=int, default=0, help="paragraphs of context")
+    p.add_argument("-A", "--after", type=int, default=0, help="paragraphs after each hit, shown up to --width "
+                   "(the code block after the prose that names it)")
     p.add_argument("-i", "--ignore-case", action="store_true")
     p.add_argument("-F", "--fixed", action="store_true", help="pattern is a plain string")
     p.add_argument("--max", type=int, default=20, help="paragraphs shown (default 20)")

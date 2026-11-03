@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.32.1"
+VERSION = "0.32.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1460,7 +1460,7 @@ def join_lines(lines) -> str:
 SPLIT_WORD = re.compile(r"(?<=[^\W\d_])[‐­] (?!(?:and|or|nor|to)\b)(?=[^\W\d_])")
 
 
-RUNNING_HEAD = re.compile(r"^(\d{1,4} \| [^|]{1,80}|[^|]{1,80} \| \d{1,4})$")
+RUNNING_HEAD = re.compile(r"^((?:\d{1,4}|[ivxlc]{1,7}) \| [^|]{1,80}|[^|]{1,80} \| (?:\d{1,4}|[ivxlc]{1,7}))$")   # front matter numbers pages in roman
 
 
 NUMBERED_HEAD = re.compile(r"^(?:#\s+(\S.{1,79})|(\S.{1,79}?)\s+#)$")

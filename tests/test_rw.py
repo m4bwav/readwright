@@ -1573,6 +1573,10 @@ class TestRealWorldShapes(Base):
         self.assertEqual(pages[0][0].text, "Some problems remain.")
         self.assertEqual([p.text for p in pages[1]], ["Next."])
 
+    def test_running_heads_with_roman_page_numbers_strip(self):   # "xxx | Introduction" stayed in the text, Generative AI on Kubernetes
+        out = rw.strip_running_heads("xxx | Introduction\n\nBody text.\n\nIntroduction | xxxi\n")
+        self.assertEqual(out.split(), ["Body", "text."])
+
     def test_running_heads_strip_only_at_page_edges(self):
         page = ("4 | Chapter 1: The Five Principles\n\nBody text here.\n\nName | Age | 3\n\nA | 7\n\n"
                 "More text.\n\nOverview of the Principles | 5\n")

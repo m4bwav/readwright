@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-15 · 2026-11-02 · Release 0.18.0: split a giant PDF section at running heads; collapse contents dot leaders
+- because: L-027 `pdf-running-head-split` and L-028 `contents-dot-leaders` (an Apress PDF: the outline stops at the Introduction, which held 90% of the text; its contents printed 60-character runs of U+FFFD)
+- files: scripts/rw.py (RUN_HEAD_RE, OPENER_LINE_RE, run_head_chapters, load_pdf, LEADER_RE, collapse_leaders, load), SKILL.md (Distilling a book), ../../tests/test_rw.py (test_giant_pdf_section_splits_at_running_heads, test_contents_dot_leaders_collapse), version in the five places
+Inside a PDF section over half the text and BIG_SECTION_CHARS, pages whose first line is `Chapter N <sep> Title` (sep ■, |, :, -, en or em dash) start chapter sections where N changes, from the `CHAPTER N` opener page when there is one, else the head-less page before the first head. Needs 3 chapters in order; files without such heads are unchanged. Chosen over the printed contents page because these page numbers are printed numbers (offset from PDF pages) and the contents layout varies; the heads give PDF pages directly. Runs of 3+ U+FFFD or 4+ `.`, `·`, `…` between text and a page number become ` … ` in every section title and paragraph at load. The Apress book went from 6 sections to 14, chapters 1-8.
+
 ### C-20261102-14 · 2026-11-02 · Release 0.17.0: a giant section splits at the printed contents' chapters
 - because: L-026 `printed-contents-split` (a Packt 2024 PDF whose bookmarks stop at the Preface: one section held 94% of the text)
 - files: scripts/rw.py (contents_chapters, contents_run, listed_chapters, chapter_list, title_pattern, split_at_contents, load), SKILL.md (search, Distilling a book), ../../tests/test_rw.py (test_giant_section_splits_at_printed_contents, test_giant_section_stays_whole_without_contents), version in the five places

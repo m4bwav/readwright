@@ -73,3 +73,7 @@ From an everscout run on a film-technique book (image-only EPUB plus a DjVu twin
 ## [2026-11-02] update | 0.15.0 reader fixes from a programming-book run
 
 `<pre>` CRLF and no-break-space indents normalised, split one-line listings joined, `grep --after N`, short-selection hint only for title pages and continued sections, cut footer after `--offset` fixed, multi-section `--section` list documented. The reported lost indent was in the EPUB source. CHANGELOG C-20261102-10, LEARNINGS L-025.
+
+## [2026-11-02] update | 0.18.0 running-head chapter split and dot leaders
+
+From reading an Apress PDF whose outline stopped at the Introduction. `run_head_chapters` adds chapter starts from page-top running heads inside an oversized section (opener page `CHAPTER N` preferred); chosen over the printed contents page because that gives printed page numbers and its layout varies. `collapse_leaders` turns U+FFFD and dot leader runs into ` … `. CHANGELOG C-20261102-15, LEARNINGS L-027, L-028.

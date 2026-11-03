@@ -1732,5 +1732,65 @@ class TestFiveCs(Base):
         self.assertRegex(out, r"def tide.h.:\n\s+if h > 2:\n\s+return h \* 2")
 
 
+class TestReaderFixes(Base):
+    """0.15.0: code listings, the cut footer after --offset, multi-section selectors, grep --after, the continue hint."""
+
+    def code_book(self):
+        p = self.f("code.epub")
+        nb = chr(0xA0) * 4
+        crlf = chr(13) + chr(10)
+        listing = f"<pre>{crlf}for gull in harbour.gulls:{crlf}{nb}if gull.wet:{crlf}{nb}{nb}gull.dry(){crlf}{nb}count += 1</pre>"
+        split = (f"<pre>{crlf}def tide(h):</pre><pre>{crlf}{nb}if h &gt; 2:</pre><pre>{crlf}{nb}{nb}return h</pre>")
+        make_epub_pages(p, {"a.xhtml": "<h1>Gulls</h1><p>The keeper counts gulls with this loop:</p>" + listing
+                            + "<p>And a tide helper:</p>" + split + "<p>" + lorem(30) + "</p>"})
+        return p
+
+    def test_pre_with_crlf_and_nbsp_keeps_indentation_in_compact_read(self):
+        p = self.code_book()
+        for extra in ((), ("--compact",)):
+            out = cli("read", p, "--section", "1", *extra)[1]
+            self.assertNotIn(chr(13), out)
+            self.assertNotIn(chr(0xA0), out)
+            self.assertIn("for gull in harbour.gulls:" + NL + "    if gull.wet:" + NL + "        gull.dry()" + NL + "    count", out)
+            self.assertIn("def tide(h):" + NL + "    if h > 2:" + NL + "        return h", out)
+
+    def test_cut_footer_after_offset_says_how_to_show_the_rest(self):
+        p = self.code_book()
+        _, full, _ = cli("read", p, "--section", "1", "--quiet")
+        _, out, _ = cli("read", p, "--section", "1", "--offset", "20", "--max-chars", "60", "--quiet")
+        m = re.search(r"show the rest with --offset 20 --max-chars ([0-9]+)", out)
+        self.assertTrue(m, out)
+        _, rest, _ = cli("read", p, "--section", "1", "--offset", "20", "--max-chars", m.group(1), "--quiet")
+        self.assertNotIn("[readwright: shown chars", rest)
+        self.assertEqual(rest, full[20:])
+        self.assertNotIn("show it all", out)
+
+    def test_section_list_and_ranges_in_one_call(self):
+        t = self.f("big.txt")
+        t.write_text("\n\n".join(f"CHAPTER {i}\n\n" + lorem(400, f"word{i}") for i in range(1, 11)), encoding="utf-8")
+        out = cli("read", t, "--section", "2,5,8-9", "--quiet")[1]
+        self.assertEqual(re.findall(r"=== \[(\d+)/10\]", out), ["2", "5", "8", "9"])
+
+    def test_grep_after_shows_the_code_block_after_a_prose_hit(self):
+        p = self.code_book()
+        out = cli("grep", p, "counts gulls")[1]
+        self.assertNotIn("gull.dry()", out)
+        out = cli("grep", p, "counts gulls", "--after", "1")[1]
+        self.assertIn("gull.dry()", out)
+        self.assertNotIn("tide helper", out)
+
+    def test_short_hint_only_when_the_next_section_continues(self):
+        body = "<p>" + lorem(120) + "</p>"
+        p = self.f("subs.epub")
+        make_epub_pages(p, {"a.xhtml": "<h1>Setup</h1>" + body, "b.xhtml": "<h1>Running</h1>" + body,
+                            "c.xhtml": "<h1>Running (continued)</h1>" + body, "d.xhtml": "<h1>Opener</h1><p>An epigraph.</p>",
+                            "e.xhtml": "<h1>Body</h1>" + body})
+        toc = cli("toc", p)[1]
+        self.assertIn("Running (continued)", toc)
+        self.assertNotIn("may continue", cli("read", p, "--section", "1")[1])
+        self.assertIn("may continue in section 3", cli("read", p, "--section", "2")[1])
+        self.assertIn("may continue in section 5", cli("read", p, "--section", "4")[1])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

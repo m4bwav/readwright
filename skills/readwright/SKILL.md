@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.14.0"
+  version: "0.15.0"
 ---
 
 # readwright
@@ -42,13 +42,14 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 - `--strip-boilerplate` (read and grep) drops lines repeated across a PDF's pages: footers, bare page numbers, running headers, found by how often they repeat. Use it on both commands so grep's paragraph numbers match `--at-para`.
 - Every section starts with a header line: `=== [43/80] title | id ... | words | starts at word N of TOTAL (P%) ===`.
 - Output stops at `--max-chars` (default 25,000). The cut ends at a paragraph, line or sentence break near the limit (0.11.1), and the last line then says where to continue: `--offset N`. Keep each read under your shell tool's output limit: Claude Code shows 30,000 characters of a command's output and saves the rest to a file you would then have to open. For two long chapters, read them one call each. For more than that, write the selection with `--out <scratch>/part.txt` and open it with your own Read tool. To hand a reader agent several chapters, `--out-dir <scratch>/secs` writes each selected section to its own file (`NNN-title.txt`) and lists their sizes (0.12.0).
-- A short selection ends with a hint naming the next section, since that is where the text usually continues.
+- `--section` takes a list and ranges in one call: `--section 61,80,87` or `--section 12,189-190`. Sections print in that order, each with its own header.
+- A short selection ends with a hint naming the next section when that section probably carries on the text: the selection is a title page or epigraph (under 60 words), or the next section is untitled, marked continued, or repeats the title (0.15.0; it no longer fires on every small subsection).
 - `read` without a selector refuses when the text is over the limit (exit code 2) and prints the toc instead. That refusal is the tool working: pick sections.
 - `--format md` keeps headings and lists as Markdown; `--out FILE` writes the selection to a file. `--compact` drops the blank line between paragraphs (0.13.0); give it again with `--offset`.
 
 ## Step 4: search
 
-`RW grep FILE "PATTERN" -C 1 --max 5` prints each matching paragraph with its section number and title, paragraph number and one paragraph of context on each side. Long paragraphs are trimmed around the match (`--width`). Use `-i` for case-insensitive and `-F` for a plain string; `--count` gives matches per section, the quickest way to find where a character or term appears. Each hit line ends `| offset N`, the character offset `read --section S --offset N` starts at; `read --section S --at-para P` starts at a paragraph. Use them when toc notes one giant section (bookmarks that stop early). Exit code 1 means no match. Search before reading when the user asks where or whether something is mentioned.
+`RW grep FILE "PATTERN" -C 1 --max 5` prints each matching paragraph with its section number and title, paragraph number and one paragraph of context on each side. Long paragraphs are trimmed around the match (`--width`). `--after N` (`-A N`) adds N paragraphs after each hit, shown up to `--width` with their line breaks: the code block or list that follows the sentence naming it (0.15.0). Use `-i` for case-insensitive and `-F` for a plain string; `--count` gives matches per section, the quickest way to find where a character or term appears. Each hit line ends `| offset N`, the character offset `read --section S --offset N` starts at; `read --section S --at-para P` starts at a paragraph. Use them when toc notes one giant section (bookmarks that stop early). Exit code 1 means no match. Search before reading when the user asks where or whether something is mentioned.
 
 ## Step 5: whole book to a scratch file
 
@@ -69,6 +70,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Typos, hyphens inside words (`priori-ties`) and missing spaces next to an inline symbol are usually in the EPUB itself; check the raw XHTML before calling them a reader bug.
 
 - Brief reader agents with the whole read line: `RW read FILE --section N --compact --out <scratch>/chN.txt`, then their own Read tool on the file. An agent that reads four chapters to stdout overflows its shell output, and one that guesses `--max-chars 3500` samples only each section's opening: one Guerrilla Marketing reader did and had to read again (2026-11-02).
+- For a programming book, trust the code over the prose: the Blender scripting book reader found prose naming attributes the code spelled right, and one listing printed without its loop body's indent (in the EPUB's own source). Check API names against the library's current docs before writing them into a skill or notes: versions drift and books lag (2026-11-02).
 - For a PDF with no outline, plan from `RW toc FILE --group` and add `--strip-boilerplate` to the reader's read and grep lines (0.14.0): it drops the running head repeated atop every page and the printed page numbers. Give greps `--width 300 --max 8` (or `--count` first): one Epistemic Injustice reader ran 15 greps at full paragraphs and got 35 KB back (2026-11-02).
 
 - Plan from `RW toc FILE --depth 1`: it gives chapter numbers, titles and rolled-up word counts, so you can budget before reading.

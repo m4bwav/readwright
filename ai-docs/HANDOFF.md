@@ -1,7 +1,9 @@
 # Handoff
 
 ## Current state
-readwright 0.11.0 (2026-11-02): `rw.py ocr` reads image-only EPUBs, one-section books split at ALL-CAPS headings, PDF code blocks keep their lines (CHANGELOG C-20261102-4, LEARNINGS L-020 to L-022). Released as v0.11.0 on GitHub. `python tests/test_rw.py`: 97 tests; `tests/real_files.py` 38/38 (TESTS.md T-20261102-1).
+readwright 0.15.0 (2026-11-02): `<pre>` code keeps indents through CRLF and no-break spaces, `grep --after N`, the short-selection hint only for title pages and continued sections, the cut footer after `--offset` says how to show the rest (CHANGELOG C-20261102-10, LEARNINGS L-025). `python tests/test_rw.py`: 110 tests.
+
+Earlier: readwright 0.11.0 (2026-11-02): `rw.py ocr` reads image-only EPUBs, one-section books split at ALL-CAPS headings, PDF code blocks keep their lines (CHANGELOG C-20261102-4, LEARNINGS L-020 to L-022). Released as v0.11.0 on GitHub. `python tests/test_rw.py`: 97 tests; `tests/real_files.py` 38/38 (TESTS.md T-20261102-1).
 
 ## In progress
 Nothing half-done.

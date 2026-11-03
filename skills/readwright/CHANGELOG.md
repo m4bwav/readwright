@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-13 · 2026-11-02 · point Discord to everscout's invited-bot reader
+- because: user request (2026-11-02): a legal way to read Discord
+- files: SKILL.md (before Step 1)
+- One line: live channels go through everscout's es_discord.py; a user's own export reads as JSON or HTML. Unreleased.
+
 ### C-20261102-12 · 2026-11-02 · Release 0.16.0: `terms` lists a glossary's headwords
 - because: the FilmCraft run (everscout ai-video): its glossary runs each term into its definition (`Backlight A process...`), so picking vocab meant reading 2,000 words by eye
 - files: scripts/rw.py (glossary_term, cmd_terms), SKILL.md (Reading), ../../tests/test_rw.py (TestGlossaryTerms), version in the five places

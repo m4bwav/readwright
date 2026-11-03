@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.16.0"
+VERSION = "0.17.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2581,8 +2581,124 @@ def printed_offset(pages: list) -> int:
     return shift if k >= 5 and k * 2 >= sum(votes.values()) else 0
 
 
+CONTENTS_MIN = 3   # chapters from the printed contents that must turn up, in order, before a giant section is split
+
+
+def contents_chapters(doc: Doc, listed=None) -> list:
+    """(number, title, where) from a printed contents page laid out as a bare chapter number, the title (one to
+    three lines) and its page number, the way pdftotext reads a Packt-style contents page ('1' / 'Understanding
+    Prompting' / '3'). Numbers must run 1, 2, 3... (one may be skipped when LISTED has it); `where` is (section index, paragraph index) of the entry."""
+    out, want, at = [], 1, (0, 0)
+    while True:
+        got = contents_run(doc, want, at)
+        out += got
+        if got:
+            want, at = got[-1][0] + 1, got[-1][3]
+        if not out or not listed or want not in listed:
+            return out
+        want += 1   # the contents page lost this chapter; the 'Chapter N, Title' list has it
+
+
+def contents_run(doc: Doc, want: int, at: tuple) -> list:
+    """Entries numbered WANT, WANT+1, ... in order from position AT on (see contents_chapters)."""
+    out = []
+    for si, s in enumerate(doc.sections):
+        ps = s.paras
+        for j, p in enumerate(ps):
+            if (si, j) < at or p.text.strip() != str(want) or j + 1 >= len(ps):
+                continue
+            title = ps[j + 1].text.strip()
+            if not re.match(r"[^\W\d_]", title) or len(title.split()) > 15 or re.search(r"\s\d{1,4}$", title):
+                continue   # a section entry with its page number on the same line, not a chapter title
+            k = j + 2
+            while k < len(ps) and k < j + 4 and not re.fullmatch(r"\d{1,4}", ps[k].text.strip()) \
+                    and len((title + " " + ps[k].text).split()) <= 15:
+                title += " " + ps[k].text.strip()
+                k += 1
+            if k >= len(ps) or not re.fullmatch(r"\d{1,4}", ps[k].text.strip()):
+                title, k = ps[j + 1].text.strip(), j + 1   # no page number after it: keep the one line
+            out.append((want, title, ps[j + 1].text.strip(), (si, k)))
+            want += 1
+    return out
+
+
+OPENER_RE = re.compile(r"\bChapter (\d{1,3}), (.{3,160}?)(?=\s+[•●*]|\s+Chapter \d|\.\s|$)")
+
+
+def listed_chapters(doc: Doc) -> dict:
+    """{number: title} from 'Chapter 6, Applications of LLMs...' lists (part openers, 'What this book covers')."""
+    out = {}
+    for s in doc.sections:
+        for p in s.paras:
+            for m in OPENER_RE.finditer(p.text):
+                out.setdefault(int(m.group(1)), m.group(2).strip())
+    return out
+
+
+def chapter_list(doc: Doc) -> list:
+    """(number, [titles to try], where) for chapters 1, 2, 3...: titles from the printed contents page first, then
+    from 'Chapter N, Title' lists, since pdftotext can scramble a two-column contents page. One gap is allowed."""
+    listed = listed_chapters(doc)
+    printed = {n: (t, line, w) for n, t, line, w in contents_chapters(doc, listed)}
+    out, n, gap = [], 1, 0
+    while gap < 2 and n < 200:
+        tries = [x for x in (printed.get(n, (None,) * 3)[:2] + (listed.get(n),)) if x]
+        if tries:
+            out.append((n, list(dict.fromkeys(tries)), printed[n][2] if n in printed else None))
+            gap = 0
+        else:
+            gap += 1
+        n += 1
+    return out
+
+
+def title_pattern(title: str):
+    """A regex for a paragraph that opens with TITLE (an optional 'Chapter N' or bare N first); punctuation and
+    spacing between its words may differ ('Text - AI' in the contents, 'Text: AI' in the body)."""
+    toks = re.findall(r"[^\W_]+", title)
+    if not toks:
+        return None
+    return re.compile(r"(?:chapter\s+)?(?:\d{1,3}\W+)?" + r"\W+".join(map(re.escape, toks)) + r"(?![^\W_])", re.I)
+
+
+def split_at_contents(doc: Doc) -> Doc:
+    """Bookmarks that stop early leave one section with most of the book (L-012, L-026 `printed-contents-split`).
+    Cut that section where each chapter of the printed contents page opens: the first paragraph, in order, that
+    begins with the chapter's title (pdftotext runs a chapter's opening page into one paragraph, so the title is
+    split off as the heading). Needs CONTENTS_MIN chapters found in order; else the section stays whole."""
+    total = sum(section_chars(s) for s in doc.sections) or 1
+    big = [i for i, s in enumerate(doc.sections)
+           if section_chars(s) > BIG_SECTION_CHARS and section_chars(s) > total // 2]
+    if not big or len(doc.sections) < 2:
+        return doc
+    bi = big[0]
+    s = doc.sections[bi]
+    chapters = chapter_list(doc)
+    start = max([w[1] + 1 for _, _, w in chapters if w and w[0] == bi], default=0)
+    cuts, j = [], start
+    for n, titles, _ in chapters:
+        pats = [(t, title_pattern(t)) for t in titles]
+        for q in range(j, len(s.paras)):
+            text = s.paras[q].text.strip()
+            m = next(((t, m) for t, pat in pats if pat and (m := pat.match(text))), None)
+            if m:
+                cuts.append((q, n, m[0], m[1].end()))
+                j = q + 1
+                break
+    if len(cuts) < CONTENTS_MIN:
+        return doc
+    out = [Section(s.title, s.paras[:cuts[0][0]], s.level, s.sid)] if cuts[0][0] else []
+    for k, (q, n, title, end) in enumerate(cuts):
+        stop = cuts[k + 1][0] if k + 1 < len(cuts) else len(s.paras)
+        rest = s.paras[q].text.strip()[end:].lstrip(" :.,–—-").strip()
+        paras = [Para("h", f"{n}. {title}", 1)] + ([Para(s.paras[q].kind, rest)] if rest else []) + s.paras[q + 1:stop]
+        out.append(Section(f"{n}. {title}", paras, s.level, f"{s.sid}@p{q + 1}"))
+    doc.sections[bi:bi + 1] = out
+    return doc
+
+
 def load(path: str, member: str | None = None, via: str | None = None) -> Doc:
-    doc = refine(load_raw(path, member, via))
+    doc = split_at_contents(refine(load_raw(path, member, via)))
     if doc.fmt in ("pdf", "epub") and not member and not via:
         scan_note(doc, path)
     return doc

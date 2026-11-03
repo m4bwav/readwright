@@ -4,6 +4,16 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-6 · 2026-11-03 · Learnings consolidation: 34 active to 13
+- because: consolidate:34>25
+- files: LEARNINGS.md (Active), LEARNINGS-ARCHIVE.md (new)
+- Promoted to archive the 21 entries whose rules rw.py now implements and tests: L-003, L-006, L-007, L-013, L-014, L-015, L-017, L-020 to L-034. Fixed the duplicate L-033 ID (pdf-python-listings is now L-034), removed the template example, widened L-005's unverified range to MuPDF 1.28.
+
+### C-20261103-5 · 2026-11-03 · Refresh: converter versions, EPUB 3.4 CRD, one-level disclosure
+- because: R-20261103-1, R-20261103-2
+- files: RESEARCH.md (Current understanding, Open questions, Search plan)
+- Fact updates only; SKILL.md unchanged. Search plan gains forum lines (MobileRead, calibre tracker), MuPDF and LibreOffice sources, and EPUBCheck for testing.
+
 ### C-20261103-4 · 2026-11-03 · Release 0.27.0: grep --per-section N spreads hits across sections
 - because: an everscout book run (*Advanced Retrieval-Augmented Generation*, Wei and Wu): one section's code block took every hit of a 20-hit grep
 - files: scripts/rw.py (cmd_grep, grep parser), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places

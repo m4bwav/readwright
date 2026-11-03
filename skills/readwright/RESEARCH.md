@@ -6,20 +6,22 @@ Topic: Reading text from ebook and document formats for AI agents: EPUB (W3C spe
 
 ## Current understanding
 
-- **Outline first, then sections, is the right shape for agents.** Anthropic's context-engineering guidance recommends just-in-time retrieval: keep light references (here, a toc with word counts) and let the agent fetch what it needs, over loading whole documents. Whole-book dumps (`epr -d`, `pandoc -t plain`) cost 150k to 300k tokens for a novel. Confident (R-20260929-4).
-- **EPUB is stable underneath.** EPUB 3.3 is a W3C Recommendation (the edition dated 13 January 2026); EPUB 3.4 is a Candidate Recommendation Snapshot (21 July 2026, comments until 19 October 2026) whose changes are media types (JPEG XL, AVIF, Opus), not the container. `META-INF/container.xml` names the package document; `mimetype` is the first, stored entry; the nav document has `properties="nav"`; the NCX is a legacy feature kept for EPUB 2 readers, and many books in the wild still rely on it (the smoke-test book does). Confident (R-20260929-1).
+- **Outline first, then sections, is the right shape for agents.** One outline level is enough: arXiv 2607.17598 finds one level of disclosure beats raw navigation while a second routing level never helps (R-20261103-2). Anthropic's context-engineering guidance recommends just-in-time retrieval: keep light references (here, a toc with word counts) and let the agent fetch what it needs, over loading whole documents. Whole-book dumps (`epr -d`, `pandoc -t plain`) cost 150k to 300k tokens for a novel. Confident (R-20260929-4).
+- **EPUB is stable underneath.** EPUB 3.3 is a W3C Recommendation (the edition dated 13 January 2026); EPUB 3.4 is a Candidate Recommendation Draft (republished 2 November 2026 after the comment period; not yet Proposed Recommendation; charter runs to 5 February 2027) whose changes are media types (JPEG XL, AVIF, Opus), not the container. `META-INF/container.xml` names the package document; `mimetype` is the first, stored entry; the nav document has `properties="nav"`; the NCX is a legacy feature kept for EPUB 2 readers, and many books in the wild still rely on it (the smoke-test book does). Confident (R-20260929-1, R-20261103-1).
 - **DRM markers are well known and cheap to check.** EPUB: `encryption.xml` entries other than font obfuscation (`http://www.idpf.org/2008/embedding`, `http://ns.adobe.com/pdf/enc#RC`), plus `rights.xml` (Adobe ADEPT) or `license.lcpl` (Readium LCP). MOBI: record 0 offset 12, encryption type 1 or 2. KFX: the `\xeaDRMION\xee` signature. Treating font obfuscation as DRM is a known bug in other tools. Confident for EPUB and MOBI. The KFX container starts `CONT` then a two-byte little-endian version, checked on a real file (R-20260929-7); KFX DRM detection is still by the `DRMION` signature alone, never seen on a real file here (R-20260929-1, R-20260929-2, R-20260929-7).
-- **Converters are current and maintained** (checked 2026-09-29): calibre 9.15 (2026-09-18), pandoc 3.12 (2026-09-29), markitdown 0.1.8 (2026-09-21, reads EPUB), poppler 26.09.0 (2026-09-03), MuPDF 1.27.2 (2026-02-18), LibreOffice 26.8 (2026-08-26). calibre reads KFX only with the third-party KFX Input plugin (2.34.2 works with calibre 9.15). winget's poppler (25.07) and mutool (1.23.0) packages lag those releases. Every route was run on real files with the versions in R-20260929-8. Confident (R-20260929-3, R-20260929-7, R-20260929-8).
+- **Converters are current and maintained** (checked 2026-11-03): calibre 9.17 (2026-10-23), pandoc 3.13 (2026-10-26; RTF `\uN` and ODT reader fixes), markitdown 0.1.9 (2026-10-21, reads EPUB), poppler 26.10.0 (2026-10-04, no pdftotext change), MuPDF 1.28.5 (distro packages, 2026-10), LibreOffice 26.8 (2026-08-26, point releases unchecked). Behaviour runs below were on the 2026-09-29 versions. calibre reads KFX only with the third-party KFX Input plugin (2.34.2 works with calibre 9.15; 9.17 unchecked). winget's poppler (25.07) and mutool (1.23.0) packages lag those releases. Every route was run on real files with the versions in R-20260929-8. Confident (R-20260929-3, R-20260929-7, R-20260929-8, R-20261103-1).
 - **What each converter does on real files differs from its feature list.** pandoc reads EPUB, DOCX, ODT, FB2 and RTF, and refuses PDF and the legacy Office formats. markitdown needs extras for most formats, returns RTF unchanged and takes 26 s on a 371-page PDF. calibre's FB2 and PDB writers drop the chapter outline. `mutool show outline` nests with tabs. Confident for the versions tested (R-20260929-9).
 - **Tooling landscape.** Whole-file converters dominate (markitdown, docling, pandoc). Section-aware readers exist mostly as EPUB-only MCP servers (onebirdrocks/ebook-mcp, kajuberdut/epub-mcp, joshstrange/bookorbit-mcp) and an epub skill. None found covers EPUB, Office, ODF, FB2, RTF and email behind one outline-read-search interface with no dependencies, which is readwright's niche. epr (MIT) and its successor epy (GPL-3.0) are dormant human readers. Fairly confident; the tooling track should re-check each refresh (R-20260929-5).
 - **The formats readwright parses itself are frozen or slow.** RTF 1.9.1 (2008, no further updates planned), FB2 2.x, ODF 1.4 (OASIS Standard 2025-12-03), OOXML. Their risk is odd files in the wild, not spec change. Confident (R-20260929-6).
 
 ## Open questions
 
-- `mutool show FILE outline` output on MuPDF 1.24 to 1.27: checked on 1.23.0 and 1.23.10 only (L-005).
+- `mutool show FILE outline` output on MuPDF 1.24 to 1.28 (1.28.5 is current): checked on 1.23.0 and 1.23.10 only (L-005).
 - Whether pdftotext's new `-remove-hyphens` (poppler 26.05) should be used by default for PDFs of prose; the winget poppler (25.07) does not have it yet.
 - What a DRM-protected KFX looks like on disk: the `DRMION` check has only been read in source code, never matched on a file.
-- Whether the arXiv paper "Is Progressive Disclosure All You Need for Long-Context Agents?" (2607.17598) supports or qualifies the outline-first design; only its title was seen.
+- Whether KFX Input 2.34.2 still works on calibre 9.17.
+- What the EPUB 3.4 CRD of 2026-11-02 changed, and when Proposed Recommendation is planned.
+- Whether rw.py's RTF parser handles `\uN` followed by the `\ucN` skip count the way pandoc 3.13 now does.
 
 ## Search plan
 
@@ -28,7 +30,8 @@ Four tracks; every refresh runs at least one query on each (scope each to the pe
 Subject (the goal and the latest thinking on reaching it):
 
 - `site:w3.org epub 3.4` (CR to Recommendation; any change to OCF, nav or encryption); `https://www.w3.org/TR/epub-34/`
-- calibre `https://calibre-ebook.com/whats-new` (input formats, ebook-convert options); `https://github.com/jgm/pandoc/releases`; `https://pypi.org/project/markitdown/`; `https://poppler.freedesktop.org/releases.html` (pdftotext options); MuPDF release notes; LibreOffice release notes (`--convert-to`, headless)
+- calibre `https://calibre-ebook.com/whats-new` (input formats, ebook-convert options); `https://github.com/jgm/pandoc/releases`; `https://pypi.org/project/markitdown/`; `https://poppler.freedesktop.org/releases.html` (pdftotext options); MuPDF version from https://archlinux.org/packages/extra-staging/x86_64/mupdf/ or ArtifexSoftware/mupdf GitHub tags (no clean release-notes page); LibreOffice https://www.libreoffice.org/download/release-notes/ (`--convert-to`, headless)
+- Forums: MobileRead forums (KFX Input plugin thread, https://www.mobileread.com/forums/), calibre bug tracker https://bugs.launchpad.net/calibre and GitHub kovidgoyal/calibre; staff posts are primary
 - `new ebook format <year>` and `kindle kfx format change <year>` (new Kindle formats, DRM changes)
 - `https://api.github.com/repos/wustho/epr` and `/wustho/epy` (archived? new release?)
 
@@ -48,11 +51,26 @@ Practice (how others use AI agents on this goal):
 Testing (how work on this subject is verified, and how skills for it are tuned):
 
 - `document text extraction benchmark <year>` (OmniDocBench, olmOCR-Bench style unit-test facts: known strings present, order kept, no header or footer junk)
+- EPUBCheck releases (https://github.com/w3c/epubcheck/releases) as the fixture validator
 - `path:SKILL.md epub eval OR evals` on GitHub; `claude plugin eval` docs for trigger and tool-use graders
 
 Best sources (primary first): the W3C EPUB specs, the MobileRead wiki for MOBI and FB2, the Microsoft RTF 1.9.1 spec, OASIS ODF, the release pages of calibre, pandoc, markitdown, poppler, MuPDF and LibreOffice, the GitHub API for repository status. Noisy: SEO "best ebook converter" lists, DRM-removal forums (used only to learn what DRM looks like, never how to remove it).
 
 ## Findings log
+
+### R-20261103-2 · 2026-11-03 · Progressive disclosure: one level helps, a second does not; tooling quiet
+- Summary: arXiv 2607.17598 (InfiniteBench, three harnesses, three model families): one level of disclosure beats raw navigation across many books and helps little when the harness already retrieves well; a second routing level never helps and can hurt ("buys context, not intelligence"). Supports readwright's flat toc-then-section shape. Tooling: ebook-rs (Rust crate 0.16.4) ships an EPUB-only MCP server with get_toc and validate_epub; the MCP registry adds EPUBCheck and EPUB lint/translate servers, none for sectioned multi-format reading; onebirdrocks/ebook-mcp inactive. Testing: nothing new (olmOCR-Bench still PDF-only); EPUBCheck added to the plan as a fixture validator.
+- Track: practice, tooling, testing
+- Sources: https://arxiv.org/abs/2607.17598, https://docs.rs/crate/ebook-rs/latest/source/docs/MCP_SERVER.md, https://registry.modelcontextprotocol.io/v0/servers?search=epub
+- Magnitude: 0.3
+- applied: note (RESEARCH.md only; the main file already uses one level)
+
+### R-20261103-1 · 2026-11-03 · Converter releases and EPUB 3.4 status
+- Summary: EPUB 3.4 republished as CRD 2026-11-02, not PR. calibre 9.16 (AVIF input, RTL and multi-column PDF input) and 9.17 (JPEG XL input, ODT list numbering, fixes for a PDF Input regression and invalid EPUB3 nav); no KFX mention. pandoc 3.12.1 (FODT reader, ODT fixes, RTF surrogate pairs) and 3.13 (RTF `\uNNNN` letter-drop fix, DOCX field fixes); still no PDF reader. markitdown 0.1.9 (CLI fix when stdout encoding is None; no format changes). poppler 26.10.0 (no pdftotext change). MuPDF 1.28.x (1.28.5 in Arch staging; CVEs on 1.28 line). LibreOffice not checked.
+- Track: subject
+- Sources: https://www.w3.org/TR/epub-34/, https://calibre-ebook.com/whats-new, https://github.com/jgm/pandoc/releases, https://pypi.org/project/markitdown/, https://poppler.freedesktop.org/releases.html, https://archlinux.org/packages/extra-staging/x86_64/mupdf/
+- Magnitude: 0.2
+- applied: Current understanding edited in place (no main-file change)
 
 Newest first. One entry per material finding; a quiet refresh gets one entry saying so. `Track` is subject, tooling, practice, or testing. R-20260929-1 to R-20260929-6 came from one research pass on 2026-09-29 (about 30 searches and fetches, run by a research subagent) plus the author's reading of the specs while writing the parsers; R-20260929-7 to R-20260929-9 from running the tools on real files the same day.
 

@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-13 · 2026-11-03 · Release 0.32.2: running heads with roman page numbers are dropped
+- because: book distill of Huss and Zonca, Generative AI on Kubernetes: `xxx | Introduction` stayed in the front matter text.
+- files: scripts/rw.py (RUNNING_HEAD), tests/test_rw.py. The pipe form now accepts lower-case roman numerals at page edges.
+
 ### C-20261103-12 · 2026-11-03 · Release 0.32.1: distilling tip on glued words and surprising figures
 - because: book distill of Raff, Farris and Biderman, How Large Language Models Work: glued words were in the EPUB source, and a 10 GB vocabulary figure failed against the 2.1 MB tokenizer file
 - files: SKILL.md (Distilling a book). No reader code changed.

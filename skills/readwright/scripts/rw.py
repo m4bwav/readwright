@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.32.2"
+VERSION = "0.33.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -840,6 +840,7 @@ def load_epub(path) -> Doc:
             if base and s.sid.startswith(base + "/"):
                 s.sid = s.sid[len(base) + 1:]   # ids relative to the package folder
         normalise_levels(doc.sections)
+        heal_stray_hyphens(doc.sections)
     oc = ocr_cache(path)
     if oc.exists():   # `rw.py ocr` ran on this image-only EPUB
         pages = oc.read_bytes().decode("utf-8", "replace").split("\f")
@@ -1534,6 +1535,29 @@ def keep_break_hyphen(left: str, right: str) -> bool:
     if VOCAB.get(a + b, 0) >= 1:
         return False
     return len(a) >= 3 and len(b) >= 3 and VOCAB.get(a, 0) >= 2 and VOCAB.get(b, 0) >= 2
+
+
+STRAY_HYPHEN = re.compile(r"(?<![\w-])([a-z]+)-([a-z]+)(?![\w-])")
+REAL_PREFIXES = {"anti", "co", "de", "multi", "non", "over", "post", "pre", "pro", "re", "self", "semi", "sub", "un"}
+
+
+def heal_stray_hyphens(sections) -> None:
+    """Scanned-then-converted EPUBs keep print line-break hyphens mid-line ("in-formation", "stu-dent"). Join a pair when
+    the book prints the joined word at least three times and the hyphenated form at most once. A real prefix with a real right half
+    ("re-sign") stays."""
+    paras = [p for s in sections for p in s.paras if p.kind not in ("h", "pre")]
+    counts = collections.Counter(w for p in paras for w in re.findall(r"[a-z]+(?:-[a-z]+)*", p.text))
+
+    def fix(m):
+        a, b = m.group(1), m.group(2)
+        if counts[a + b] < 3 or counts[a + "-" + b] > 1:
+            return m.group(0)
+        if a in REAL_PREFIXES and counts[b] >= 1:
+            return m.group(0)
+        return a + b
+
+    for p in paras:
+        p.text = STRAY_HYPHEN.sub(fix, p.text)
 
 
 def rejoin_spaced_words(text: str) -> str:

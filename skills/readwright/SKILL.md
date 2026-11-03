@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.31.0"
+  version: "0.32.0"
 ---
 
 # readwright
@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- Section numbers are not chapter numbers: in a textbook `--section 23` may be chapter 16. Cite the chapter from the `toc` title. A broad textbook usually serves a beat through a few sections: grep the beat's terms across the book first, then read only those (0.32.0).
 - Read several sections in one call: `RW read FILE --section 83,87,90-92 --each-chars 4000` caps each section on its own and prints a resume line per cut one (0.31.0). Pictures in their own paragraph show as `[image omitted: t0243-01.jpg]` (a table or formula set as an image: view it if the text leans on it), MathML as `[math: alttext]`; `info` prints authors, date and `isbn` from the OPF.
 - EPUB metadata can have title and author swapped; `info` says so in a note (0.21.0). Take the title from the note or the file name, not the `title:` line.
 - A Packt-style tutorial: read with `--skip-code --compact` and list only the theory sections; `--skip-code` also drops the line ending in ':' that introduced each block (0.22.0). A tool output over about 30 KB gets cut off by the harness, so read 4 or 5 sections per call.

@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.31.0"
+VERSION = "0.32.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2168,6 +2168,7 @@ def load_pdf(path) -> Doc:
             first = pp[0].text[:50] if pp else ""
             lab = f" (p. {labels[n]})" if n in labels else ""
             doc.sections.append(Section(f"page {n}{lab}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
+    fix_chapter_openers(doc)
     return doc
 
 
@@ -2403,6 +2404,42 @@ def repeat_keys(text: str) -> list:
     if len(w) >= 6:
         keys.append("end:" + " ".join(w[-4:]))
     return keys
+
+
+def fix_chapter_openers(doc: Doc) -> int:
+    """PDF chapters of a numbered book: a drop-cap chapter number lands inside the first words ("1Text Su6mmarization"),
+    and a running head joins the next paragraph ("8.3 Scorer 155 and return"). Restore the title and cut the heads,
+    only where the numbers match the section's own chapter. Returns how many paragraphs changed."""
+    fixed = 0
+    word = r"(?:[A-Z][\w'-]*|of|and|the|for|in|on|a|an|to|with)"
+    for s in doc.sections:
+        m = re.match(r"(\d+)\.\s+(\S.*)", s.title)
+        if not m:
+            continue
+        ch, title = m.group(1), re.sub(r"\s*\(p\. [^)]*\)$", "", m.group(2))
+        want = re.sub(r"\s", "", title).lower()
+        if s.paras:
+            t, got, end = s.paras[0].text, "", 0
+            for end, c in enumerate(t, 1):
+                if not c.isspace() and not c.isdigit():
+                    got += c.lower()
+                if len(got) == len(want):
+                    break
+            if got == want and any(c.isdigit() for c in t[:end]):
+                s.paras[0].text = title + t[end:]
+                fixed += 1
+        heads = re.compile(rf"(?:{ch}\.\d+ {word}(?: {word})* \d{{1,4}}|\d{{1,4}} Chapter {ch} {re.escape(title)})(?: |$)")
+        keep = []
+        for p in s.paras:
+            cut = heads.match(p.text)
+            if cut:
+                p.text = p.text[cut.end():]
+                fixed += 1
+                if not p.text.strip():
+                    continue
+            keep.append(p)
+        s.paras = keep
+    return fixed
 
 
 def drop_repeated(doc: Doc, share: float = 0.3, least: int = 5) -> int:

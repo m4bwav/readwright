@@ -1,7 +1,11 @@
 # Handoff
 
 ## Current state
-readwright 0.23.0 (2026-11-02): double-spaced PDF pages rejoin into paragraphs (break hyphens dropped from the book's word counts), MATLAB/Python listings glued into prose become `pre` blocks for `--skip-code`, one-cell-per-line tables collapse to ` | ` rows (CHANGELOG C-20261102-20, LEARNINGS L-030, L-031). `python -m unittest discover -s tests`: 124 tests pass. Versions 0.21.0 and 0.22.0 are in the CHANGELOG.
+readwright 0.29.0 (2026-11-03): Cengage textbook PDF fixes: outline titles give printed pages, per-page copyright footers dropped by default, smart-case grep, a warning for symbol-font math (CHANGELOG C-20261103-8, LEARNINGS L-035 to L-038). `python tests/test_rw.py`: 136 tests pass.
+
+Open: symbol-font math is detected, not repaired. pdftotext's text has no font per character; a repair would read `mutool draw -F stext` (font name per char) and map Mathematical Pi codes to Unicode, only where mutool is present (L-036).
+
+Earlier: readwright 0.23.0 (2026-11-02): double-spaced PDF pages rejoin into paragraphs (break hyphens dropped from the book's word counts), MATLAB/Python listings glued into prose become `pre` blocks for `--skip-code`, one-cell-per-line tables collapse to ` | ` rows (CHANGELOG C-20261102-20, LEARNINGS L-030, L-031). `python -m unittest discover -s tests`: 124 tests pass. Versions 0.21.0 and 0.22.0 are in the CHANGELOG.
 
 Earlier: readwright 0.20.0 (2026-11-02): `read --headings` lists a section's subheadings with paragraph numbers for `--at-para` and word counts (CHANGELOG C-20261102-17). `python tests/test_rw.py`: 119 tests pass.
 

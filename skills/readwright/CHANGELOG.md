@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-8 · 2026-11-03 · Release 0.29.0: Cengage textbook PDF fixes (printed pages in outline titles, copyright footers, smart-case grep, symbol-font math warning)
+- because: L-035, L-036, L-037, L-038 (a book run on Arnold, *Economics*, 11th ed., Cengage PDF)
+- files: scripts/rw.py (printed_span, printed_labels, drop_page_footers, pdf_math_fonts, math_note, smart_case, cmd_grep, tools), SKILL.md Distilling a book, ../../tests/test_rw.py, version in the five places
+Outline section titles in a PDF now give the printed pages beside the PDF pages; `printed_labels` also reads a mixed-case running head on a page's top line (`130 PART 2 ...`, `Chapter 6 ... 131`). A copyright footer that starts with Copyright and says all rights reserved or may not be copied, on 30% or more of the pages, is dropped by default (RW_KEEP_FOOTERS=1 keeps it); on the test book it was 719 copies and about 10% of the text. `grep` is smart case: an all-lower-case pattern matches any case, `--case-sensitive` turns that off, a pattern with a capital is unchanged. `info` and `toc` warn when pdffonts lists a Mathematical Pi or Universal Greek/News font; the symbols are not repaired (see L-036).
+
 ### C-20261103-7 · 2026-11-03 · Release 0.28.0: printed page labels for PDFs whose offset drifts
 - because: L-034 (an everscout book run, Styhre *Indie Video Game Development Work*: two reader agents took different offsets, -7 and -9, and cited pages wrongly)
 - files: scripts/rw.py (printed_labels, printed_selector, pdf page sections, info), SKILL.md Reading tips, ../../tests/test_rw.py, version in the five places

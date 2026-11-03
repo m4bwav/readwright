@@ -695,9 +695,59 @@ class TestFormats(Base):
     def test_grep_without_i_names_case_hits(self):
         p = self.f("t.md")
         p.write_text("# One\n\nValue keying sets the mood.\n", encoding="utf-8")
-        code, out, _ = cli("grep", p, "value key")
+        code, out, _ = cli("grep", p, "Value Key")
         self.assertEqual(code, 1)
         self.assertIn("1 matches with -i", out)
+
+    def test_grep_smart_case(self):   # L-038: an all-lower-case pattern matches any case
+        p = self.f("t.md")
+        p.write_text("# One\n\nThe Consumer Price Index rose.\n", encoding="utf-8")
+        code, out, _ = cli("grep", p, "consumer price index")
+        self.assertEqual(code, 0)
+        self.assertIn("Consumer Price Index", out)
+        self.assertEqual(cli("grep", p, "consumer price index", "--case-sensitive")[0], 1)
+        self.assertEqual(cli("grep", p, "Consumer price")[0], 1, "a capital keeps grep case-sensitive")
+        self.assertTrue(rw.smart_case(r"\Sprice\b"), "regex escapes are not capitals")
+        self.assertFalse(rw.smart_case("CPI"))
+
+    def test_page_copyright_footer_dropped(self):   # L-037: a long publisher footer on every page
+        P = rw.Para
+        foot = ("Copyright 2013 Example Learning. All Rights Reserved. May not be copied, scanned, or duplicated, in whole "
+                "or in part. " + "Some third party content may be suppressed. " * 6)
+        second = "Editorial review has deemed that any suppressed content does not affect the experience."
+        pages = [[P("p", f"Body text of page {n} about lamps."), P("p", foot), P("p", second)] for n in range(10)]
+        pages[3].append(P("p", "Copyright law is a topic of this page."))
+        self.assertEqual(rw.drop_page_footers(pages), 20)
+        self.assertTrue(all(len(pp) == 1 for pp in pages[:3]))
+        self.assertIn("Copyright law is a topic of this page.", [q.text for q in pages[3]])
+        few = [[P("p", "Body"), P("p", foot)] for _ in range(10)]
+        few = few[:2] + [[P("p", "Body")] for _ in range(8)]
+        self.assertEqual(rw.drop_page_footers(few), 0, "a footer on two pages of ten stays")
+        with unittest.mock.patch.dict(os.environ, {"RW_KEEP_FOOTERS": "1"}):
+            self.assertEqual(rw.drop_page_footers([[P("p", foot)] for _ in range(10)]), 0)
+
+    def test_outline_titles_carry_printed_pages(self):   # L-035: outline sections show the printed folio
+        self.assertEqual(rw.printed_span(165, 170, -36, {}), ", printed 129-134")
+        self.assertEqual(rw.printed_span(5, 5, -36, {}), "", "front matter before page 1 has no printed number")
+        self.assertEqual(rw.printed_span(20, 22, 0, {20: 10, 22: 13}), ", printed 10-13")
+        self.assertEqual(rw.printed_span(3, 4, 0, {}), "")
+        heads = [f"{n - 10} PART 2 Macroeconomic Fundamentals\nBody" if n % 2 else
+                 f"Chapter 6 Prices and Unemployment {n - 10}\nBody" for n in range(11, 21)]
+        labels = rw.printed_labels(["Cover"] * 10 + heads + [f"{n - 9} PART 2 Fundamentals\nBody" for n in range(22, 30)])
+        self.assertEqual(labels[11], 1)
+        self.assertEqual(labels[12], 2)
+        self.assertEqual(labels[21], 13)
+
+    @unittest.skipUnless(rw.find_tool("pdffonts") and rw.find_tool("pdftotext"), "needs poppler")
+    def test_symbol_font_math_warning(self):   # L-036: '=' prints as '5' in a Mathematical Pi font
+        p = self.f("m.pdf")
+        make_pdf(p, ("Price index 5 100 3 cost", "More text"))
+        p.write_bytes(p.read_bytes().replace(b"/Helvetica", b"/MathPiAbc"))
+        code, out, _ = cli("info", p)
+        self.assertIn("math symbols are likely garbled", out)
+        q = self.f("plain.pdf")
+        make_pdf(q)
+        self.assertNotIn("math symbols", cli("info", q)[1])
 
     def test_rank_puts_the_dense_short_section_first(self):
         p = self.f("ir.md")

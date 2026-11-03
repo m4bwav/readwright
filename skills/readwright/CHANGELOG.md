@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261102-19 · 2026-11-02 · Release 0.22.0: --skip-code drops code lead-ins
+- because: a book distill (a Packt LLM tutorial EPUB, 4 sections): with the code gone, 14 sentences ending in ':' that introduced the blocks stayed behind, dangling
+- files: scripts/rw.py (skip_code, code_note), SKILL.md Distilling a book, ../../tests/test_rw.py (test_skip_code_drops_colon_lead_ins), version in the five places (SKILL.md and evergreen.json had stayed at 0.20.0)
+With `--skip-code`, a paragraph or list item ending in ':' directly before a dropped code block is dropped too and counted in the trailer ("and K lead-in lines"); a colon line before prose stays.
+
 ### C-20261102-18 · 2026-11-02 · Release 0.21.0: info flags swapped title and author
 - because: an everscout book run (Tannen, Conversational Style EPUB): the metadata title was the author's name and the author field held the title, so the book was filed under the author
 - files: scripts/rw.py (meta_swapped, cmd_info), SKILL.md Distilling a book, tests/test_rw.py

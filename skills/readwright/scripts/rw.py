@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.21.0"
+VERSION = "0.22.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3189,21 +3189,28 @@ def cut_offset(body: list, part, fmt: str) -> int:
 
 def skip_code(doc: Doc) -> dict:
     """Drop code blocks: paragraphs of kind pre (HTML and EPUB <pre>, fenced or indented Markdown), found by
-    structure, never by guessing from a line's look. Returns {section number: (blocks, words)} for sections that had any."""
+    structure, never by guessing from a line's look. A prose paragraph or list item that ends with ':' and sits
+    right before a dropped block goes too (its lead-in, noise once the code is gone); a colon line before prose
+    stays. Returns {section number: (blocks, words, lead-ins)} for sections that had any."""
     out = {}
     for n, s in enumerate(doc.sections, 1):
         code = [p for p in s.paras if p.kind == "pre"]
         if code:
-            out[n] = (len(code), sum(len(p.text.split()) for p in code))
-            s.paras = [p for p in s.paras if p.kind != "pre"]
+            ps = s.paras
+            lead = {i for i in range(len(ps) - 1)
+                    if ps[i + 1].kind == "pre" and ps[i].kind in ("p", "li") and ps[i].text.rstrip().endswith(":")}
+            out[n] = (len(code), sum(len(p.text.split()) for p in code), len(lead))
+            s.paras = [p for i, p in enumerate(ps) if p.kind != "pre" and i not in lead]
     return out
 
 
 def code_note(doc: Doc, skipped: dict, idx) -> str:
     blocks = sum(skipped[i][0] for i in idx if i in skipped)
     words = sum(skipped[i][1] for i in idx if i in skipped)
+    leads = sum(skipped[i][2] for i in idx if i in skipped)
     if blocks:
-        return f"--skip-code left out {fmt_n(words)} words in {fmt_n(blocks)} code blocks"
+        return (f"--skip-code left out {fmt_n(words)} words in {fmt_n(blocks)} code blocks"
+                + (f" and {fmt_n(leads)} lead-in lines" if leads else ""))
     if doc.fmt.startswith("pdf"):
         return "--skip-code found no code blocks: a PDF has no structural code marker, so code stays in (EPUB, HTML and Markdown only)"
     return "--skip-code found no code blocks"

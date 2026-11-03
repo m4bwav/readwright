@@ -1241,10 +1241,10 @@ class TestTocChapters(Base):
 
     def test_page_join_moves_only_the_run_on_sentence(self):   # L-033 `page-join-empties-page`
         P = rw.Para
-        pages = [[P("p", "We showed it to people and")], [P("p", "they sent us feedback. " + lorem(30))]]
+        pages = [[P("p", "We showed it to people and")], [P("p", "they sent us feedback. Then " + lorem(30))]]
         rw.join_split_pages(pages)
         self.assertEqual(pages[0][0].text, "We showed it to people and they sent us feedback.")
-        self.assertTrue(pages[1] and pages[1][0].text.startswith(lorem(30)[:10]))
+        self.assertTrue(pages[1] and pages[1][0].text.startswith("Then lorem"))
 
     def test_group_uses_printed_contents(self):   # L-032 `contents-title-then-page`
         P = rw.Para

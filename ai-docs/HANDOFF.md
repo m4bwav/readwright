@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current state
+readwright 0.39.0 (2026-11-03): for OCR text, `info` notes printed-page jumps that suggest leaves missing from a scan (CHANGELOG C-20261103-21); both gaps in a real two-up scan were found. Double-page scans can over-report when one page number was misread, so the note says to look at the images.
+
 readwright 0.30.0 (2026-11-03): an EPUB whose outline collapsed into one giant section is split at the chapters of a one-line printed contents page (`1 TITLE`), cutting at a bare chapter-number paragraph above the title; contents-page lines no longer open false sections (CHANGELOG C-20261103-9, LEARNINGS L-039). `python tests/test_rw.py`: 137 tests pass; `tests/real_files.py` 38/38.
 
 Earlier: readwright 0.29.0 (2026-11-03): Cengage textbook PDF fixes: outline titles give printed pages, per-page copyright footers dropped by default, smart-case grep, a warning for symbol-font math (CHANGELOG C-20261103-8, LEARNINGS L-035 to L-038). `python tests/test_rw.py`: 136 tests pass.

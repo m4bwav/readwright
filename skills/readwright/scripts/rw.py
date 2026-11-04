@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.38.0"
+VERSION = "0.39.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -867,7 +867,40 @@ def load_epub(path) -> Doc:
             doc.sections = [Section(f"page {n}" + (f": {pp[0].text[:50]}" if pp else ""), pp, 1, f"page{n}")
                             for n, pp in enumerate(page_paras, 1)]
         doc.notes.append(f"text from OCR (`rw.py ocr`, kept in {oc}); expect misread letters")
+        gap = missing_page_note(pages)
+        if gap:
+            doc.notes.append(gap)
     return doc
+
+
+def missing_page_note(pages: list) -> str | None:
+    """A scan can lack whole leaves. The last bare number on each page is its likely printed number; the longest rising
+    run of those drops contents lists and figure numbers, and a jump well past the usual step marks a gap."""
+    nums = []
+    for i, p in enumerate(pages, 1):
+        found = re.findall(r"(?m)^\s*(\d{1,4})\s*$", p)
+        if found:
+            nums.append((i, int(found[-1])))
+    best = []
+    runs = []
+    for i, n in nums:
+        run = [(i, n)]
+        for r in runs:
+            if r[-1][1] < n <= r[-1][1] + 12 and len(r) + 1 > len(run):
+                run = r + [(i, n)]
+        runs.append(run)
+        if len(run) > len(best):
+            best = run
+    if len(best) < 8:
+        return None
+    steps = sorted(b[1] - a[1] for a, b in zip(best, best[1:]))
+    usual = steps[len(steps) // 2]
+    gaps = [f"between p. {a[1]} (section {a[0]}) and p. {b[1]} (section {b[0]})"
+            for a, b in zip(best, best[1:]) if b[1] - a[1] >= max(3, 2 * usual)]
+    if not gaps:
+        return None
+    return ("printed pages may be missing from this scan " + "; ".join(gaps[:6]) +
+            "; look at those page images and say so in any notes")
 
 
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff", ".webp")
@@ -2116,6 +2149,10 @@ def load_pdf(path) -> Doc:
     pages = text.split("\f")
     if pages and not pages[-1].strip():
         pages.pop()
+    if oc.exists():
+        gap = missing_page_note(pages)
+        if gap:
+            doc.notes.append(gap)
     shift = printed_offset(pages)
     labels = {} if shift else printed_labels(pages)
     if labels:

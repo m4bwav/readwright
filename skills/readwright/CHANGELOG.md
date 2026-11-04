@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-21 · 2026-11-03 · Release 0.39.0: `info` flags pages missing from a scan
+because: Detail in Typography run: the two-up scan lacks pp. 12-13 and 44-45, losing most of the Emphasis chapter, and nothing said so; only a reader who compared the contents would notice.
+files: scripts/rw.py (missing_page_note), SKILL.md (Distilling a book), plugin.json, tests. For OCR text, the longest rising run of each page's last bare number gives printed pages; a jump of at least 3 and twice the usual step gets a note.
+
 ### C-20261103-20 · 2026-11-03 · Release 0.38.0: `image`, superscript powers
 because: Little Book of Valuation run: tables and formulas are JPEGs marked `[image omitted: NAME]` with no way to open them, and `1.1021<sup>5</sup>` read as 1.10215, a wrong number.
 files: scripts/rw.py (cmd_image, handle_data), SKILL.md (Distilling a book), plugin.json, tests. `image FILE NAME --out-dir D` writes the picture; a digit in `<sup>` after a digit reads `^`. The root plugin.json had stayed at 0.34.0; a test now keeps both manifests on the script's version.

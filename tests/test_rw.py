@@ -699,6 +699,16 @@ class TestFormats(Base):
             self.assertIn("text from OCR", out)
             self.assertIn("Value matters more", cli("read", p, "--section", "2")[1])
 
+    def test_missing_scan_pages_are_flagged(self):   # Detail in Typography: two spreads absent from a 31-image scan
+        pages = ["Contents\n7\n63"] + [f"Body\n{n}\nBody\n{n + 1}" for n in range(8, 20, 2)] + \
+                [f"Figure\n57\nBody\n{n}\nBody\n{n + 1}" for n in range(22, 30, 2)]
+        note = rw.missing_page_note(pages)
+        self.assertIn("between p. 19", note)
+        self.assertIn("and p. 23", note)
+        whole = [f"Body\n{n}\nBody\n{n + 1}" for n in range(8, 30, 2)]
+        self.assertIsNone(rw.missing_page_note(whole))
+        self.assertIsNone(rw.missing_page_note(["no numbers"] * 12))
+
     def test_printed_page_offset(self):   # L-019: printed page = PDF page + 1 in a scanned art book
         pages = [f"Body text\n{n + 1}" for n in range(1, 9)] + ["Cover"]
         self.assertEqual(rw.printed_offset(pages), 1)

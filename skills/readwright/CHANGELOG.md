@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-19 · 2026-11-03 · Release 0.37.0: `rank --body`
+because: The Great Wave run: `rank` put a bibliography section first and per-chapter notes files beside the chapters they annotate.
+files: scripts/rw.py (rank, back_matter_start), SKILL.md (Distilling a book), tests. Leaves out everything from a bare NOTES, BIBLIOGRAPHY or INDEX section at least 30% into the words; off by default.
+
 ### C-20261103-18 · 2026-11-03 · Release 0.36.0: `read --from REGEX`
 because: Better Web Typography run: `grep "Key takeaways"` printed long context per chapter, when only the tail of each section was wanted.
 files: scripts/rw.py (read), SKILL.md (Distilling a book), tests. Each selected section prints from its first match on; sections with no match are skipped.

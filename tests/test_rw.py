@@ -6,6 +6,7 @@ Every fixture is built here at test time from invented text; no real book or doc
 import contextlib
 import io
 import json
+import pathlib
 import os
 import shutil
 import re
@@ -2315,6 +2316,29 @@ class TestPdfDoubleSpaced(Base):   # L-030 `pdf-double-spaced`, L-031 `pdf-table
         rw.collapse_cells(pp)
         self.assertEqual([p.kind for p in pp], ["p", "row", "p"])
         self.assertEqual(pp[1].text, "w(0) | 1 | w(1) | 0 | w(2) | 0 | w(3) | 0")
+
+
+class ImageAndSuperscript(unittest.TestCase):
+    def test_image_writes_named_picture_and_superscript_reads_as_power(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "b.epub")
+            make_epub_pages(p, {"a.xhtml": "<h1>Value</h1><p>Today is 749/1.1021<sup>5</sup> and the 1<sup>st</sup> try.</p><div><img src='img/t1.jpg'/></div>"},
+                            {"img/t1.jpg": b"JPEGDATA"})
+            code, out, _ = cli("read", p, "--section", "1")
+            self.assertIn("1.1021^5", out)
+            self.assertIn("1st", out)
+            self.assertIn("[image omitted: t1.jpg]", out)
+            code, out, _ = cli("image", p, "t1.jpg", "--out-dir", d)
+            self.assertEqual(code, 0)
+            with open(os.path.join(d, "t1.jpg"), "rb") as f:
+                self.assertEqual(f.read(), b"JPEGDATA")
+            code, _, err = cli("image", p, "none.jpg", "--out-dir", d)
+            self.assertNotEqual(code, 0)
+
+    def test_both_plugin_manifests_agree_with_the_script(self):
+        root = pathlib.Path(__file__).resolve().parent.parent
+        for m in ("plugin.json", ".claude-plugin/plugin.json"):
+            self.assertEqual(json.loads((root / m).read_text(encoding="utf-8"))["version"], rw.VERSION, m)
 
 
 if __name__ == "__main__":

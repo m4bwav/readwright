@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.37.0"
+VERSION = "0.38.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -586,6 +586,8 @@ class HTMLText(HTMLParser):
             return
         if self.noteref and data.strip():
             data = f"[{data.strip()}]"
+        elif self.sup and data[:1].isdigit() and "".join(self.buf)[-1:].isdigit():   # 1.1021<sup>5</sup> reads 1.1021^5, not 1.10215
+            data = "^" + data
         self.buf.append(data)
         if self._a is not None:
             self._a[1].append(data)
@@ -4219,6 +4221,26 @@ def glossary_term(text: str):
     return m.group(1).strip(" .,;"), m.group(2).strip()
 
 
+def cmd_image(a) -> int:
+    """Write a picture the text marks `[image omitted: NAME]` to a file, so a table or formula set as an image can be looked at."""
+    load(a.file)
+    calibre = cache_path(a.file, "calibre", ".epub")
+    src = calibre if calibre.exists() else a.file
+    if not zipfile.is_zipfile(src):
+        raise RWError("no named pictures to pull out here; `image` works on EPUB, DOCX and calibre-converted files")
+    want = posixpath.basename(a.name)
+    with zipfile.ZipFile(src) as z:
+        hits = [n for n in z.namelist() if posixpath.basename(n) == want and not n.endswith("/")]
+        if not hits:
+            raise RWError(f"no picture named {want} in this file")
+        os.makedirs(a.out_dir, exist_ok=True)
+        out = os.path.join(a.out_dir, want)
+        with open(out, "wb") as f:
+            f.write(z.read(hits[0]))
+    print(out)
+    return 0
+
+
 def cmd_terms(a) -> int:
     """Headwords of a glossary: the sections titled Glossary (or --section), one term per line with its definition's opening."""
     doc = load(a.file, a.member, a.via)
@@ -4601,6 +4623,10 @@ def main(argv=None) -> int:
     p.add_argument("number", type=int)
     p.add_argument("--section", "-s", required=True, help="the section the marker was read in")
     p.add_argument("--width", type=int, default=600, help="characters shown")
+    p = sub.add_parser("image", help="write a picture marked [image omitted: NAME] to a file, to look at a table or formula set as an image")
+    p.add_argument("file")
+    p.add_argument("name")
+    p.add_argument("--out-dir", default=".", help="folder to write it in")
     p = sub.add_parser("terms", help="a glossary's headwords, one per line with the start of each definition")
     common(p, False)
     p.add_argument("--section", "-s", help="glossary section(s); default: those titled Glossary")
@@ -4622,7 +4648,7 @@ def main(argv=None) -> int:
         a.section = ",".join(a.section)
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
-        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "rank": cmd_rank, "note": cmd_note, "terms": cmd_terms, "dump": cmd_dump,
+        return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "rank": cmd_rank, "image": cmd_image, "note": cmd_note, "terms": cmd_terms, "dump": cmd_dump,
                 "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)

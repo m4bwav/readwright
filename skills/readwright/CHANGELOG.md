@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-20 · 2026-11-03 · Release 0.38.0: `image`, superscript powers
+because: Little Book of Valuation run: tables and formulas are JPEGs marked `[image omitted: NAME]` with no way to open them, and `1.1021<sup>5</sup>` read as 1.10215, a wrong number.
+files: scripts/rw.py (cmd_image, handle_data), SKILL.md (Distilling a book), plugin.json, tests. `image FILE NAME --out-dir D` writes the picture; a digit in `<sup>` after a digit reads `^`. The root plugin.json had stayed at 0.34.0; a test now keeps both manifests on the script's version.
+
 ### C-20261103-19 · 2026-11-03 · Release 0.37.0: `rank --body`
 because: The Great Wave run: `rank` put a bibliography section first and per-chapter notes files beside the chapters they annotate.
 files: scripts/rw.py (rank, back_matter_start), SKILL.md (Distilling a book), tests. Leaves out everything from a bare NOTES, BIBLIOGRAPHY or INDEX section at least 30% into the words; off by default.

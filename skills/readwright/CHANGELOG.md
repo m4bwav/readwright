@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-16 · 2026-11-03 · Release 0.35.0: toc --group works on labelled pages and run-on contents
+because: Web Typography run: `toc --group` refused a 348-page PDF with no outline, because printed labels and line breaks in page titles failed its match (L-040).
+- files: scripts/rw.py (`page_groups`, `leader_groups`, page titles), SKILL.md (Step 2, Distilling).
+
 ### C-20261103-15 · 2026-11-03 · Release 0.34.0: toc --code shows the code words per section; distilling tip on printed outputs and cited sources
 because: Building LLM Powered Applications run: the outline listed a section at 867 words that held 92 of prose, and the reader spent tokens on console transcripts before reaching for --skip-code.
 files: scripts/rw.py (code_words, toc_lines, toc --code), SKILL.md (distilling), tests/test_rw.py.

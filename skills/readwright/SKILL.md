@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.32.2"
+  version: "0.35.0"
 ---
 
 # readwright
@@ -29,7 +29,7 @@ If info prints `note: no text layer`, the book is page images (a scan) and readw
 
 Run `RW toc FILE`. Each line is `N. title (words w)`, indented by level; `--ids` adds each section's id (file and fragment, page, sheet), which you rarely need. EPUB titles come from the book's own navigation (nav document or NCX), DOCX and ODT titles from heading styles, HTML from h1 to h3, plain text and Markdown from headings or CHAPTER lines. Text with no structure is cut into parts of about 3,000 words. For a zip archive, toc lists the members; add `--member NAME` (or its number) to every later command.
 
-Books that list each chapter number as its own near-empty section (Packt, some O'Reilly) are shown merged: `Ch. 12: Title`, printed under the title's section number (the number-only section is hidden but keeps its number and can still be read). `RW toc FILE --depth 1` prints only the top level (parts and chapters) with each line's words rolled up from the sections below it (`--depth 2` adds the next level; JSON gets `chapter` and `words_total`). Use it to count chapters instead of counting by hand. A PDF with no outline lists one section per page; `RW toc FILE --group` folds pages that share a running head into page ranges (chapters) to read with `--section 20-40`; with no running heads it uses the printed contents page, where each entry is a title line then a page-number line (0.26.0), and `toc` says so in a note.
+Books that list each chapter number as its own near-empty section (Packt, some O'Reilly) are shown merged: `Ch. 12: Title`, printed under the title's section number (the number-only section is hidden but keeps its number and can still be read). `RW toc FILE --depth 1` prints only the top level (parts and chapters) with each line's words rolled up from the sections below it (`--depth 2` adds the next level; JSON gets `chapter` and `words_total`). Use it to count chapters instead of counting by hand. A PDF with no outline lists one section per page; `RW toc FILE --group` folds pages that share a running head into page ranges (chapters) to read with `--section 20-40`; with no running heads it uses the printed contents page, where each entry is a title line then a page-number line (0.26.0), or entries run on as `Title ... 21 Next ... 26` (0.35.0), and `toc` says so in a note.
 
 Match the user's words to toc lines. "Chapter 14" usually means the line titled CHAPTER FOURTEEN, which in many ebooks holds only the chapter title and an epigraph: its body is the next section. The word counts show this (72 words, then 6,330). Section numbers are not chapter numbers: front matter comes first, so chapter 16 of a novel may be section 24.
 
@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A handbook often ends with its own list of guidelines and page numbers: read that first and choose pages from it (Web Typography, p. 294-300). Recompute any worked figure and open a cited study; that book printed 1.1375rem for 1.375rem (0.35.0).
 - A popular book with few work examples: `rank` with the beat's words, then `grep` for offsets and read 1-3k characters at each (`--offset`), rather than whole chapters; 7k of 105k words was enough for one (0.33.0). Say which claims you could not check beyond the book.
 - Before reporting glued words (largelydetermine) as a reader bug, look at the raw XHTML: retail EPUBs can carry the typo themselves (0.32.1). Spot-check a surprising figure against a primary file too; a reputable publisher does not rule out a slip.
 - Section numbers are not chapter numbers: in a textbook `--section 23` may be chapter 16. Cite the chapter from the `toc` title. A broad textbook usually serves a beat through a few sections: grep the beat's terms across the book first, then read only those (0.32.0).

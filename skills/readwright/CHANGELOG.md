@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-22 · 2026-11-03 · Release 0.40.0: `read --chapter` selects by printed number
+because: Universal Principles of Typography run: section numbers from toc were asked for as if they were chapter numbers, and `--section 78` returned ch. 68.
+files: scripts/rw.py (read), SKILL.md (Distilling a book), tests/test_rw.py.
+
 ### C-20261103-21 · 2026-11-03 · Release 0.39.0: `info` flags pages missing from a scan
 because: Detail in Typography run: the two-up scan lacks pp. 12-13 and 44-45, losing most of the Emphasis chapter, and nothing said so; only a reader who compared the contents would notice.
 files: scripts/rw.py (missing_page_note), SKILL.md (Distilling a book), plugin.json, tests. For OCR text, the longest rising run of each page's last bare number gives printed pages; a jump of at least 3 and twice the usual step gets a note.

@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.39.0"
+VERSION = "0.40.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3525,6 +3525,20 @@ def printed_selector(doc: Doc, spec: str) -> str:
     return ",".join(out)
 
 
+def chapter_selector(doc: Doc, spec: str) -> str:
+    """--chapter 78,81-83: sections by the number printed in their titles ("78 / Title", "Chapter 78"), which toc's
+    position numbers drift from once part openers and front matter are counted."""
+    wanted = set(parse_selector(spec, 9999))
+    hits = []
+    for i, s in enumerate(doc.sections, 1):
+        m = re.match(r"\s*(?:chapter\s+)?(\d+)\b", s.title, re.I)
+        if m and int(m.group(1)) in wanted:
+            hits.append(i)
+    if not hits:
+        raise RWError(f"no section title starts with chapter number {spec}; run toc to see the titles")
+    return ",".join(str(i) for i in hits)
+
+
 def select(doc: Doc, section: str | None, title: str | None) -> list:
     n = len(doc.sections)
     if section and "p" in section.lower():
@@ -4064,6 +4078,8 @@ def cmd_read(a) -> int:
             print(f"note: {n}")
         print("(no text found)")
         return 0
+    if a.chapter:
+        a.section = chapter_selector(doc, a.chapter)
     idx = select(doc, a.section, a.title) if (a.section or a.title) else list(range(1, len(doc.sections) + 1))
     added = []
     for i in list(idx):   # a chapter's title page and its body are often separate sections (L-001)
@@ -4602,6 +4618,7 @@ def main(argv=None) -> int:
     common(p, False)
     p.add_argument("--section", "-s", action="append", help="N, N-M, N- or N,M (numbers from toc); repeat to add more")
     p.add_argument("--title", "-t", help="regex matched against section titles and ids (case-insensitive)")
+    p.add_argument("--chapter", help="N, N-M or N,M: sections by the chapter number printed in their titles, not toc positions")
     p.add_argument("--max-chars", type=int, default=None, help=f"cap on characters printed (default {DEFAULT_MAX_CHARS})")
     p.add_argument("--offset", type=int, default=0, help="start this many characters into the selection")
     p.add_argument("--each-chars", type=int, default=None, metavar="N", help="with several sections: cap each one at N "

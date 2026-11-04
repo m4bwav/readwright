@@ -47,3 +47,5 @@ Scan note threshold and routes (decision entry in [INDEX.md](INDEX.md)).
 
 ## Next single action
 None owed. Next scheduled work is the evergreen refresh due 2026-11-03 (or the EPUB 3.4 event after 2026-10-19).
+
+readwright 0.40.0 (2026-11-03): `read --chapter 78,81-83` selects by the number printed in section titles, from the Universal Principles of Typography run. No new open items.

@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- An older web or software book: check its code-level advice against current docs before it reaches a skill; the principles last better than the markup (Web Form Design, 2008, advises `tabindex` for tab order, and MDN now warns against positive values). Look for the author's later study of a claim too (0.35.1).
 - A handbook often ends with its own list of guidelines and page numbers: read that first and choose pages from it (Web Typography, p. 294-300). Recompute any worked figure and open a cited study; that book printed 1.1375rem for 1.375rem (0.35.0).
 - A popular book with few work examples: `rank` with the beat's words, then `grep` for offsets and read 1-3k characters at each (`--offset`), rather than whole chapters; 7k of 105k words was enough for one (0.33.0). Say which claims you could not check beyond the book.
 - Before reporting glued words (largelydetermine) as a reader bug, look at the raw XHTML: retail EPUBs can carry the typo themselves (0.32.1). Spot-check a surprising figure against a primary file too; a reputable publisher does not rule out a slip.

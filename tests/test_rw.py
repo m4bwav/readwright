@@ -2007,6 +2007,20 @@ class TestFiveCs(Base):
         self.assertEqual(rw.epub_page_images(str(p)), ["OEBPS/img/p2.jpg", "OEBPS/img/p3.jpg", "OEBPS/img/cover.jpg"])
         self.assertEqual(rw.epub_page_images(str(self.f("missing.epub"))), [])
 
+    def test_figure_link_lines_and_repeated_alt_go(self):   # Web Form Design EPUB, 2026-11-03
+        p = self.f("fig.epub")
+        alt = "In the sign-up form, people bounce back and forth."
+        make_epub_pages(p, {"a.xhtml": f"<h1>Forms</h1><p>Before.</p><div><img src='b.jpg' alt='{alt}'/></div><div><img src='b.jpg' alt='{alt}'/>"
+                            "<p>top image: <img src='i.jpg' alt=''/> <a href='http://example.com/1'>http://example.com/1</a></p>"
+                            "<p><img src='i.jpg' alt=''/> <a href='http://example.com/2'>http://example.com/2</a></p></div>"
+                            f"<p>Figure 9-1. {alt}</p><p>Then <img src='f.jpg' alt=''/> holds.</p>"},
+                        {"b.jpg": b"x", "i.jpg": b"x", "f.jpg": b"x"})
+        code, out, _ = cli("read", p, "--section", "1", "--no-cache")
+        self.assertNotIn("example.com", out)
+        self.assertNotIn("[image:", out)
+        self.assertIn(f"Figure 9-1. {alt}", out)
+        self.assertIn("Then [formula: image] holds", out)
+
     def test_equation_pictures_and_subscripts_are_marked(self):   # Manning IR EPUB, 2026-11-03
         p = self.f("ir.epub")
         make_epub_pages(p, {"a.xhtml": "<h1>BM25</h1><p>We improve on it by length:</p>"

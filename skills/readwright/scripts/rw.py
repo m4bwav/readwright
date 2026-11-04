@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.35.0"
+VERSION = "0.35.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -107,6 +107,9 @@ class Doc:
 
 LIGATURES = str.maketrans({"\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl",
                            "\ufb05": "st", "\ufb06": "st"})
+
+
+FIGURE_LINK = re.compile(r"(?:[\w ,-]{0,30}:\s*)?\[(?:formula: image|image omitted[^\]]*)\]\s*https?://\S+$")
 
 
 def clean(s: str) -> str:
@@ -460,6 +463,13 @@ class HTMLText(HTMLParser):
                 self.paras.append(Para("pre", t))
         else:
             t = clean(raw)
+            if FIGURE_LINK.match(t):   # "top image: <icon> http://enlarge-me": a link to a bigger picture, not a formula
+                t = ""
+            while t and self.paras and self.paras[-1].text.startswith("[image: "):   # alt text repeated by the caption below it
+                alt = self.paras[-1].text[8:-1]
+                if len(alt) <= 20 or not t.endswith(alt):
+                    break
+                self.paras.pop()
             if t:
                 kind = self.kind
                 if kind == "p" and self.quote:

@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.33.0"
+VERSION = "0.34.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3797,7 +3797,22 @@ def group_lines(doc: Doc) -> list:
     return out
 
 
-def toc_lines(doc: Doc, limit: int, ids: bool = False, depth: int | None = None) -> list:
+def code_words(doc: Doc, roll: bool = False) -> list:
+    """Words in code blocks (kind pre, as skip_code finds them) per section; roll adds the sections below it."""
+    own = [sum(len(p.text.split()) for p in s.paras if p.kind == "pre") for s in doc.sections]
+    if not roll:
+        return own
+    out = []
+    for i, s in enumerate(doc.sections):
+        j, n = i + 1, own[i]
+        while j < len(doc.sections) and doc.sections[j].level > s.level:
+            n += own[j]
+            j += 1
+        out.append(n)
+    return out
+
+
+def toc_lines(doc: Doc, limit: int, ids: bool = False, depth: int | None = None, code: bool = False) -> list:
     """One line per section. A bare chapter-number section is merged into the titled section after it
     ("Ch. 12: Title", printed under the title's number; the number section stays readable). depth keeps
     sections at indent depth <= depth, with word counts rolled up from the sections below."""
@@ -3805,6 +3820,7 @@ def toc_lines(doc: Doc, limit: int, ids: bool = False, depth: int | None = None)
     chap = chapter_numbers(doc)
     skip = {n for _, n in chap.values()}
     roll = rolled_words(doc) if depth else None
+    cw = code_words(doc, bool(depth)) if code else None
     keep = [i for i, s in enumerate(doc.sections, 1) if i not in skip and not (depth and s.level > depth)]
     for k, i in enumerate(keep):
         if k >= limit:
@@ -3817,7 +3833,8 @@ def toc_lines(doc: Doc, limit: int, ids: bool = False, depth: int | None = None)
             title = f"Ch. {chap[i][0]}: {title}"
             w += doc.sections[chap[i][1] - 1].words()
         ind = "  " * (s.level - 1)
-        lines.append(f"{i:>4}. {ind}{title}{in_context(doc, i)}  ({fmt_n(w)} w)" + (f"  [{s.sid}]" if ids else ""))
+        c = f", {fmt_n(cw[i - 1])} code" if cw and cw[i - 1] else ""
+        lines.append(f"{i:>4}. {ind}{title}{in_context(doc, i)}  ({fmt_n(w)} w{c})" + (f"  [{s.sid}]" if ids else ""))
     return lines
 
 
@@ -3910,7 +3927,9 @@ def cmd_toc(a) -> int:
         print("\n".join(lines))
         print("read a run: rw.py read FILE --section N-M")
         return 0
-    print("\n".join(toc_lines(doc, a.limit, a.ids, a.depth)))
+    print("\n".join(toc_lines(doc, a.limit, a.ids, a.depth, a.code)))
+    if a.code and doc.fmt.startswith("pdf"):
+        print("note: --code found nothing to count: a PDF has no structural code marker (EPUB, HTML and Markdown only)")
     groups = page_groups(doc)
     if len(doc.sections) > 40 and groups and len(groups) * 3 < len(doc.sections):
         print(f"note: {len(doc.sections)} pages share {len(groups)} running heads; rw.py toc FILE --group lists them as page ranges")
@@ -4445,6 +4464,7 @@ def main(argv=None) -> int:
     p.add_argument("--limit", type=int, default=1000)
     p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
     p.add_argument("--depth", type=int, default=None, help="only sections at indent depth N or less (1 = parts and chapters); word counts include the sections below")
+    p.add_argument("--code", action="store_true", help="also show how many of each section's words are code blocks (EPUB, HTML, Markdown): pick prose sections before reading")
     p.add_argument("--group", action="store_true", help="PDF with no outline: fold pages that share a running head into page ranges (chapters)")
     p = sub.add_parser("read", help="text of chosen sections")
     common(p, False)

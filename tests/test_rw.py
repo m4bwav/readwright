@@ -1118,6 +1118,14 @@ class TestCommands(Base):
                 zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
         return dst
 
+    def test_toc_code_counts_code_words(self):
+        e = self.code_epub()
+        plain = cli("toc", e)[1]
+        self.assertNotIn(" code)", plain)
+        out = cli("toc", e, "--code")[1]
+        self.assertIn(", 7 code)", out)
+        self.assertIn(", 3 code)", out)
+
     def test_skip_code_on_read_and_grep(self):
         e = self.code_epub()
         _, full, _ = cli("read", e, "--section", "2-3")

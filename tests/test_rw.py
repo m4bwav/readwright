@@ -1006,6 +1006,15 @@ class TestCommands(Base):
             code, got, _ = cli("grep", t, "Brannoch", "--json", "--max", "1", "--format", fmt)
             self.assertEqual(json.loads(got)["hits"][0]["offset"], int(m.group(2)))
 
+    def test_read_from_regex(self):
+        t = self.big_text()
+        code, got, _ = cli("read", t, "--section", "7", "--from", "Brannoch", "--max-chars", "200")
+        self.assertEqual(code, 0)
+        self.assertIn("Brannoch", got.split("\n")[1][:8])
+        self.assertEqual(cli("read", t, "--section", "7", "--from", "no such words xyz")[0], 1)
+        self.assertEqual(cli("read", t, "--section", "7", "--from", "(")[0], 1)
+        self.assertEqual(cli("read", t, "--section", "7", "--from", "Brannoch", "--at-para", "1")[0], 1)
+
     def test_read_at_para(self):
         t = self.big_text()
         code, out, _ = cli("grep", t, "Brannoch", "--max", "2")

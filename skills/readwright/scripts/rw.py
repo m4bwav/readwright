@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.34.0"
+VERSION = "0.35.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2189,7 +2189,7 @@ def load_pdf(path) -> Doc:
                                         flat[cuts[k]:stop], d, f"page{pg}"))
     else:
         for n, pp in enumerate(page_paras, 1):
-            first = pp[0].text[:50] if pp else ""
+            first = " ".join(pp[0].text[:50].split()) if pp else ""
             lab = f" (p. {labels[n]})" if n in labels else ""
             doc.sections.append(Section(f"page {n}{lab}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
     fix_chapter_openers(doc)
@@ -3738,7 +3738,7 @@ def page_groups(doc: Doc) -> list:
     starts it. [] when the sections are not bare pages."""
     heads = []
     for s in doc.sections:
-        m = re.match(r"page \d+(?:: (.*))?$", s.title)
+        m = re.match(r"page \d+(?: \(p\. [^)]*\))?(?:: (.*))?$", s.title)
         if not m:
             return []
         heads.append((m.group(1) or "").strip())
@@ -3757,6 +3757,33 @@ def page_groups(doc: Doc) -> list:
 
 
 CONTENTS_HEAD_RE = re.compile(r"(table of )?contents", re.I)
+
+
+LEADER_ENTRY_RE = re.compile(r"((?:\d{1,3}\s+)?[^\W\d_](?:(?!\s(?:…|\.\s\.)).)*?)\s+(?:…|\.(?:\s\.)+)\s*(\d{1,4})(?=\s|$)")
+
+
+def leader_groups(doc: Doc) -> list:
+    """Page runs from a printed contents whose entries run on inside one paragraph, 'Title ... 21 Next title ... 26'
+    (L-040 `group-labelled-pages`). Printed pages map through printed_labels or page_shift, so a drifting offset
+    lands on the right page. Needs three entries with rising pages; [] otherwise."""
+    if not page_groups(doc):
+        return []
+    n = len(doc.sections)
+    shift = doc.meta.get("page_shift", 0)
+    labels = doc.meta.get("printed_labels") or {}
+    inv = {v: k for k, v in sorted(labels.items(), reverse=True)}
+    ents = []
+    for s in doc.sections[: max(20, n // 10)]:
+        for p in s.paras:
+            for t, num in LEADER_ENTRY_RE.findall(p.text):
+                pg = inv.get(int(num)) if labels else int(num) - shift
+                if pg and pg <= n and (not ents or pg > ents[-1][1]):
+                    ents.append((t.strip(), pg))
+    if len(ents) < 3:
+        return []
+    out = [(1, ents[0][1] - 1, "(front matter)")] if ents[0][1] > 1 else []
+    out += [(pg, (ents[k + 1][1] - 1 if k + 1 < len(ents) else n), t) for k, (t, pg) in enumerate(ents)]
+    return [(f, l, t, sum(doc.sections[i - 1].words() for i in range(f, l + 1))) for f, l, t in out]
 
 
 def contents_groups(doc: Doc) -> list:
@@ -3790,7 +3817,7 @@ def group_lines(doc: Doc) -> list:
     out = []
     groups = page_groups(doc)
     if len(groups) * 3 >= len(doc.sections):   # no running heads to fold by: try the printed contents
-        groups = contents_groups(doc) or groups
+        groups = contents_groups(doc) or leader_groups(doc) or groups
     for f, l, h, w in groups:
         rng = f"{f}-{l}" if l > f else str(f)
         out.append(f"{rng:>9}. {h or '(no text)'}  ({fmt_n(w)} w)")

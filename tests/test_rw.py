@@ -1413,6 +1413,19 @@ class TestTocChapters(Base):
         self.assertEqual(pages[0][0].text, "We showed it to people and they sent us feedback.")
         self.assertTrue(pages[1] and pages[1][0].text.startswith("Then lorem"))
 
+    def test_group_reads_runon_leader_contents_and_page_labels(self):   # L-040 `group-labelled-pages`
+        P = rw.Para
+        def pg(n, text, label=None):
+            lab = f" (p. {label})" if label else ""
+            return rw.Section(f"page {n}{lab}: {text[:20]}", [P("p", text)], 1, f"page{n}")
+        secs = [pg(1, "Title page"), pg(2, "Reading … 1 Line length . . . . 3 Fonts … 5")]
+        secs += [pg(n, f"body {n} " + lorem(20), n - 2) for n in range(3, 10)]
+        doc = rw.Doc("x.pdf", "pdf", sections=secs)
+        doc.meta["printed_labels"] = {n: n - 2 for n in range(3, 10)}
+        self.assertEqual([(f, l, t) for f, l, t, _ in rw.leader_groups(doc)],
+                         [(1, 2, "(front matter)"), (3, 4, "Reading"), (5, 6, "Line length"), (7, 9, "Fonts")])
+        self.assertTrue(any("5-6. Line length" in l for l in rw.group_lines(doc)))
+
     def test_group_uses_printed_contents(self):   # L-032 `contents-title-then-page`
         P = rw.Para
         def pg(n, *paras):

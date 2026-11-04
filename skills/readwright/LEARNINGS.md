@@ -127,3 +127,8 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Trigger: an EPUB with a one-entry NCX: `toc` gave 6 sections, one with 90% of the words; its contents page read `1 TITLE` per line, each chapter opened with a `1` paragraph then a title paragraph, and the contents lines `INTRODUCTION` and `EPILOGUE: ...` matched HEAD_RE, so the sections after them were titled one off.
 - Rule: read one-line contents entries before the two-line PDF form; cut at the number paragraph above a title; drop a heading cut whose first word opens a later cut when the lines beside it are short.
 - Evidence: 2026-11-03, the book went to 12 sections: Introduction, chapters 1-8 (7,200 to 11,100 words), Epilogue. Test: test_epub_section_splits_at_oneline_contents. Applied: C-20261103-9.
+
+### L-040 · 2026-11-03 · group-labelled-pages: toc --group refused a PDF that was only pages
+- Trigger: a PDF with no outline and drifting printed labels: titles read `page 14 (p. 3): ...`, some with line breaks from code at the page top, so `--group` said the file had titled sections. Its contents ran on in one paragraph, `Title ... 21 Next ... 26`.
+- Rule: page titles are one line; the page match allows a label; run-on leader entries map printed pages through the labels.
+- Evidence: Web Typography went from a refusal to 33 runs. A chapter whose entry straddles two contents pages can lose its title and join the run before. Test: test_group_reads_runon_leader_contents_and_page_labels.

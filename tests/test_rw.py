@@ -2010,7 +2010,7 @@ class TestFiveCs(Base):
     def test_figure_link_lines_and_repeated_alt_go(self):   # Web Form Design EPUB, 2026-11-03
         p = self.f("fig.epub")
         alt = "In the sign-up form, people bounce back and forth."
-        make_epub_pages(p, {"a.xhtml": f"<h1>Forms</h1><p>Before.</p><div><img src='b.jpg' alt='{alt}'/><img src='b.jpg' alt='{alt}'/>"
+        make_epub_pages(p, {"a.xhtml": f"<h1>Forms</h1><p>Before.</p><div><img src='b.jpg' alt='{alt}'/></div><div><img src='b.jpg' alt='{alt}'/>"
                             "<p>top image: <img src='i.jpg' alt=''/> <a href='http://example.com/1'>http://example.com/1</a></p>"
                             "<p><img src='i.jpg' alt=''/> <a href='http://example.com/2'>http://example.com/2</a></p></div>"
                             f"<p>Figure 9-1. {alt}</p><p>Then <img src='f.jpg' alt=''/> holds.</p>"},

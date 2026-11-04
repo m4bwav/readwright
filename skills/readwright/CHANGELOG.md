@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-23 · 2026-11-03 · Release 0.40.1: a list inside a table cell keeps its items apart
+because: Bogleheads' Guide run: a ranked list in a one-cell table came out as one run-on line, hiding where each item ended.
+files: scripts/rw.py (HTML parser), SKILL.md (Distilling a book), tests/test_rw.py.
+
 ### C-20261103-22 · 2026-11-03 · Release 0.40.0: `read --chapter` selects by printed number
 because: Universal Principles of Typography run: section numbers from toc were asked for as if they were chapter numbers, and `--section 78` returned ch. 68.
 files: scripts/rw.py (read), SKILL.md (Distilling a book), tests/test_rw.py.

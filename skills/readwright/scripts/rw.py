@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.40.0"
+VERSION = "0.40.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -529,6 +529,8 @@ class HTMLText(HTMLParser):
             self.cells = []
             self.buf = []
             return
+        if tag == "li" and self.cells is not None and clean("".join(self.buf)):   # a list set inside a table cell keeps its items apart
+            self.buf = ["".join(self.buf).rstrip() + "; "]
         if tag in BLOCK:
             self.flush()
             self.blockid = a.get("id") or ""

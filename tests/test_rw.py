@@ -890,6 +890,30 @@ class TestFormats(Base):
 
 
 
+class TestFixedLayout(unittest.TestCase):
+    def test_lines_and_italic_runs_rejoin(self):
+        lines = ["PREFACE", "The article covered the design of", "2001: A Space Odyssey,", "posted on my site. It went",
+                 "viral and the host billed me. Then", "came the uncer-", "tainty."]
+        out = rw.merge_fixed_layout([rw.Para("p", t) for t in lines])
+        self.assertEqual(out[0].text, "PREFACE")
+        self.assertIn("design of 2001: A Space Odyssey, posted on my site.", out[1].text)
+        self.assertIn("uncer-tainty.", out[-1].text)
+
+    def test_capital_title_mid_sentence_stays_inline(self):
+        out = rw.merge_fixed_layout([rw.Para("p", t) for t in ["The design of", "WALL-E", ".", "EGGLESTON", ": It was hope."]])
+        self.assertEqual(out[0].text, "The design of WALL-E.")
+        self.assertEqual(out[1].text, "EGGLESTON: It was hope.")
+
+    def test_line_break_hyphen_goes_when_the_book_has_the_word(self):
+        sec = rw.Section("s", [rw.Para("p", "We keep explain-ing a well-known point while explaining it.")], 1, "x")
+        rw.unbreak_fixed_layout([sec])
+        self.assertEqual(sec.paras[0].text, "We keep explaining a well-known point while explaining it.")
+
+    def test_sentence_end_starts_a_new_paragraph(self):
+        out = rw.merge_fixed_layout([rw.Para("p", "One ends here."), rw.Para("p", "Two starts here")])
+        self.assertEqual([p.text for p in out], ["One ends here.", "Two starts here"])
+
+
 class TestCommands(Base):
     def big_text(self):
         t = self.f("big.txt")

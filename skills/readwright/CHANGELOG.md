@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-17 · 2026-11-03 · Release 0.35.1: figure link lines no longer read as formulas; a caption replaces its repeated alt text
+because: Web Form Design run: each figure printed its alt, its caption and "top image: [formula: image] http://..." lines, a noticeable share of some sections.
+- files: scripts/rw.py (`FIGURE_LINK`, flush), SKILL.md (Distilling).
+
 ### C-20261103-16 · 2026-11-03 · Release 0.35.0: toc --group works on labelled pages and run-on contents
 because: Web Typography run: `toc --group` refused a 348-page PDF with no outline, because printed labels and line breaks in page titles failed its match (L-040).
 - files: scripts/rw.py (`page_groups`, `leader_groups`, page titles), SKILL.md (Step 2, Distilling).

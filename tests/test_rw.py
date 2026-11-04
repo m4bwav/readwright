@@ -425,6 +425,10 @@ class TestEpub(Base):
         self.assertIn("date: 2001", out)
         self.assertIn("Gulls — and ledgers", out)
 
+    def test_list_in_table_cell_keeps_items_apart(self):
+        h = rw.html_paras("<table><tr><td><ol><li>High-yield bonds</li><li>REITs</li><li>Index funds</li></ol></td><td>x</td></tr></table>")
+        self.assertEqual(h.paras[-1].text, "High-yield bonds; REITs; Index funds\tx")
+
     def test_block_image_and_math_are_marked(self):
         h = rw.html_paras("<p>We divide one by the other:</p><p class='timage'><img alt='image' src='img/t01.jpg'/></p>"
                           "<p><img alt='A bar chart of gull counts' src='f.png'/></p>"

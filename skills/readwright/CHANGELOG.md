@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261104-2 · 2026-11-04 · Release 0.41.0: `page` command, scrambled text layer note, fixed-layout captions leave the body
+because: L-041, L-042. A 129 MB plate book is too big for an agent's image reader and its OCR layer glues words; Typeset in the Future had captions and folios in the middle of sentences.
+files: scripts/rw.py (cmd_page, page_numbers, scrambled_note, cmd_info, fixed_css, fixed_styles, fixed_plan, split_fixed_page, rejoin_fixed_pages, load_epub); tests/test_rw.py; SKILL.md (Step 1, Distilling a book); README.md (Commands); references/formats.md; metadata.version and evergreen.json version, which had fallen behind
+`rw.py page FILE PAGES` writes PNGs with mutool or pdftoppm. `info` notes a PDF text layer with 5 or more lowercase runs of 18+ letters at 0.5 or more per 1,000 words; `read` output is unchanged. A fixed-layout EPUB whose CSS shows a recurring smaller type size moves those blocks after the body paragraph, marked `[caption] `, sets folios and pictures beside it, and rejoins sentences over a page turn; a book without that signal behaves as in 0.40.2.
+
 ### C-20261104-1 · 2026-11-04 · Release 0.40.2: fixed-layout EPUB lines rejoin into paragraphs
 because: Typeset in the Future run: every printed line and italic run was its own block, so `--drop-repeated` deleted 1,495 of them, film titles included, and sentences lost their subjects.
 files: scripts/rw.py (merge_fixed_layout, load_epub); tests/test_rw.py; SKILL.md (Distilling a book)

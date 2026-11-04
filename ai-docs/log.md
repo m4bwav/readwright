@@ -96,3 +96,4 @@ From the everscout distill of Manning, Raghavan and Schutze, *Introduction to In
 ## [2026-11-03] handoff | 0.29.0: Cengage PDF fixes (printed pages in outline titles, copyright footers dropped, smart-case grep, symbol-font math warning); math repair left open
 ## [2026-11-03] update | 0.30.0: collapsed EPUB sections split at a one-line printed contents page (L-039)
 ## [2026-11-03] update | 0.31.0: read --each-chars (per-section cap for multi-section reads), [image omitted]/[math] markers, isbn in info (reader feedback on an EPUB textbook)
+## [2026-11-04] update | 0.41.0: `page` command, scrambled text layer note (L-041), fixed-layout captions by type size (L-042)

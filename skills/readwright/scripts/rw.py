@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.40.2"
+VERSION = "0.41.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -78,6 +78,7 @@ class Para:
     kind: str   # p, h, li, pre, row, quote
     text: str
     level: int = 0
+    aside: bool = False   # fixed layout: a caption, folio or picture, set beside the body rather than in it
 
 
 @dataclass
@@ -748,6 +749,124 @@ def merge_fixed_layout(paras: list) -> list:
     return out
 
 
+FIXED_CSS_RULE = re.compile(r"([^{}]+)\{([^{}]*)\}")
+FIXED_CAPTION_MIN_SHARE = 0.10   # of the body's characters
+FIXED_REPEAT_MIN_PAGES = 0.25   # of the pages with text, for a caption size and for a folio line
+
+
+def fixed_css(text: str) -> dict:
+    """Plain `.class` and `#id` rules of a stylesheet, selector to declarations."""
+    rules = {}
+    for m in FIXED_CSS_RULE.finditer(re.sub(r"/\*.*?\*/", "", text, flags=re.S)):
+        for sel in m[1].split(","):
+            sel = sel.strip()
+            if re.fullmatch(r"\w*[.#][\w-]+", sel):
+                rules[sel[sel.index("." if "." in sel else "#"):]] = m[2]
+    return rules
+
+
+def fixed_styles(page: str, h, css: dict) -> list:
+    """(font size, top) in pixels for each block of a page, from its `id` and `class`; None where the CSS is silent."""
+    tags = {}
+    for t in re.findall(r"<\w+\b[^>]*>", page):
+        i, c = re.search(r"""\bid=["']([^"']+)""", t), re.search(r"""\bclass=["']([^"']+)""", t)
+        if i and c:
+            tags[i[1]] = c[1].split()
+
+    def px(rule, name):
+        m = re.search(name + r"\s*:\s*([\d.]+)px", rule or "", re.I)
+        return float(m[1]) if m else None
+
+    out = [(None, None)] * len(h.paras)
+    for i, idx in h.ids.items():
+        if idx < len(out) and i in tags:
+            sizes = [px(css.get("." + c), "font-size") for c in tags[i]]
+            out[idx] = (next((s for s in sizes if s), None), px(css.get("#" + i), r"(?<![-\w])top"))
+    return out
+
+
+def fixed_plan(pages: list) -> dict | None:
+    """From (paras, styles) of every page, the book's type sizes: body is the size with the most characters; caption is
+    the heaviest smaller size, if it holds a real share and recurs across the book; folio is a smaller size's usual
+    line, repeated at one height. None when no such caption size stands out: then nothing is moved or marked."""
+    chars, on_pages, tops = {}, {}, {}
+    live = 0
+    for paras, styles in pages:
+        seen = set()
+        for p, (size, top) in zip(paras, styles):
+            if size:
+                chars[size] = chars.get(size, 0) + len(p.text)
+                seen.add(size)
+                if top is not None:
+                    tops.setdefault(size, {})
+                    tops[size][top] = tops[size].get(top, 0) + 1
+        live += bool(seen)
+        for s in seen:
+            on_pages[s] = on_pages.get(s, 0) + 1
+    if not chars:
+        return None
+    body = max(chars, key=chars.get)
+    smaller = [s for s in chars if s < body]
+    caption = max(smaller, key=chars.get, default=None)
+    if caption is None or chars[caption] < FIXED_CAPTION_MIN_SHARE * chars[body] \
+            or on_pages[caption] < FIXED_REPEAT_MIN_PAGES * live:
+        return None
+    folio = {}
+    for s in smaller:
+        if s != caption and tops.get(s):
+            top = max(tops[s], key=tops[s].get)
+            if tops[s][top] >= FIXED_REPEAT_MIN_PAGES * live:
+                folio[s] = top
+    return {"body": body, "caption": caption, "folio": folio}
+
+
+def split_fixed_page(paras: list, styles: list, plan: dict) -> list:
+    """Merge a page's body lines and set its captions, folio lines and pictures after them as asides. A caption is marked
+    `[caption] `, unless the page has no body type to tell it from (acknowledgements set small on a page of their own)."""
+    roles = []
+    for p, (size, top) in zip(paras, styles):
+        if p.kind != "p":
+            roles.append("body")
+        elif p.text.startswith("[image omitted"):
+            roles.append("other")
+        elif size == plan["caption"]:
+            roles.append("caption")
+        elif size in plan["folio"] and top is not None and abs(top - plan["folio"][size]) <= 4:
+            roles.append("other")
+        elif size and size < plan["caption"]:
+            roles.append("small")
+        else:
+            roles.append("body")
+    for i, r in enumerate(roles):   # a label such as TOP LEFT: stands next to its caption
+        if r == "small":
+            near = roles[i - 1] if i else None, roles[i + 1] if i + 1 < len(roles) else None
+            roles[i] = "caption" if "caption" in near else "body"
+    has_body = any(r == "body" and p.kind == "p" for r, p in zip(roles, paras))
+    out = merge_fixed_layout([p for r, p in zip(roles, paras) if r == "body"])
+    for p, r in zip(paras, roles):
+        if r == "other":
+            out.append(Para("p", p.text, aside=True))
+    for p in merge_fixed_layout([p for r, p in zip(roles, paras) if r == "caption"]):
+        out.append(Para(p.kind, ("[caption] " if has_body else "") + p.text, p.level, True))
+    return out
+
+
+def rejoin_fixed_pages(paras: list) -> list:
+    """A sentence that runs over a page turn becomes one paragraph, with the asides of the page held until it ends."""
+    out, held, last = [], [], None
+    for p in paras:
+        if p.aside:
+            held.append(p)
+        elif p.kind == "p" and last is not None and not FIXED_SENTENCE_END.search(last.text):
+            last.text = join_lines([last.text, p.text])
+        else:
+            out += held
+            held = []
+            out.append(p)
+            last = p if p.kind == "p" else None
+    return out + held
+
+
 def unbreak_fixed_layout(sections: list) -> None:
     """Printed line breaks leave `explain-ing`. Drop that hyphen when the book also has the unbroken word."""
     pat = re.compile(r"\b([a-z]+)-([a-z]+)\b")
@@ -857,6 +976,27 @@ def load_epub(path) -> Doc:
                 return True
             return False
 
+        plan, styles_of = None, {}
+        spine_files = [manifest[i][0] for i, _ in spine if i in manifest]
+        if any(FIXED_VIEWPORT.search(decode_text(get(f) or b"")[:4000]) for f in spine_files[:5]):
+            css_cache, census = {}, []
+            for f in spine_files:
+                data = get(f)
+                page = decode_text(data, html_charset(data)) if data else ""
+                if not FIXED_VIEWPORT.search(page[:4000]) or any(fr for fr, _, _ in by_file.get(f.lower(), [])):
+                    continue
+                css = {}
+                for href in re.findall(r"""<link\b[^>]*\bhref=["']([^"']+\.css)""", page, re.I):
+                    name = resolve(href, posixpath.dirname(f))
+                    if name not in css_cache:
+                        raw = get(name)
+                        css_cache[name] = fixed_css(decode_text(raw)) if raw else {}
+                    css |= css_cache[name]
+                pg = html_paras(page)
+                styles_of[f] = fixed_styles(page, pg, css)
+                census.append((pg.paras, styles_of[f]))
+            plan = fixed_plan(census)
+
         seen = set()
         for idref, linear in spine:
             item = manifest.get(idref)
@@ -873,7 +1013,8 @@ def load_epub(path) -> Doc:
             h = html_paras(page)
             targets = by_file.get(item[0].lower(), [])
             if FIXED_VIEWPORT.search(page[:4000]) and not any(frag for frag, _, _ in targets):   # fragments index blocks
-                h.paras = merge_fixed_layout(h.paras)
+                h.paras = split_fixed_page(h.paras, styles_of[item[0]], plan) if plan and item[0] in styles_of \
+                    else merge_fixed_layout(h.paras)
                 fixed_layout = True
             cuts = {}   # block index -> [titles], depth
             for frag, title, depth in targets:
@@ -926,6 +1067,9 @@ def load_epub(path) -> Doc:
         if gap:
             doc.notes.append(gap)
     if fixed_layout:
+        if plan:
+            for s in doc.sections:
+                s.paras = rejoin_fixed_pages(s.paras)
         unbreak_fixed_layout(doc.sections)
     return doc
 
@@ -3406,6 +3550,56 @@ def ocr_pages(path: str, first: int, last: int, dpi: int, engine: str, images: l
         shutil.rmtree(td, ignore_errors=True)
 
 
+def page_numbers(spec: str, total: int) -> list:
+    """`N`, `N-M` and `N,M` as a sorted list of page numbers; anything else or past the last page is an error."""
+    nums = set()
+    for part in spec.split(","):
+        m = re.fullmatch(r"\s*(\d+)(?:-(\d+))?\s*", part)
+        if not m:
+            raise RWError(f"pages take N, N-M or N,M, not `{spec}`")
+        lo, hi = int(m[1]), int(m[2] or m[1])
+        if lo < 1 or hi < lo or (total and hi > total):
+            raise RWError(f"pages {part.strip()} out of range: the PDF has {fmt_n(total)} pages" if total
+                          else f"pages {part.strip()} out of range")
+        nums.update(range(lo, hi + 1))
+    return sorted(nums)
+
+
+def cmd_page(a) -> int:
+    if not os.path.isfile(a.file):
+        raise RWError(f"no such file: {a.file}")
+    if detect(a.file) != "pdf":
+        raise RWError("page renders PDF pages; for a picture inside an EPUB use `rw.py image`")
+    mt, pp = tools()["mutool"], find_tool("pdftoppm")
+    if not mt and not pp:
+        raise RWError("page needs mutool (MuPDF) or pdftoppm (poppler) to render pages; nothing was installed")
+    if a.dpi < 1:
+        raise RWError("--dpi must be a positive number")
+    doc = load_pdf(a.file)
+    n = str(doc.meta.get("pages") or "")
+    nums = page_numbers(a.pages, int(n) if n.isdigit() else len(doc.sections))
+    out_dir = Path(a.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = re.sub(r"\W+", "_", Path(a.file).stem)[:40].strip("_") or "page"
+    td = tempfile.mkdtemp(prefix="readwright-page-")
+    try:
+        for num in nums:
+            raw = os.path.join(td, "r")
+            if mt:
+                r = run([mt, "draw", "-q", "-r", str(a.dpi), "-o", raw + ".png", a.file, str(num)])
+            else:
+                r = run([pp, "-r", str(a.dpi), "-f", str(num), "-l", str(num), "-png", "-singlefile", a.file, raw])
+            made = Path(raw + ".png")
+            if r.returncode != 0 or not made.exists():
+                raise RWError(f"rendering page {num} failed: " + tool_error(r))
+            dest = out_dir / f"{stem}-p{num}.png"
+            shutil.move(str(made), str(dest))
+            print(dest)
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
+    return EXIT_OK
+
+
 def cmd_ocr(a) -> int:
     fmt = detect(a.file)
     images = epub_page_images(a.file) if fmt == "epub" else None
@@ -4006,6 +4200,28 @@ def meta_swapped(meta, name):
     return ""
 
 
+SCRAMBLED_RUN = re.compile(r"(?<![A-Za-z/._@-])[a-z]{18,}(?![A-Za-z/._@-])")   # URLs and identifiers do not count
+SCRAMBLED_MIN_RUNS, SCRAMBLED_MIN_RATE = 5, 0.5   # per 1,000 words; see LEARNINGS L-041 for the measurements
+
+
+def scrambled_note(doc: Doc) -> str | None:
+    """An embedded OCR layer can glue and interleave words. Words of 18 or more lowercase letters are rare in clean text."""
+    if doc.fmt != "pdf" or any("text from OCR" in n for n in doc.notes):
+        return None
+    runs, words = 0, 0
+    for s in doc.sections:
+        for p in s.paras:
+            runs += len(SCRAMBLED_RUN.findall(p.text))
+            words += len(p.text.split())
+    rate = 1000 * runs / max(words, 1)
+    if runs < SCRAMBLED_MIN_RUNS or rate < SCRAMBLED_MIN_RATE:
+        return None
+    name = Path(doc.path).name
+    return (f"the embedded text layer looks scrambled: {fmt_n(runs)} lowercase runs of 18 or more letters ({rate:.1f} per "
+            f"1,000 words), so words may be glued or interleaved and titles garbled. Treat exact wording with care; "
+            f"re-OCR with `rw.py ocr \"{name}\"` or view pages with `rw.py page \"{name}\" N`")
+
+
 def cmd_info(a) -> int:
     doc = load(a.file, a.member, a.via)
     real = a.file
@@ -4026,7 +4242,8 @@ def cmd_info(a) -> int:
         big = max(range(len(doc.sections)), key=lambda i: doc.sections[i].words())
         info["largest_section"] = f"{big + 1} ({fmt_n(doc.sections[big].words())} words)"
     swapped = meta_swapped(doc.meta, os.path.basename(a.file))
-    notes = doc.notes + ([swapped] if swapped else [])
+    scrambled = scrambled_note(doc)
+    notes = doc.notes + ([swapped] if swapped else []) + ([scrambled] if scrambled else [])
     if notes:
         info["notes"] = notes
     if a.json:
@@ -4752,6 +4969,11 @@ def main(argv=None) -> int:
     p.add_argument("--dpi", type=int, default=200, help="render resolution (default 200)")
     p.add_argument("--batch", type=int, default=25, help="pages per render-and-OCR round; progress is saved after each")
     p.add_argument("--force", action="store_true", help="redo pages already OCR'd")
+    p = sub.add_parser("page", help="render PDF pages to PNG files, to look at plates, tables or a doubtful text layer")
+    p.add_argument("file")
+    p.add_argument("pages", help="N, N-M or N,M")
+    p.add_argument("--dpi", type=int, default=60, help="render resolution (default 60)")
+    p.add_argument("--out-dir", default=".", help="folder to write them in")
     p = sub.add_parser("formats", help="supported formats and installed tools")
     p.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
@@ -4760,7 +4982,7 @@ def main(argv=None) -> int:
     CACHE_OFF = getattr(a, "no_cache", False)
     try:
         return {"info": cmd_info, "toc": cmd_toc, "outline": cmd_toc, "read": cmd_read, "grep": cmd_grep, "rank": cmd_rank, "image": cmd_image, "note": cmd_note, "terms": cmd_terms, "dump": cmd_dump,
-                "ocr": cmd_ocr, "formats": cmd_formats}[a.cmd](a)
+                "ocr": cmd_ocr, "page": cmd_page, "formats": cmd_formats}[a.cmd](a)
     except RWError as e:
         print(f"readwright: {e}", file=sys.stderr)
         return EXIT_ERR

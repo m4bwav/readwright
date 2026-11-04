@@ -914,6 +914,140 @@ class TestFixedLayout(unittest.TestCase):
         self.assertEqual([p.text for p in out], ["One ends here.", "Two starts here"])
 
 
+class TestFixedLayoutCaptions(Base):
+    def book(self, caption_px=40, pages=None):
+        """A fixed-layout EPUB made the way PDF converters make one: one block per line, sizes in per-page classes."""
+        css = f".b {{ FONT-SIZE: 55px; }} .c {{ font-size: {caption_px}px; }} .f {{ font-size: 30px; }} .l {{ font-size: 20px; }}"
+        pages = pages or [
+            [("b", "The opening sentence runs across"), ("c", "A ship seen from below."), ("l", "TOP:"), ("c", "A second shot.")],
+            [("b", "the page turn and ends here."), ("b", "Another sentence follows."), ("c", "A door in the hull.")],
+            [("b", "Third page text ends."), ("c", "A bridge console.")],
+            [("b", "Fourth page text ends."), ("c", "A long corridor.")],
+        ]
+        css += "".join(f" #p{n}f {{ left: 9px; top: 900px; }}" for n in range(len(pages)))
+        path = self.f("fixed.epub")
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("mimetype", "application/epub+zip")
+            z.writestr("META-INF/container.xml", '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                       '<rootfile full-path="OEBPS/p.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
+            items = "".join(f'<item id="p{n}" href="p{n}.xhtml" media-type="application/xhtml+xml"/>' for n in range(len(pages)))
+            refs = "".join(f'<itemref idref="p{n}"/>' for n in range(len(pages)))
+            z.writestr("OEBPS/p.opf", '<package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+                       f'<dc:title>Fixed</dc:title></metadata><manifest><item id="n" href="nav.xhtml" properties="nav" media-type="application/xhtml+xml"/>{items}</manifest>'
+                       f'<spine>{refs}</spine></package>')
+            z.writestr("OEBPS/nav.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml"><body><nav><ol><li><a href="p0.xhtml">One</a></li></ol></nav></body></html>')
+            z.writestr("OEBPS/s.css", css)
+            for n, runs in enumerate(pages):
+                blocks = "".join(f'<div class="container"><div id="p{n}t{k}" class="t {c}">{t}</div></div>' for k, (c, t) in enumerate(runs))
+                z.writestr(f"OEBPS/p{n}.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml"><head><meta name="viewport" content="width=800px;, height=1000px;"/>'
+                           f'<link href="s.css" rel="stylesheet"/></head><body><div class="container"><div id="p{n}f" class="t f">{n + 1}</div></div>{blocks}</body></html>')
+        return path
+
+    def test_captions_leave_the_body_and_are_marked(self):
+        paras = [p.text for p in rw.load_epub(str(self.book())).sections[0].paras]
+        self.assertIn("The opening sentence runs across the page turn and ends here.", paras)
+        self.assertIn("[caption] A ship seen from below.", paras)
+        self.assertIn("[caption] TOP:", paras)
+        self.assertIn("1", paras)   # the folio stays, on its own
+        self.assertFalse([t for t in paras if "caption" not in t and ("ship" in t or "door" in t.lower())])
+        self.assertGreater(paras.index("[caption] A ship seen from below."), paras.index("The opening sentence runs across the page turn and ends here."))
+
+    def test_no_smaller_type_changes_nothing(self):
+        paras = [p.text for p in rw.load_epub(str(self.book(caption_px=55))).sections[0].paras]
+        self.assertFalse([t for t in paras if "[caption]" in t])
+        self.assertTrue(any("ship seen" in t for t in paras))
+
+    def test_rare_small_type_is_not_a_caption_size(self):
+        pages = [[("b", "Body text of some length that goes on for a while and then ends.")] for _ in range(11)] + [[("c", "Colophon.")]]
+        paras = [p.text for p in rw.load_epub(str(self.book(pages=pages))).sections[0].paras]
+        self.assertIn("Colophon.", " ".join(paras))
+        self.assertFalse([t for t in paras if "[caption]" in t])
+
+    def test_page_with_no_body_type_is_left_unmarked(self):
+        doc_pages = [[("b", "Body text ends."), ("c", "A ship.")] for _ in range(5)] + [[("c", "Thanks to my friends.")]]
+        paras = [p.text for p in rw.load_epub(str(self.book(pages=doc_pages))).sections[0].paras]
+        self.assertIn("Thanks to my friends.", paras)
+        self.assertIn("[caption] A ship.", paras)
+
+
+class TestPageCommand(Base):
+    def setUp(self):
+        super().setUp()
+        self.pdf = self.f("three.pdf")
+        make_pdf(self.pdf, ("one", "two", "three"))
+
+    def need_renderer(self):
+        if not (rw.tools()["mutool"] or rw.find_tool("pdftoppm")) or not (rw.tools()["pdftotext"] or rw.tools()["mutool"]):
+            self.skipTest("no PDF renderer")
+
+    def test_renders_listed_pages(self):
+        self.need_renderer()
+        code, out, err = cli("page", str(self.pdf), "1,3", "--out-dir", str(self.f("o")))
+        self.assertEqual(code, 0, err)
+        paths = out.split()
+        self.assertEqual([Path(p).name for p in paths], ["three-p1.png", "three-p3.png"])
+        for p in paths:
+            self.assertEqual(Path(p).read_bytes()[:4], b"\x89PNG")
+
+    def test_range_and_out_of_range(self):
+        self.need_renderer()
+        code, out, _ = cli("page", str(self.pdf), "2-3", "--out-dir", str(self.f("o")))
+        self.assertEqual((code, len(out.split())), (0, 2))
+        code, _, err = cli("page", str(self.pdf), "4", "--out-dir", str(self.f("o")))
+        self.assertNotEqual(code, 0)
+        self.assertIn("out of range", err)
+
+    def test_not_a_pdf(self):
+        t = self.f("a.txt")
+        t.write_text("plain", encoding="utf-8")
+        code, _, err = cli("page", str(t), "1")
+        self.assertNotEqual(code, 0)
+        self.assertIn("PDF", err)
+
+    def test_no_renderer_says_so(self):
+        with unittest.mock.patch.object(rw, "tools", return_value={"mutool": None}), unittest.mock.patch.object(rw, "find_tool", return_value=None):
+            code, _, err = cli("page", str(self.pdf), "1")
+        self.assertNotEqual(code, 0)
+        self.assertIn("mutool", err)
+
+    def test_bad_list(self):
+        self.assertRaises(rw.RWError, rw.page_numbers, "x", 3)
+        self.assertRaises(rw.RWError, rw.page_numbers, "3-2", 3)
+        self.assertEqual(rw.page_numbers("3,1-2,2", 3), [1, 2, 3])
+
+
+class TestScrambledNote(unittest.TestCase):
+    def doc(self, text, fmt="pdf", notes=()):
+        return rw.Doc("x.pdf", fmt, sections=[rw.Section("s", [rw.Para("p", text)])], notes=list(notes))
+
+    def test_glued_words_are_noted(self):
+        text = " ".join(["plain words here"] * 300 + ["rememberthatwhateverthey", "populationforeveryone"] * 3)
+        note = rw.scrambled_note(self.doc(text))
+        self.assertIn("scrambled", note)
+        self.assertIn("rw.py ocr", note)
+        self.assertIn("rw.py page", note)
+
+    def test_clean_text_and_lone_long_words_are_not(self):
+        self.assertIsNone(rw.scrambled_note(self.doc(" ".join(["plain words here"] * 300))))
+        self.assertIsNone(rw.scrambled_note(self.doc(" ".join(["plain words here"] * 9000 + ["internationalization"] * 6))))
+
+    def test_urls_and_identifiers_do_not_count(self):
+        text = " ".join(["plain words"] * 50 + ["example.com/averyveryverylongpathsegment", "averyveryverylongidentifiername_x"] * 9)
+        self.assertIsNone(rw.scrambled_note(self.doc(text)))
+
+    def test_only_for_a_pdf_not_yet_ocrd(self):
+        glued = " ".join(["rememberthatwhateverthey"] * 9)
+        self.assertIsNone(rw.scrambled_note(self.doc(glued, "epub")))
+        self.assertIsNone(rw.scrambled_note(self.doc(glued, notes=["text from OCR (`rw.py ocr`)"])))
+
+    def test_read_text_is_untouched(self):
+        d = self.doc(" ".join(["rememberthatwhateverthey"] * 9))
+        before = d.sections[0].paras[0].text
+        rw.scrambled_note(d)
+        self.assertEqual(d.sections[0].paras[0].text, before)
+        self.assertFalse(d.notes)
+
+
 class TestCommands(Base):
     def big_text(self):
         t = self.f("big.txt")

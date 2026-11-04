@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.40.1"
+VERSION = "0.40.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -713,8 +713,57 @@ def epub_drm(z: zipfile.ZipFile) -> str | None:
     return "; ".join(kinds) if kinds else None
 
 
+FIXED_VIEWPORT = re.compile(r"""<meta[^>]+name=["']viewport["'][^>]*width=\s*\d+[^>]*height=\s*\d+""", re.I)
+FIXED_SENTENCE_END = re.compile(r"""[.?!:]["'\u201d\u2019)]*$""")
+
+
+def merge_fixed_layout(paras: list) -> list:
+    """A fixed-layout EPUB page places each printed line, and each italic run inside a line, in its own block.
+    Rejoin them: a block stays open until a line ends a sentence and the next starts with a capital, or a short
+    all-capitals line (a label) follows a finished sentence. Headings, lists and tables pass through."""
+    out, open_lines = [], []
+
+    def flush():
+        if open_lines:
+            out.append(Para("p", join_lines(open_lines)))
+            open_lines.clear()
+
+    for p in paras:
+        ended = not open_lines or FIXED_SENTENCE_END.search(open_lines[-1])
+        label = p.text.isupper() and len(p.text.split()) <= 8 and ended   # mid-sentence capitals are a title: WALL-E
+        if p.kind != "p" or label:
+            flush()
+            out.append(p)
+            continue
+        if p.text[0] in ".,:;!?)" and (open_lines or (out and out[-1].kind == "p")):   # punctuation after a run
+            if open_lines:
+                open_lines[-1] += p.text
+            else:
+                out[-1].text += p.text
+            continue
+        if open_lines and ended and p.text[:1].isupper():
+            flush()
+        open_lines.append(p.text)
+    flush()
+    return out
+
+
+def unbreak_fixed_layout(sections: list) -> None:
+    """Printed line breaks leave `explain-ing`. Drop that hyphen when the book also has the unbroken word."""
+    pat = re.compile(r"\b([a-z]+)-([a-z]+)\b")
+    words = {}
+    for s in sections:
+        for p in s.paras:
+            for w in re.findall(r"[a-z]+", p.text):
+                words[w] = words.get(w, 0) + 1
+    for s in sections:
+        for p in s.paras:
+            p.text = pat.sub(lambda m: m[1] + m[2] if m[1] + m[2] in words else m[0], p.text)
+
+
 def load_epub(path) -> Doc:
     doc = Doc(path, "epub")
+    fixed_layout = False
     z = zipfile.ZipFile(path)
     with z:
         drm = epub_drm(z)
@@ -820,8 +869,12 @@ def load_epub(path) -> Doc:
             if data is None:
                 doc.notes.append(f"spine item missing from the zip: {item[0]}")
                 continue
-            h = html_paras(decode_text(data, html_charset(data)))
+            page = decode_text(data, html_charset(data))
+            h = html_paras(page)
             targets = by_file.get(item[0].lower(), [])
+            if FIXED_VIEWPORT.search(page[:4000]) and not any(frag for frag, _, _ in targets):   # fragments index blocks
+                h.paras = merge_fixed_layout(h.paras)
+                fixed_layout = True
             cuts = {}   # block index -> [titles], depth
             for frag, title, depth in targets:
                 idx = h.ids.get(frag, 0) if frag else 0
@@ -872,6 +925,8 @@ def load_epub(path) -> Doc:
         gap = missing_page_note(pages)
         if gap:
             doc.notes.append(gap)
+    if fixed_layout:
+        unbreak_fixed_layout(doc.sections)
     return doc
 
 

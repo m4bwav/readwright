@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A designed art book in fixed-layout EPUB: lines rejoin into paragraphs (0.40.2), but captions stay mixed into the body in file order, and they often hold the evidence. Tell caption from argument before citing, and look at the page (`RW image`) when a claim rests on a picture. Interviews and a closing summary usually hold the transferable rules; case chapters are examples.
 - A book that ranks things in a list set inside a table (a one-cell box) now reads `a; b; c` in order (0.40.1). Before reporting a lost symbol such as `60 percent 25 percent`, look at the raw XHTML: this one was missing from the retail file. Recompute a printed table and compare it with the sentence under it: The Bogleheads' Guide prints $886,430 in a table and $866,078 in the text.
 - A book of numbered short chapters under part openers: `read --chapter 78,81-83` selects by the printed number, since toc positions drift from it (0.40.0). Check a how-to book's browser or tool support claims against current docs: its advice can be dated on the day it is printed.
 - A book whose tables and formulas are pictures (`[image omitted: 00028.jpg]`): `RW image FILE 00028.jpg --out-dir DIR`, then look at the file, before citing the numbers (0.38.0). Redo worked arithmetic from the printed inputs: The Little Book of Valuation prints 749/1.1021^5 as 457 where the inputs give about 461.

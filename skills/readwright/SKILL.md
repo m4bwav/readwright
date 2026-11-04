@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A course-style book closes each chapter with a summary: `RW read FILE --title . --from "Key takeaways" --each-chars 1500` prints only those, so you can choose chapters from them (0.36.0). Such a book can contradict itself between chapter and example (one gives 1.3 to 1.6 and later 1.3 to 1.7), and a figure with no basis stated can mislead: its 8 letters per English word matches a count of distinct words, not running text (4.79). Check which count a number uses.
 - An older web or software book: check its code-level advice against current docs before it reaches a skill; the principles last better than the markup (Web Form Design, 2008, advises `tabindex` for tab order, and MDN now warns against positive values). Look for the author's later study of a claim too (0.35.1).
 - A handbook often ends with its own list of guidelines and page numbers: read that first and choose pages from it (Web Typography, p. 294-300). Recompute any worked figure and open a cited study; that book printed 1.1375rem for 1.375rem (0.35.0).
 - A popular book with few work examples: `rank` with the beat's words, then `grep` for offsets and read 1-3k characters at each (`--offset`), rather than whole chapters; 7k of 105k words was enough for one (0.33.0). Say which claims you could not check beyond the book.

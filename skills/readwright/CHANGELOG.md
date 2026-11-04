@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261103-18 · 2026-11-03 · Release 0.36.0: `read --from REGEX`
+because: Better Web Typography run: `grep "Key takeaways"` printed long context per chapter, when only the tail of each section was wanted.
+files: scripts/rw.py (read), SKILL.md (Distilling a book), tests. Each selected section prints from its first match on; sections with no match are skipped.
+
 ### C-20261103-17 · 2026-11-03 · Release 0.35.1: figure link lines no longer read as formulas; a caption replaces its repeated alt text
 because: Web Form Design run: each figure printed its alt, its caption and "top image: [formula: image] http://..." lines, a noticeable share of some sections.
 - files: scripts/rw.py (`FIGURE_LINK`, flush), SKILL.md (Distilling).

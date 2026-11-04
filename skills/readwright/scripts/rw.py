@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.35.1"
+VERSION = "0.36.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4065,7 +4065,28 @@ def cmd_read(a) -> int:
     each = getattr(a, "each_chars", None)
     if each is not None and each < 1:
         raise RWError("--each-chars must be 1 or more")
-    if each and not a.at_para:   # several sections in one call, each cut on its own so a long one cannot crowd out the rest
+    from_re = None
+    if getattr(a, "from_re", None):
+        if a.at_para:
+            raise RWError("--from and --at-para both set the start; use one")
+        try:
+            from_re = re.compile(a.from_re)
+        except re.error as e:
+            raise RWError(f"--from: bad regex: {e}")
+    if from_re:   # the end of each section from the match on: chapter summaries without the chapters
+        parts = []
+        for i in idx:
+            body = shape(compose(doc, [i], a.format, a.max_words, flags))
+            m = from_re.search(body)
+            if m:
+                piece = body[m.start():]
+                if each and each >= 1 and len(piece) > each:
+                    piece = clean_cut(piece[:each]).rstrip("\n") + "\n"
+                parts.append(f"=== [{i}] {doc.sections[i - 1].title} ===\n{piece.rstrip()}\n\n")
+        if not parts:
+            raise RWError(f"--from {a.from_re!r}: no match in the {len(idx)} selected section(s)")
+        text = "".join(parts)
+    elif each and not a.at_para:   # several sections in one call, each cut on its own so a long one cannot crowd out the rest
         parts = []
         for i in idx:
             body = shape(compose(doc, [i], a.format, a.max_words, flags))
@@ -4511,6 +4532,8 @@ def main(argv=None) -> int:
     p.add_argument("--offset", type=int, default=0, help="start this many characters into the selection")
     p.add_argument("--each-chars", type=int, default=None, metavar="N", help="with several sections: cap each one at N "
                    "chars (a resume line per cut section); --max-chars still caps the total")
+    p.add_argument("--from", dest="from_re", default=None, metavar="REGEX",
+                   help="print each selected section from its first match on, skip sections without one ('Key takeaways' across chapters); case-sensitive, (?i) to ignore case")
     p.add_argument("--at-para", type=int, default=None, help="with --section: start at this paragraph (numbers from grep)")
     p.add_argument("--out", help="write the selection to this file instead of stdout")
     p.add_argument("--out-dir", help="write each selected section to its own file in this folder (NNN-title.txt) and list their sizes")

@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.36.0"
+VERSION = "0.37.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4281,6 +4281,19 @@ def bm25(docs: list, query: list, k1: float = 1.2, b: float = 0.75) -> list:
     return scores
 
 
+def back_matter_start(doc) -> int:
+    """1-based number of the first back-matter section (a bare NOTES, BIBLIOGRAPHY or INDEX title at least 30% of the
+    way through the words), or 0. Everything after it counts as back matter: per-chapter notes files repeat the chapter
+    titles and outscore them in rank (The Great Wave, 2026-11-03)."""
+    total = sum(s.words() for s in doc.sections) or 1
+    seen = 0
+    for i, s in enumerate(doc.sections, 1):
+        if seen >= 0.3 * total and re.fullmatch(r"(end ?notes|notes|bibliography|references|works cited|index)", s.title.strip(), re.I):
+            return i
+        seen += s.words()
+    return 0
+
+
 def cmd_rank(a) -> int:
     if not os.path.isfile(a.file) and any(os.path.isfile(q) for q in a.query):
         raise RWError(f"no such file: {a.file}; the file goes first: rank FILE WORDS")
@@ -4293,6 +4306,8 @@ def cmd_rank(a) -> int:
     if not query:
         raise RWError("the query has no words left after stop words; name the topic, e.g. rank FILE near duplicate shingle")
     idx = select(doc, a.section, a.title) if (a.section or a.title) else range(1, len(doc.sections) + 1)
+    if a.body and (cut := back_matter_start(doc)):
+        idx = [i for i in idx if i < cut]
     units = []   # (section, paragraph index or None, terms)
     for i in idx:
         s = doc.sections[i - 1]
@@ -4573,6 +4588,7 @@ def main(argv=None) -> int:
     common(p)
     p.add_argument("query", nargs="+", help="topic words; stop words and plural or -ing endings are folded")
     p.add_argument("--paras", action="store_true", help="rank paragraphs instead of sections")
+    p.add_argument("--body", action="store_true", help="leave out everything from a NOTES, BIBLIOGRAPHY or INDEX section on")
     p.add_argument("--top", type=int, default=10, help="results shown (default 10)")
     p.add_argument("--width", type=int, default=300, help="characters of each paragraph shown with --paras")
     p.add_argument("--k1", type=float, default=1.2, help="BM25 term-frequency saturation (1.2 to 2.0)")

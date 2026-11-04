@@ -798,6 +798,24 @@ class TestFormats(Base):
         self.assertEqual(code, 1)
         self.assertIn("not in the book: zebra", out)
 
+    def test_rank_body_leaves_out_notes_and_bibliography(self):
+        p = self.f("hist.md")
+        p.write_text("# Prices\n\n" + "Inflation rose with wages. " * 40 + "\n\n# NOTES\n\nInflation inflation inflation.\n\n"
+                     "# Chapter notes\n\nInflation inflation sources.\n\n# BIBLIOGRAPHY\n\nInflation works.\n", encoding="utf-8")
+        code, out, _ = cli("rank", p, "inflation")
+        self.assertIn("Chapter notes", out)
+        code, out, _ = cli("rank", p, "inflation", "--body")
+        self.assertEqual(code, 0)
+        self.assertIn("Prices", out)
+        for hidden in ("NOTES", "Chapter notes", "BIBLIOGRAPHY"):
+            self.assertNotIn(hidden, out)
+
+    def test_rank_body_keeps_an_early_notes_section(self):
+        p = self.f("early.md")
+        p.write_text("# Notes\n\nInflation first.\n\n# Prices\n\n" + "Inflation rose. " * 40 + "\n", encoding="utf-8")
+        code, out, _ = cli("rank", p, "inflation", "--body")
+        self.assertIn("Notes", out)
+
     def test_rank_terms_fold_endings_and_stop_words(self):
         self.assertEqual(rw.rank_terms("The shingles of shingling"), ["shingl", "shingl"])
         self.assertEqual(rw.rank_terms("queries"), ["query"])

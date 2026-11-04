@@ -893,6 +893,15 @@ class TestCommands(Base):
                                  for i in range(1, 11)), encoding="utf-8")
         return t
 
+    def test_read_chapter_uses_printed_numbers(self):
+        t = self.f("big.txt")
+        t.write_text("\n\n".join(f"CHAPTER {i}\n\n" + "\n\n".join(lorem(400, f"word{i}") for _ in range(3))
+                                 for i in range(1, 11)), encoding="utf-8")
+        out = cli("read", t, "--chapter", "7")[1]
+        self.assertIn("word7", out)
+        self.assertNotIn("word6", out)
+        self.assertNotEqual(cli("read", t, "--chapter", "77")[0], 0)
+
     def test_info_json(self):
         p = self.f("book.epub")
         make_epub(p)

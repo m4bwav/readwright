@@ -6,6 +6,16 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-041 · 2026-11-04 · `scrambled-text-layer`: long lowercase runs separate a bad OCR layer from clean books
+- Trigger: Arcade Game Typography (PDF, 129 MB): an embedded OCR layer glues and interleaves words, and upside-down lines become contents titles.
+- Measured, lowercase runs of 18+ letters per 1,000 words, URLs and identifiers excluded: that book 1.43 (35 runs). Clean PDFs from the same folder: 0.08, 0.06, 0.01, 0.01, and 0.00 on six others. At 14+ letters the two groups overlap (5.08 against up to 5.17), so length 18 is what separates them.
+- Rule: note at 5+ runs and 0.5+ per 1,000. Not tested on German or Dutch, whose long compounds may trip it; the note says "looks". The same book had 89 words a page against 219 to 416 on clean books, which is why the plates need viewing.
+
+### L-042 · 2026-11-04 · `fixed-layout-caption-size`: a converter's CSS tells captions from body by type size
+- Trigger: Typeset in the Future (272 fixed-layout pages, one absolutely placed block per line, per-page CSS classes, no figcaption or epub:type).
+- Measured characters by size: 55px 268,712 (body), 61.1px 92,222 (interviews), 45.8px 87,450 on 213 pages (captions, in two families and at least four colours, so neither family nor colour is the signal), 42.8px 10,670 (folio line at top 1136, 372 of 474 runs, and a colophon).
+- Rule: the heaviest size below body is the caption size if it holds 10% of the body's characters and is on 25% of the pages. Smaller runs next to a caption join it (TOP LEFT:); others stay, because speaker labels in interviews are smaller too. The same size also sets acknowledgements, so a page with no body type stays unmarked. Limits: only one book checked, and larger pull quotes stay in the flow. All-caption summary pages are marked as captions, and some labels still sit at a caption's end.
+
 ### L-001 · 2026-09-29 · A chapter's title page and its body are often separate sections
 - Trigger: smoke test on a real EPUB novel, 2026-09-29: `read --title <chapter title>` returned a 72-word section (chapter number, title, epigraph); the chapter's 6,330 words were the next spine file, titled by its date line in the NCX.
 - Hypothesis: publishers and calibre split each chapter's opener into its own XHTML file, and the NCX gives the body its own entry, so a title match lands on the opener.

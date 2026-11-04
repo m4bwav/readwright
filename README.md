@@ -32,6 +32,7 @@ python skills/readwright/scripts/rw.py read  book.epub --section 43-44
 python skills/readwright/scripts/rw.py read  book.epub --title "siege" --max-chars 2000
 python skills/readwright/scripts/rw.py grep  book.epub "Ravenmoor" -C 1 --max 3
 python skills/readwright/scripts/rw.py dump  book.epub --out scratch/book.txt
+python skills/readwright/scripts/rw.py page  book.pdf 40-42 --out-dir scratch
 python skills/readwright/scripts/rw.py formats
 ```
 
@@ -40,6 +41,7 @@ python skills/readwright/scripts/rw.py formats
 - `read`: the chosen sections (`--section N`, `N-M`, `N,M`, a mix such as `61,80,189-190`, or `--title REGEX`), each under a header line with its position in the book. When a title match is a chapter's short title page, the next section comes with it; `--with-next` asks for that on any selection. Output stops at `--max-chars` (25,000 by default, under the 30,000 characters Claude Code shows of a command's output) and says how to continue. With no selector and a text over the limit, `read` refuses, exits with code 2 and prints the table of contents instead.
 - `grep`: matching paragraphs with section and paragraph numbers, trimmed around the match, with `-C` paragraphs of context, `--after N` paragraphs after each hit (the code under the sentence that names it), `-i`, `-F`, `--max` and `--count`.
 - `dump`: the whole text to a file with section markers, so an agent can use its own search tools on it. Dump writes to stdout only for texts under 25,000 characters.
+- `page`: PDF pages rendered to PNG files with mutool or pdftoppm (`--dpi`, default 60), to look at plates, tables or a doubtful text layer.
 - `formats`: what is built in and which external tools this machine has.
 
 `info`, `toc`, `grep` and `formats` also take `--json`. Output is UTF-8 with LF line endings on every platform, including Windows consoles. `scripts/rw.sh` and `scripts/rw.ps1` are launchers for macOS/Linux and Windows. Conversions through external tools are cached in the system temp folder, so a second command on the same MOBI or PDF is fast.

@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.42.0"
+VERSION = "0.43.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -829,17 +829,35 @@ FIXED_MARKER = re.compile(r"\[(?:image omitted|image:|equation ).*\]")
 FIXED_NUMBER = re.compile(r"\d{1,4}")
 
 
-def fixed_folio_offset(pages: list) -> int | None:
-    """From (spine position, paras) of every page: printed number minus spine position, when a bare number rises with the
-    pages through the book. A number in a sentence ('the year', '1984') does not fit it, so it stays where it is."""
-    counts = {}
-    for n, paras in pages:
-        for off in {int(p.text) - n for p in paras if p.kind == "p" and FIXED_NUMBER.fullmatch(p.text)}:
-            counts[off] = counts.get(off, 0) + 1
-    if not counts:
-        return None
-    best = max(counts, key=counts.get)
-    return best if counts[best] >= max(3, FIXED_REPEAT_MIN_PAGES * len(pages)) else None
+FIXED_ROMAN = re.compile(r"(?=[ivxlc])c{0,3}(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})")
+
+
+def roman_value(text: str) -> int:
+    values = {"i": 1, "v": 5, "x": 10, "l": 50, "c": 100}
+    nums = [values[c] for c in text]
+    return sum(-n if n < m else n for n, m in zip(nums, nums[1:] + [0]))
+
+
+def fixed_folio_lines(pages: list) -> set:
+    """(spine position, text) of the bare numbers that are folios: arabic or lowercase roman, rising one a file, or two a
+    file on a spread that holds two pages. Roman front matter is short, so three files are enough for it (L-048 `fixed-folio-kinds`)."""
+    found = set()
+    for pattern, value, need in ((FIXED_NUMBER, int, max(3, FIXED_REPEAT_MIN_PAGES * len(pages))), (FIXED_ROMAN, roman_value, 3)):
+        lines = [(n, p.text, value(p.text)) for n, paras in pages for p in paras if p.kind == "p" and pattern.fullmatch(p.text)]
+        best, best_files = None, 0
+        single, double = {}, {}
+        for n, _, v in lines:
+            single.setdefault(v - n, set()).add(n)
+            for o in (v - 2 * n, v - 2 * n - 1):
+                double.setdefault(o, set()).add(n)
+        for step, table in ((1, single), (2, double)):
+            for o, files in table.items():
+                if len(files) > best_files:
+                    best, best_files = (step, o), len(files)
+        if best and best_files >= need:
+            step, o = best
+            found |= {(n, text) for n, text, v in lines if v - step * n == o or (step == 2 and v - step * n == o + 1)}
+    return found
 
 
 def split_fixed_markers(paras: list, is_folio) -> list:
@@ -1005,7 +1023,7 @@ def load_epub(path) -> Doc:
                 return True
             return False
 
-        plan, styles_of, folio_at, offset = None, {}, {}, None
+        plan, styles_of, folio_at, folios = None, {}, {}, set()
         spine_files = [manifest[i][0] for i, _ in spine if i in manifest]
         if any(FIXED_VIEWPORT.search(decode_text(get(f) or b"")[:4000]) for f in spine_files[:5]):
             css_cache, census = {}, []
@@ -1026,7 +1044,7 @@ def load_epub(path) -> Doc:
                 census.append((pg.paras, styles_of[f]))
                 folio_at[f] = pos
             plan = fixed_plan(census)
-            offset = fixed_folio_offset([(folio_at[f], c[0]) for f, c in zip(folio_at, census)])
+            folios = fixed_folio_lines([(folio_at[f], c[0]) for f, c in zip(folio_at, census)])
 
         seen = set()
         for idref, linear in spine:
@@ -1045,8 +1063,7 @@ def load_epub(path) -> Doc:
             targets = by_file.get(item[0].lower(), [])
             if FIXED_VIEWPORT.search(page[:4000]) and not any(frag for frag, _, _ in targets):   # fragments index blocks
                 pos = folio_at.get(item[0])
-                is_folio = lambda p: offset is not None and pos is not None and p.kind == "p" \
-                    and FIXED_NUMBER.fullmatch(p.text) is not None and int(p.text) - pos == offset
+                is_folio = lambda p: p.kind == "p" and (pos, p.text) in folios
                 h.paras = split_fixed_page(h.paras, styles_of[item[0]], plan, is_folio) if plan and item[0] in styles_of \
                     else split_fixed_markers(h.paras, is_folio)
                 fixed_layout = True
@@ -1101,7 +1118,7 @@ def load_epub(path) -> Doc:
         if gap:
             doc.notes.append(gap)
     if fixed_layout:
-        if plan or offset is not None:
+        if plan or folios:
             for s in doc.sections:
                 s.paras = rejoin_fixed_pages(s.paras)
         unbreak_fixed_layout(doc.sections)
@@ -2013,6 +2030,31 @@ def lift_foot_notes(pp: list, drop_folio: bool = False, nxt: list | None = None)
     return notes
 
 
+def carry_foot_notes(page_paras: list, foot_notes: list) -> None:
+    """A note left open at a page foot goes on over the page, either at the foot of the next page (where it is set) or at
+    its top (where some layers put it). Move a lower-case paragraph there into the note, unless the body sentence above
+    is open too: then the top paragraph is more likely the body's (L-046 `pdf-foot-notes`)."""
+    for n in range(len(page_paras) - 1):
+        if not foot_notes[n] or not page_paras[n + 1]:
+            continue
+        note, nxt = foot_notes[n][-1], page_paras[n + 1]
+        inner = note.text[:-1]
+        if not (ends_open(inner) or inner[-1:] in "-" + BREAK_HYPHENS):
+            continue
+        body = page_paras[n][-1].text if page_paras[n] else ""
+        foot = len(nxt) - 1
+        if foot > 0 and nxt[foot].kind == "p" and BARE_FOLIO.match(nxt[foot].text):
+            foot -= 1
+        at = None
+        if foot > 0 and nxt[foot].kind == "p" and nxt[foot].text[:1].islower() and not ends_open(nxt[foot - 1].text):
+            at = foot
+        elif nxt[0].kind == "p" and nxt[0].text[:1].islower() and body and not ends_open(body) and body[-1:] not in "-" + BREAK_HYPHENS:
+            at = 0
+        if at is not None:
+            note.text = join_broken(inner, nxt[at].text) + "]"
+            nxt.pop(at)
+
+
 def join_split_pages(page_paras) -> None:
     """A word hyphenated across a page break ("conven-" at the bottom, "tions" at the top of the next), or a sentence
     that runs on (no . ? ! : or closing quote before the break, a lower-case letter after it), becomes one paragraph:
@@ -2504,6 +2546,7 @@ def load_pdf(path) -> Doc:
         page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
         foot_notes = [lift_foot_notes(pp, unfolded, page_paras[n + 1] if n + 1 < len(page_paras) else None)
                       for n, pp in enumerate(page_paras)]
+        carry_foot_notes(page_paras, foot_notes)
         join_split_pages(page_paras)
         for pp in page_paras:
             collapse_cells(pp)
@@ -4345,6 +4388,84 @@ def scrambled_note(doc: Doc) -> str | None:
             f"re-OCR with `rw.py ocr \"{name}\"` or view pages with `rw.py page \"{name}\" N`")
 
 
+LANG_WORDS = {   # short common words; a word two languages share simply counts for both
+    "en": "the and of to in that is was for with as on are this be by it an from at or have not which but they their has were been",
+    "de": "der die das und ist nicht ein eine einer einem einen den dem des von zu mit auf für im auch sich als bei wird sind aus oder wie dass daß durch nach werden sie es",
+    "fr": "le la les des du et est une un dans que qui pour sur pas par au aux avec ce cette sont ses plus ou en il elle nous",
+    "es": "el la los las del es una un en que por con para se no su sus como más pero al lo muy entre",
+    "it": "il la le gli dei delle della del degli è una un in che per con non si di da nel nella sono come più ma anche",
+    "pt": "os as do da dos das um uma em que por com para não se no na nas nos mais como mas ao aos são à",
+    "nl": "de het een en van dat op te zijn voor met niet aan er ook bij door naar worden",
+}
+LANG_SETS = {k: frozenset(v.split()) for k, v in LANG_WORDS.items()}
+LANG_INSIDE = {k: tuple(w for w in v if len(w) >= 3) for k, v in LANG_SETS.items()}
+LANG_WORD = re.compile(r"[^\W\d_]+")
+LANG_GLUED = 12         # letters; a token this long may be OCR-glued words, so the words inside it count too
+LANG_INSIDE_WEIGHT = 0.5  # weak evidence: `comparatively` holds Spanish `para`
+LANG_SHORT = 4          # words; a paragraph under this says too little to judge
+LANG_MIN_SCORE = 2      # a winner needs this much evidence, so one stray `la` decides nothing
+LANG_NOTE_WORDS, LANG_NOTE_SCORE = 25, 4   # a substantial paragraph, for the `info` note
+LANG_NOTE_MIN, LANG_NOTE_SHARE = 20, 0.1   # a second language needs this many paragraphs and this share of them
+
+
+def lang_scores(text: str) -> dict:
+    """Common-word evidence per language: an exact word counts 1, and a word inside a long token counts half (L-047 `read-lang`)."""
+    scores = dict.fromkeys(LANG_SETS, 0.0)
+    for w in LANG_WORD.findall(text.lower()):
+        for k, words in LANG_SETS.items():
+            if w in words:
+                scores[k] += 1
+            elif len(w) >= LANG_GLUED:
+                scores[k] += LANG_INSIDE_WEIGHT * sum(x in w for x in LANG_INSIDE[k])
+    return scores
+
+
+def para_lang(text: str) -> str | None:
+    """The language a paragraph's common words favour; None for a tie, too few words or too little evidence."""
+    if len(text.split()) < LANG_SHORT:
+        return None
+    ranked = sorted(lang_scores(text).items(), key=lambda kv: -kv[1])
+    return ranked[0][0] if ranked[0][1] >= LANG_MIN_SCORE and ranked[0][1] > ranked[1][1] else None
+
+
+def filter_lang(doc: Doc, code: str) -> dict:
+    """`--lang CODE`: keep the paragraphs that favour CODE, plus code, tables, picture markers and undecided headings.
+    A heading that clearly favours another language goes. Returns {section number: paragraphs dropped}."""
+    dropped = {}
+    for i, s in enumerate(doc.sections, 1):
+        kept = []
+        for p in s.paras:
+            who = para_lang(p.text)
+            if p.kind == "h":
+                keep = who is None or who == code
+            elif p.kind == "p" and not FIXED_MARKER.fullmatch(p.text):
+                keep = who == code
+            else:
+                keep = True
+            if keep:
+                kept.append(p)
+        if len(kept) != len(s.paras):
+            dropped[i] = len(s.paras) - len(kept)
+            s.paras = kept
+    return dropped
+
+
+def lang_note(doc: Doc) -> str | None:
+    """Name the languages when a book has many substantial paragraphs in two or more: a quotation or an abstract does not count."""
+    counts = {}
+    for s in doc.sections:
+        for p in s.paras:
+            if p.kind == "p" and len(p.text.split()) >= LANG_NOTE_WORDS and max(lang_scores(p.text).values()) >= LANG_NOTE_SCORE:
+                if (who := para_lang(p.text)):
+                    counts[who] = counts.get(who, 0) + 1
+    total = sum(counts.values())
+    many = sorted((k for k, n in counts.items() if n >= LANG_NOTE_MIN and n >= LANG_NOTE_SHARE * total), key=lambda k: -counts[k])
+    if len(many) < 2:
+        return None
+    return (f"paragraphs in {len(many)} languages ({', '.join(f'{k} {fmt_n(counts[k])}' for k in many)}): "
+            f"read one with `read --lang {many[0]}`")
+
+
 def cmd_info(a) -> int:
     doc = load(a.file, a.member, a.via)
     real = a.file
@@ -4366,7 +4487,8 @@ def cmd_info(a) -> int:
         info["largest_section"] = f"{big + 1} ({fmt_n(doc.sections[big].words())} words)"
     swapped = meta_swapped(doc.meta, os.path.basename(a.file))
     scrambled = scrambled_note(doc)
-    notes = doc.notes + ([swapped] if swapped else []) + ([scrambled] if scrambled else [])
+    languages = lang_note(doc)
+    notes = doc.notes + ([swapped] if swapped else []) + ([scrambled] if scrambled else []) + ([languages] if languages else [])
     if notes:
         info["notes"] = notes
     if a.json:
@@ -4432,7 +4554,8 @@ def flags_used(a) -> str:
     return "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
                                    (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                    (" --drop-repeated", getattr(a, "drop_repeated", False)),
-                                   (" --drop-epigraphs", getattr(a, "drop_epigraphs", False))) if on)
+                                   (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
+                                   (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None))) if on)
 
 
 def heading_lines(doc: Doc, idx: list) -> list:
@@ -4469,6 +4592,7 @@ def cmd_read(a) -> int:
     if getattr(a, "drop_epigraphs", False):
         n = drop_epigraphs(doc)
         hints.append(f"--drop-epigraphs dropped {n} paragraph(s): quotation epigraphs and their attribution lines")
+    lang_dropped = filter_lang(doc, a.lang) if getattr(a, "lang", None) else None
     if not any(s.words() for s in doc.sections):   # a scan's pages are sections with no words (L-011)
         print(doc_head(doc))
         for n in doc.notes:
@@ -4490,12 +4614,16 @@ def cmd_read(a) -> int:
         return 0
     if a.max_words is not None and a.max_words < 1:
         raise RWError("--max-words must be 1 or more")
+    if lang_dropped is not None:
+        hints.append(f"--lang {a.lang} dropped {fmt_n(sum(lang_dropped.get(i, 0) for i in idx))} paragraph(s) in the selection: "
+                     f"other languages, ties and fragments under {LANG_SHORT} words")
     if skipped is not None:
         hints.insert(0, code_note(doc, skipped, idx))
     flags = "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
                                     (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                     (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
+                                    (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None)),
                                     (" --compact", getattr(a, "compact", False)),
                                     (" --format md", a.format == "md")) if on)
     if getattr(a, "compact", False) and a.at_para:
@@ -4513,6 +4641,8 @@ def cmd_read(a) -> int:
             total += len(body)
             print(f"{path}  {fmt_n(len(body))} chars (~{fmt_n(len(body) // 4)} tokens)")
         print(f"wrote {len(idx)} section file(s), {fmt_n(total)} chars (~{fmt_n(total // 4)} tokens) to {a.out_dir}")
+        if lang_dropped is not None and not getattr(a, "quiet", False):
+            print("[readwright: " + "; ".join(h for h in hints if h.startswith("--lang")) + "]")
         return 0
     each = getattr(a, "each_chars", None)
     if each is not None and each < 1:
@@ -4831,6 +4961,8 @@ def cmd_grep(a) -> int:
     if doc.fmt == "zip":
         raise RWError("this is a zip archive; pick a member with --member NAME")
     skipped = skip_code(doc) if getattr(a, "skip_code", False) else None
+    if getattr(a, "lang", None):
+        filter_lang(doc, a.lang)
     pat = re.escape(a.pattern) if a.fixed else a.pattern
     try:
         if smart_case(a.pattern, a.fixed) and not getattr(a, "case_sensitive", False):
@@ -5035,6 +5167,8 @@ def main(argv=None) -> int:
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")
     p.add_argument("--drop-epigraphs", action="store_true", help="drop quotations of 80 words or fewer followed by a "
                    "dash attribution line of 8 words or fewer (both paragraphs)")
+    p.add_argument("--lang", choices=sorted(LANG_WORDS), help="on a multilingual edition keep the paragraphs whose common "
+                   "words favour this language; a footer says how many went")
     p.add_argument("--headings", action="store_true", help="list only the headings of the selected sections, indented "
                    "by level, with paragraph numbers for --at-para and the words under each")
     p.add_argument("--quiet", "-q", action="store_true", help="no [readwright: ...] advice lines (cut footers stay)")
@@ -5057,6 +5191,7 @@ def main(argv=None) -> int:
     p.add_argument("--format", choices=["txt", "md"], default="txt", help="read format the printed offsets count in")
     p.add_argument("--strip-boilerplate", action="store_true", help="as for read; use it on both so paragraph numbers agree")
     p.add_argument("--skip-code", action="store_true", help="as for read: search prose only; use it on both so paragraph numbers agree")
+    p.add_argument("--lang", choices=sorted(LANG_WORDS), help="as for read; use it on both so paragraph numbers agree")
     p = sub.add_parser("rank", help="sections (or paragraphs) ranked by BM25 for a few topic words: which to read first")
     common(p)
     p.add_argument("query", nargs="+", help="topic words; stop words and plural or -ing endings are folded")

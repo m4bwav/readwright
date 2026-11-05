@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.42.0"
+  version: "0.43.0"
 ---
 
 # readwright
@@ -41,6 +41,7 @@ Match the user's words to toc lines. "Chapter 14" usually means the line titled 
 - `--max-words N` caps each selected section at N words, so a batch like `--section 27-58 --max-words 80` stays small; a cut section ends `[cut at N of M words; continue with --section S --offset C]`.
 - `--drop-repeated` (read) drops short paragraphs (40 words or fewer) that recur in 30% or more of the sections, verbatim or with the same last four words once digits are folded: per-image credits and copyright notices in EPUBs. It also drops a line of eight words or fewer repeated ten times or more inside one section (a quarter of its paragraphs), such as the "GO TO NOTE REFERENCE IN TEXT" back-link after every endnote. Off by default.
 - `--skip-code` (read and grep) drops code blocks found by structure (EPUB and HTML `<pre>`, fenced Markdown; PDFs have no marker, so not there) and says how many words went. Advice lines come as one line at the end; `--quiet` drops them.
+- `--lang CODE` (read and grep, 0.43.0; en, de, es, fr, it, nl, pt) keeps the paragraphs whose short common words favour that language, for an edition printing several side by side. Ties and fragments under 4 words go, except headings; code and tables stay; words glued by OCR still count. The footer says how many went, and `--max-chars` counts what is left. `info` notes a book with many paragraphs in two or more languages.
 - `--headings` (read, 0.20.0) prints only the heading paragraphs of the chosen sections, indented by level, each with its paragraph number and the words under it; jump with `--at-para P`. A section with no headings (a PDF without structure) says so: use `toc --group` or grep.
 - `--strip-boilerplate` (read and grep) drops lines repeated across a PDF's pages: footers, bare page numbers, running headers, found by how often they repeat. Use it on both commands so grep's paragraph numbers match `--at-para`.
 - Every section starts with a header line: `=== [43/80] title | id ... | words | starts at word N of TOTAL (P%) ===`.
@@ -66,6 +67,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A multilingual edition: read one language with `--lang`, and check a garbled number against the page image with `RW page` before citing it (0.43.0).
 - A how-to book about working with people: its worked example letters and the answers closing each chapter often hold the method, so read those as well as the argument prose (0.42.0 sets `Q /` letters apart in PDFs whose lines are whole paragraphs, and moves page-foot notes out of sentences as `[note N: text]`).
 - A code-heavy technical book: read with `--skip-code`, since listings otherwise eat the character cap before later sections print (0.41.2 also drops numbered callout markers). Grep for what the book should cover: a topic with a thin section and no index entry is a finding about the book. Trace a case study's note to its source; one security book joined two different 2021 incidents under one citation.
 - `RW` output with odd characters such as `â` or `Ã¶` points to a decoding bug: report it, and do not clean it with sed.

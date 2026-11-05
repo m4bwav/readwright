@@ -6,6 +6,16 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-047 · 2026-11-04 · `read-lang`: common words sort a polyglot edition, once words inside glued tokens count
+- Trigger: a type manual printing German, English and French paragraphs in one scrambled OCR layer: `read` gave three copies of everything, and a throwaway word filter was needed.
+- Rule: score each paragraph by short common words; a word inside a token of 12 or more letters counts half, since OCR glues `thelinearbranchesofthetree`. Needs 4 words, a score of 2 and a clear winner. Headings stay unless they clearly favour another language.
+- Evidence: of 24.8k words, `--lang en` printed 9.0k, de 7.9k, fr 5.6k. Counting only token ends kept 8.0k English paragraph words; anywhere 8.5k. A 40-paragraph sample of the English: none wholly in another language, 2 interleaved with German or French lines, which a paragraph filter cannot split. Five single-language books: no `info` note, and 96% to 99% of plain-paragraph words favour English. Tests: TestReadLang. Applied: C-20261104-6.
+
+### L-048 · 2026-11-04 · `fixed-folio-kinds`: folios rise by two on a spread, and front matter counts in roman
+- Trigger: L-044 left spreads and roman front matter as numbers in the text.
+- Rule: a bare number is a folio when number minus position is constant at one a file, or at two a file allowing the pair. Lowercase roman runs separately and needs only 3 files, since front matter is short; a repeated `i` never rises, so it stays.
+- Evidence: Tests: TestFixedLayoutMarkers; synthetic only, no real spread EPUB at hand. Applied: C-20261104-6.
+
 ### L-045 · 2026-11-04 · `pdf-lines-are-paragraphs`: some PDFs give one line per paragraph and no blank lines
 - Trigger: a PDF whose pdftotext output had 929-character lines and blank lines only at page ends. Whole pages became one paragraph, gluing lowercase subheads and chapter-opening epigraphs into the body.
 - Rule: when at least half the characters sit on lines over 200 characters, no page could print them, so each line on a page holding such a line is a paragraph. Marked code blocks and pages of only short lines stay as they were. An unfolded file also loses its bare folio at the foot and the double-spacing rule.
@@ -15,7 +25,7 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Trigger: `N. text` lines at the page foot stopped the page join, so a sentence, and a word split by a hyphen, broke around the note. The same book has numbered lists in the body with the same shape.
 - Rule: walk up from the page foot; a note has a call to its number straight after a letter or punctuation in the body above, and its number is one below the note under it. Lifted notes go after the page's last paragraph once pages are joined. For a hyphen at a break, compare the joined and hyphenated counts in the book; with neither printed, join only a fragment (a left half seen once, or a left half under 3 letters with a right half seen once), so `well-documented` keeps its hyphen.
 - A digit straight after a letter or a dot is often math or a section number (`x1`, `2.1`), and steps on a page foot fooled the first version: the call must follow a lowercase word or a sentence's punctuation, and a run that continues at the top of the next page is a list. A list item just above a note can carry the number below it, so that is no signal.
-- Evidence: 15 notes lifted in five sections, list items untouched, all five reported split words healed. A note carried over onto the next page is not handled: its tail stays at the top of that page. Applied: C-20261104-5.
+- Evidence: 15 notes lifted in five sections, list items untouched, all five reported split words healed. Applied: C-20261104-5. Since C-20261104-6 a note left open takes its lower-case tail from the next page's foot, or from its top when the body sentence above is closed; with both open the top paragraph stays with the body (test TestFootNoteCarried).
 
 ### L-043 · 2026-11-04 · utf8-before-meta: a wrong meta charset turned every non-ASCII character to mojibake
 - Trigger: an EPUB with `encoding='utf-8'` in the XML line and a `charset=iso-8859-1` meta, in UTF-8 bytes: `html_charset` preferred the meta, and latin-1 never fails, so body text and titles came out with `â` and `Ã¶`, and no-break spaces as lone `Â` paragraphs.

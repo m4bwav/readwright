@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261104-6 · 2026-11-04 · Release 0.43.0: `read --lang`, a note carried over a page, spread and roman folios
+because: L-047, L-048; user request after a trilingual type manual's OCR layer printed everything three times; HANDOFF open items from 0.42.0 and L-044.
+files: scripts/rw.py (lang_scores, para_lang, filter_lang, lang_note, cmd_info, cmd_read, cmd_grep, carry_foot_notes, fixed_folio_lines); tests/test_rw.py; SKILL.md (Step 3, Distilling a book)
+`read --lang CODE` and `grep --lang CODE` keep one language's paragraphs, and `info` names the flag on a book with substantial paragraphs in two or more. A foot note left open takes its lower-case tail from the next page's foot, or from its top when the body sentence above is closed. Fixed-layout folios are also found at two pages a file and in lowercase roman numerals.
+
 ### C-20261104-5 · 2026-11-04 · Release 0.42.0: PDF foot notes leave the sentence, page-break hyphens heal, long lines are paragraphs
 because: L-045, L-046; a book run on a PDF printed notes in mid-sentence, kept `pol-ish` and `dead-lines`, and glued subheads and epigraphs into body text; user request for the how-to book tip.
 files: scripts/rw.py (join_broken, unfolded_text, unfold_page, lift_foot_notes, merge_wrapped, load_pdf); tests/test_rw.py; SKILL.md (Distilling a book); references/formats.md

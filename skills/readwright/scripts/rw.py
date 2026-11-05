@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.41.1"
+VERSION = "0.41.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3918,11 +3918,16 @@ def cut_offset(body: list, part, fmt: str) -> int:
     return render_paras(body[:-1] + [replace(part, text=part.text + mark)], fmt).index(mark)
 
 
+CODE_CALLOUT = re.compile(r"\[image omitted: \d+\.\w+\]")
+
+
 def skip_code(doc: Doc) -> dict:
     """Drop code blocks: paragraphs of kind pre (HTML and EPUB <pre>, fenced or indented Markdown), found by
     structure, never by guessing from a line's look. A prose paragraph or list item that ends with ':' and sits
     right before a dropped block goes too (its lead-in, noise once the code is gone); a colon line before prose
-    stays. Returns {section number: (blocks, words, lead-ins)} for sections that had any."""
+    stays. A picture marker named only by a number (a publisher's code callout, `[image omitted: 1.png]`) goes too,
+    in a section with code, since it points into the dropped code. Returns {section number: (blocks, words, lead-ins)}
+    for sections that had any."""
     out = {}
     for n, s in enumerate(doc.sections, 1):
         code = [p for p in s.paras if p.kind == "pre"]
@@ -3931,7 +3936,8 @@ def skip_code(doc: Doc) -> dict:
             lead = {i for i in range(len(ps) - 1)
                     if ps[i + 1].kind == "pre" and ps[i].kind in ("p", "li") and ps[i].text.rstrip().endswith(":")}
             out[n] = (len(code), sum(len(p.text.split()) for p in code), len(lead))
-            s.paras = [p for i, p in enumerate(ps) if p.kind != "pre" and i not in lead]
+            s.paras = [p for i, p in enumerate(ps)
+                       if p.kind != "pre" and i not in lead and not CODE_CALLOUT.fullmatch(p.text.strip())]
     return out
 
 

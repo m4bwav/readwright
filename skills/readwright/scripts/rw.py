@@ -54,7 +54,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.44.2"
+VERSION = "0.44.3"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -503,6 +503,8 @@ class HTMLText(HTMLParser):
         self.kind, self.level = "p", 0
 
     def handle_starttag(self, tag, attrs):
+        if tag == "a" and not dict(attrs).get("href"):   # an index-term anchor sits before punctuation: 'cost <a/>.' reads 'cost.'
+            self._empty_anchor = True
         a = dict(attrs)
         if tag in ("ol", "ul"):
             self.depth += 1
@@ -624,6 +626,16 @@ class HTMLText(HTMLParser):
             return
         if self.skip:
             return
+        if data.strip():
+            lead = data[:len(data) - len(data.lstrip())]
+            glued = getattr(self, "_empty_anchor", False) or chr(10) in lead   # pretty-printed markup breaks the line before a comma
+            self._empty_anchor = False
+            if glued and data.lstrip()[0] in ",.;:)!?":
+                data = data.lstrip()
+                while self.buf and not self.buf[-1].strip():
+                    self.buf.pop()
+                if self.buf:
+                    self.buf[-1] = self.buf[-1].rstrip()
         if self.noteref and data.strip():
             data = f"[{data.strip()}]"
         elif self.sup and data[:1].isdigit() and "".join(self.buf)[-1:].isdigit():   # 1.1021<sup>5</sup> reads 1.1021^5, not 1.10215

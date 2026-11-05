@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-5 · 2026-11-05 · Release 0.44.3: no stray space before punctuation in EPUB text
+because: a pretty-printed O'Reilly EPUB read "is cost ." and "Figure 4-9 )." from index anchors and line breaks in its markup, which also breaks phrase searches.
+files: scripts/rw.py (`HTMLText.handle_data`, `handle_starttag`), tests/test_rw.py, SKILL.md (distilling tip). Space before punctuation goes after an anchor with no link or across a line break; other spacing stays.
+
 ### C-20261105-4 · 2026-11-05 · Release 0.44.2: cache files appear whole or not at all
 because: a run during the 0.44.1 check reported 94% fewer words for one PDF and no error, when two first reads of one file ran at once.
 files: scripts/rw.py (`tmp_cache`, `publish_cache`, PDF text, layout, font and OCR caches), tests/test_rw.py. Tools write to a private temp name that moves into place when finished. The other converters' caches (calibre, soffice, pandoc) were not changed.

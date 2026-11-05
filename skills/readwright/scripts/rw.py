@@ -54,7 +54,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.44.3"
+VERSION = "0.44.4"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1808,6 +1808,18 @@ RUNNING_HEAD = re.compile(r"^((?:\d{1,4}|[ivxlc]{1,7}) \| [^|]{1,80}|[^|]{1,80} 
 NUMBERED_HEAD = re.compile(r"^(?:#\s+(\S.{1,79})|(\S.{1,79}?)\s+#)$")
 
 
+CAPTION_LINE = re.compile(r"(?:exhibit|figure|fig\.|table|listing|chart|box|map|plate|illustration)\s+[a-z]?[\d#]+[a-z]?(?:[-.:][\d#]+[a-z]?)*(?!\w)", re.I)
+EDGE_NUMBER = re.compile(r"(\d+)\s+\S.*|.*\S\s+(\d+)")
+HEAD_GAP = 3   # pages between two copies of a running head; a figure page can take one copy out of an every-other-page run
+
+
+def pages_cluster(where: list) -> bool:
+    """A running head sits on page after page or every other page; a real heading that recurs ("Key Takeaways" closing
+    each chapter) is spread out (L-053 `spread-headings-stay`). True when at least half the gaps are short."""
+    gaps = [b - a for a, b in zip(where, where[1:])]
+    return sum(g <= HEAD_GAP for g in gaps) * 2 >= len(gaps)
+
+
 def head_key(line: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"\d+", "#", line)).strip().casefold()
 
@@ -1822,14 +1834,18 @@ def running_head_keys(pages, titles=()) -> set:
     a bare page number): keys (digits as #, case folded) of page-edge lines that repeat at the edges of several pages,
     or whose text beside the number is a chapter or section title from the outline. A line ending in . ? ! : , ; is
     prose and never a head; a bare title must open or close a fifth of the pages."""
-    count = {}
-    for p in pages:
+    seen, shifts = collections.defaultdict(list), collections.defaultdict(collections.Counter)
+    for n, p in enumerate(pages):
         lines = p.split("\n")
-        for k in {head_key(lines[i]) for i in edge_lines(p)}:
-            count[k] = count.get(k, 0) + 1
+        for k, line in {head_key(lines[i]): lines[i] for i in edge_lines(p)}.items():
+            seen[k].append(n)
+            m = EDGE_NUMBER.fullmatch(line.strip())
+            if m:
+                shifts[k][int(m.group(1) or m.group(2)) - n] += 1
     known = {head_key(t) for t in titles}
     keys = set()
-    for k, n in count.items():
+    for k, where in seen.items():
+        n = len(where)
         if not k or len(k) > 90 or k[-1] in ".?!:,;":
             continue
         m = NUMBERED_HEAD.match(k)
@@ -1837,9 +1853,12 @@ def running_head_keys(pages, titles=()) -> set:
             keys.add(k)
         elif m:
             title = (m.group(1) or m.group(2)).strip()
-            if title.strip("# ") and (n >= 3 or title in known):
+            if CAPTION_LINE.match(title):
+                continue   # "122 Exhibit 4-3": a caption with the folio glued on; strip_glued_folio takes the number
+            if title.strip("# ") and (title in known or n >= 3 and (pages_cluster(where) or
+                                                  shifts[k].most_common(1)[0][1] * 2 > n)):
                 keys.add(k)
-        elif n >= max(5, len(pages) // 5) and len(k.split()) >= 2:
+        elif n >= max(5, len(pages) // 5) and len(k.split()) >= 2 and (pages_cluster(where) or len(pages) >= 100):
             keys.add(k)
     return keys
 
@@ -1853,6 +1872,24 @@ def strip_running_heads(page: str, keys=frozenset()) -> str:
     for i in edge_lines(page):
         if RUNNING_HEAD.match(lines[i].strip()) or head_key(lines[i]) in keys:
             lines[i] = ""
+    return "\n".join(lines)
+
+
+def strip_glued_folio(page: str, n: int, shifts) -> str:
+    """Take the page's own number off a caption at the first or last line ("122 Exhibit 4-3", "Exhibit 4-3 122"). Only a
+    caption: "122 people came" could be a sentence that happens to start with the page number (L-054 `glued-folio-caption`)."""
+    if not shifts:
+        return page
+    lines = page.split("\n")
+    for i in edge_lines(page):
+        s = lines[i].strip()
+        m = re.fullmatch(r"(\d{1,4})\s+(\S.*)", s)
+        num, rest = (m.group(1), m.group(2)) if m else (None, None)
+        if not m:
+            m = re.fullmatch(r"(\S.*?)\s+(\d{1,4})", s)
+            num, rest = (m.group(2), m.group(1)) if m else (None, None)
+        if num and int(num) - n in shifts and CAPTION_LINE.match(rest):
+            lines[i] = rest
     return "\n".join(lines)
 
 
@@ -1889,15 +1926,40 @@ def folio_shifts(pages) -> set:
 
 def beside_folio_keys(pages, shifts) -> set:
     """Keys of lines that sit beside the page's own number on several pages: alternating heads, where the part name
-    fills the even pages and "Chapter N Title" the odd ones, so no one text reaches a share of the book."""
-    count = collections.Counter()
+    fills the even pages and "Chapter N Title" the odd ones, so no one text reaches a share of the book. Page after page
+    or every other page only: a real heading that recurs is spread out (L-053). A short chapter's head has fewer copies;
+    it counts when it keeps the book's own rhythm with a proven head on the pages between (L-054 `short-chapter-heads`)."""
+    seen, edge_of, upper = collections.defaultdict(list), collections.defaultdict(set), {}
+    beside_at = collections.defaultdict(set)
     for n, p in enumerate(pages):
         lines = p.split("\n")
+        idx = [i for i, l in enumerate(lines) if l.strip()]
         for num, other in folio_pairs(p):
             if int(lines[num]) - n in shifts:
-                count[line_key(lines[other])] += 1
-    return {k for k, c in count.items() if c >= BESIDE_FOLIO_LEAST and len(k) <= 90 and k[-1] not in ".?!:,;"
-            and len(letters_key(k)) >= 3}
+                k = line_key(lines[other])
+                if not k or len(k) > 90 or k[-1] in ".?!:,;" or len(letters_key(k)) < 3 or CAPTION_LINE.match(k):
+                    continue
+                if n not in seen[k]:
+                    seen[k].append(n)
+                edge_of[k].add("top" if min(num, other) == idx[0] else "foot")
+                upper[k] = not lines[other].lstrip()[:1].islower()
+                beside_at[n].add(k)
+    proven = {k for k, w in seen.items() if len(w) >= BESIDE_FOLIO_LEAST and pages_cluster(w)}
+    if not proven:
+        return proven
+    gaps = collections.Counter(b - a for k in proven for a, b in zip(seen[k], seen[k][1:]))
+    rhythm = gaps.most_common(1)[0][0]
+    edges = collections.Counter(e for k in proven for e in edge_of[k])
+    edge = edges.most_common(1)[0][0]
+    short = set()
+    for k, w in seen.items():
+        if k in proven or len(w) < 2 or len(w) >= BESIDE_FOLIO_LEAST or not upper[k] or edge_of[k] != {edge}:
+            continue
+        if rhythm > 2 or any(b - a != rhythm for a, b in zip(w, w[1:])):
+            continue
+        if rhythm == 1 or all(beside_at[m] & proven for m in range(w[0] + 1, w[-1], 2)):
+            short.add(k)
+    return proven | short
 
 
 def line_key(text: str) -> str:
@@ -2682,7 +2744,7 @@ def load_pdf(path) -> Doc:
     first_copy = first_near_edge(pages, beside)
     pages = [strip_folio_heads(p, n, shifts, beside, first_copy, on_page.get(n + 1, ())) for n, p in enumerate(pages)]
     head_keys = running_head_keys(pages, [t for t, _, _ in outline])
-    pages = [strip_running_heads(p, head_keys) for p in pages]
+    pages = [strip_glued_folio(strip_running_heads(p, head_keys), n, shifts) for n, p in enumerate(pages)]
     if not oc.exists() and CODE_HINT.search(text):   # a cheap gate before a second pdftotext run
         lay = pdf_layout(path, tl)
         pages = [mark_code(p, lay[n] if n < len(lay) else None) for n, p in enumerate(pages)]
@@ -3161,14 +3223,15 @@ def load_via_calibre(path, fmt) -> Doc:
                ("; KFX also needs the KFX Input calibre plugin" if fmt == "kfx" else ""))
     out = cache_path(path, "calibre", ".epub")
     if CACHE_OFF or not out.exists():
-        tmp = out.with_suffix(".tmp.epub")
+        tmp = tmp_cache(out)
         r = run([exe, path, str(tmp)], 900)
         if r.returncode != 0 or not tmp.exists():
+            tmp.unlink(missing_ok=True)
             err = (r.stdout + r.stderr).decode("utf-8", "replace")
             if "DRM" in err:
                 raise RWError("calibre reports this book is DRM-protected. readwright does not remove DRM.")
             raise RWError("ebook-convert failed: " + tool_error(r))
-        os.replace(tmp, out)
+        publish_cache(tmp, out)
     doc = load_epub(str(out))
     doc.path, doc.fmt = path, fmt
     doc.notes.append(f"converted to EPUB with calibre ebook-convert (cached at {out})")
@@ -3211,7 +3274,9 @@ def load_via_office(path, fmt) -> Doc:
                 made = next(Path(td).glob("*." + target), None)
                 if not made:
                     raise RWError("LibreOffice conversion failed: " + tool_error(r))
-                shutil.copyfile(made, out)
+                tmp = tmp_cache(out)
+                shutil.copyfile(made, tmp)
+                publish_cache(tmp, out)
         doc = {"docx": load_docx, "xlsx": load_xlsx, "pptx": load_pptx}[target](str(out))
         doc.path, doc.fmt = path, fmt
         doc.notes.append(f"converted to {target.upper()} with LibreOffice (macros are not run in headless conversion)")
@@ -3230,7 +3295,7 @@ def load_via_office(path, fmt) -> Doc:
 
 def load_via(path, via) -> Doc:
     cp = cache_path(path, via, ".md")
-    tmp = cp.with_suffix(".tmp.md")
+    tmp = tmp_cache(cp)
     if via == "pandoc":
         exe = need("pandoc", "--via pandoc", "pandoc (https://pandoc.org/installing.html)")
         cmd = [exe, path, "-t", "markdown", "--wrap=none", "-o", str(tmp)]
@@ -3241,10 +3306,11 @@ def load_via(path, via) -> Doc:
     if CACHE_OFF or not cp.exists():
         r = run(cmd, 600)
         if r.returncode != 0 or not tmp.exists():
+            tmp.unlink(missing_ok=True)
             hint = " (markitdown reads most formats only with its extras: `markitdown[all]`)" \
                 if via == "markitdown" and b"MissingDependency" in r.stderr else ""
             raise RWError(f"{via} failed on {Path(path).name}: {tool_error(r)}{hint}")
-        os.replace(tmp, cp)
+        publish_cache(tmp, cp)
     out = cp.read_bytes()
     with open(path, "rb") as f:
         head = f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n")

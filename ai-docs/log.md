@@ -105,3 +105,7 @@ From the everscout distill of Manning, Raghavan and Schutze, *Introduction to In
 ## [2026-11-05] 0.44.2 cache race
 
 Concurrent first reads could read a half-written pdftotext cache, silently losing most of a book. Fixed with temp file plus atomic move; unit tests cover the helpers, the race itself was not reproduced.
+
+## [2026-11-05] 0.44.4 open items
+
+Short chapter heads, glued caption folios, spread real headings and converter cache atomicity. Old and new compared on 46 cached PDF texts; L-053, L-054.

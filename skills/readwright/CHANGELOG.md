@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-6 · 2026-11-05 · Release 0.44.4: heads of short chapters go, repeated real headings and captions stay, converter caches are atomic
+because: L-053, L-054; open items left by 0.44.1 and 0.44.2.
+files: scripts/rw.py (`pages_cluster`, `CAPTION_LINE`, `running_head_keys`, `beside_folio_keys`, `strip_glued_folio`, `load_pdf`, `load_via_calibre`, `load_via_office`, `load_via`), tests/test_rw.py. A head with 2 to 4 copies beside a folio goes when it keeps the book's every-other-page rhythm, sits on the book's head edge, and a proven head fills the pages between. A line that recurs spread out stays, at a page edge or beside a folio, unless its number follows the page or it fills a fifth of a book of 100 pages or more. A caption is never a head, and the page's own number comes off `122 Exhibit 4-3` and `Exhibit 4-3 122`. calibre, soffice, pandoc and markitdown caches use `tmp_cache` and `publish_cache`; a failed tool leaves no temp file. Paragraph numbers shift on PDFs with such heads.
+
 ### C-20261105-5 · 2026-11-05 · Release 0.44.3: no stray space before punctuation in EPUB text
 because: a pretty-printed O'Reilly EPUB read "is cost ." and "Figure 4-9 )." from index anchors and line breaks in its markup, which also breaks phrase searches.
 files: scripts/rw.py (`HTMLText.handle_data`, `handle_starttag`), tests/test_rw.py, SKILL.md (distilling tip). Space before punctuation goes after an anchor with no link or across a line break; other spacing stays.

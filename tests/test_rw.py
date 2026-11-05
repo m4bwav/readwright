@@ -2075,6 +2075,61 @@ class TestRealWorldShapes(Base):
         self.assertIn("Part One Field Notes", rw.render_paras(doc.sections[0].paras))
         self.assertIn("Chapter 2 Salt Roads", rw.render_paras(doc.sections[1].paras))
 
+    def test_short_chapter_head_drops(self):   # L-054 `short-chapter-heads`
+        pages = self.folio_book()
+        for n in (11, 13, 15):
+            pages[n] = f"Chapter 3 Short Tide\n\n{n + 100}\n\nBody words of page {n}.\n\n"
+        out = self.stripped(pages)
+        self.assertNotIn("Chapter 3 Short Tide", "".join(out))
+        self.assertEqual("".join(out).count("Body words"), 30)
+        self.assertIn("Chapter 3 Short Tide", self.stripped(pages, {11: ["Chapter 3 Short Tide"]})[11])   # the opener
+
+    def test_short_run_needs_the_books_rhythm(self):
+        pages = self.folio_book()
+        pages[11] = "Field Repairs\n\n111\n\nBody.\n\n"       # same text, but three pages apart
+        pages[17] = "Field Repairs\n\n117\n\nBody.\n\n"
+        pages[20] = "120\n\nCrew List\n\nBody.\n\n"          # on the part head's side, two pages apart but
+        pages[22] = "122\n\nCrew List\n\nBody.\n\n"          # the page between has no head by a number
+        pages[21] = "Nothing beside\n\nthe number here.\n\n"
+        pages[3] = "Lower line\n\n103\n\nBody.\n\n"
+        pages[5] = "Body.\n\nlower words here\n\n105\n\n"     # at the foot, where these heads never are
+        pages[7] = "Body.\n\nlower words here\n\n107\n\n"
+        out = "".join(self.stripped(pages))
+        self.assertEqual(out.count("Field Repairs"), 2)
+        self.assertEqual(out.count("Crew List"), 2)
+        self.assertEqual(out.count("lower words here"), 2)
+
+    def test_spread_headings_stay(self):   # L-053 `spread-headings-stay`
+        pages = self.folio_book()
+        pages += [f"{n + 100}\n\nBody words of page {n}.\n\n" if n % 2 == 0 else f"Body {n}.\n\n" for n in range(30, 80)]
+        for n in range(30, 80, 10):    # five copies by a number, one a chapter
+            pages[n] = f"{n + 100}\n\nKey Takeaways\n\nBody words of page {n}.\n\n"
+        self.assertEqual("".join(self.stripped(pages)).count("Key Takeaways"), 5)
+        spread = [f"Key Takeaways\n\nBody {n}.\n" if n % 5 == 0 else f"Body {n}.\n\nMore.\n" for n in range(30)]
+        self.assertNotIn("key takeaways", rw.running_head_keys(spread))
+        dense = [f"Key Takeaways\n\nBody {n}.\n" if n % 2 == 0 else f"Body {n}.\n\nMore.\n" for n in range(30)]
+        self.assertIn("key takeaways", rw.running_head_keys(dense))
+        footer = [f"Body {n}.\n\nAcme Press 2014\n" if n % 5 == 0 else f"Body {n}.\n\nMore {n}.\n" for n in range(200)]
+        self.assertIn("acme press", rw.running_head_keys([f.replace(" 2014", "") for f in footer]))   # a fifth of a long book
+
+    def test_recurring_chapter_label_stays_a_numbered_head_does_not(self):
+        openers = ["Chapter %d\n\nBody of the book.\n" % (n // 20 + 1) if n % 20 == 0 else f"Body {n}.\n\nMore {n}.\n" for n in range(100)]
+        self.assertNotIn("chapter #", rw.running_head_keys(openers))
+        spread = [f"{n + 7} Salt Roads\n\nBody {n}.\n" if n % 9 == 0 else f"Body {n}.\n\nMore {n}.\n" for n in range(60)]
+        self.assertIn("# salt roads", rw.running_head_keys(spread))   # spread, but the number keeps the page's shift
+
+    def test_glued_folio_leaves_the_caption(self):   # L-054 `glued-folio-caption`
+        self.assertEqual(rw.strip_glued_folio("122 Exhibit 4-3\n\nBody.\n", 22, {100}), "Exhibit 4-3\n\nBody.\n")
+        self.assertEqual(rw.strip_glued_folio("Body.\n\nFigure 5.14 Bias too low. 112", 12, {100}), "Body.\n\nFigure 5.14 Bias too low.")
+        for page, n in (("122 people came to the harbour\n\nBody.", 22),     # prose beginning with the number
+                        ("99 Exhibit 4-3\n\nBody.", 22),                     # not this page's number
+                        ("Body.\n\n122 Exhibit 4-3\n\nMore body.", 22)):    # not at the edge
+            self.assertEqual(rw.strip_glued_folio(page, n, {100}), page)
+        self.assertEqual(rw.strip_glued_folio("122 Exhibit 4-3", 22, set()), "122 Exhibit 4-3")
+        self.assertEqual(rw.strip_glued_folio("122 Table of Contents\n\nBody.", 22, {100}), "122 Table of Contents\n\nBody.")
+        pages = [f"{n + 100} Exhibit {n}-1\n\nBody {n}.\n" for n in range(9)]
+        self.assertEqual(rw.running_head_keys(pages), set())   # never the whole caption
+
     def test_pipeless_running_heads_drop(self):
         pages = [f"{n}  Chapter 3: Doing Things\n\nBody {n} text.\n\nInput:\n" if n % 2 else
                  f"Input:\n\nBody {n} text.\n\nSection Title {n}\n" for n in range(1, 13)]
@@ -2976,6 +3031,52 @@ class TestPdfNotesAndUnfolding(Base):
 
 
 class CacheWriteTests(unittest.TestCase):
+    def converter(self, tag, ext, writes):
+        """A fake tool that checks the cache name is still absent while it writes, and writes to the path WRITES picks."""
+        seen = []
+
+        def fake(cmd, timeout=600):
+            seen.append(pathlib.Path(writes(cmd)))
+            self.assertFalse(rw.cache_path(self.src, tag, ext).exists())
+            seen[-1].write_bytes(b"made")
+            return subprocess.CompletedProcess(cmd, 0, b"", b"")
+        return fake, seen
+
+    def run_converter(self, tag, ext, writes, call, loader):
+        with tempfile.TemporaryDirectory() as d:
+            self.src = str(pathlib.Path(d) / "book.bin")
+            pathlib.Path(self.src).write_bytes(b"\0" * 100)
+            cp = rw.cache_path(self.src, tag, ext)
+            fake, seen = self.converter(tag, ext, writes)
+            doc = rw.Doc(self.src, "x", [], [])
+            tl = dict(rw.tools(), soffice="soffice")
+            try:
+                with unittest.mock.patch.object(rw, "run", fake), unittest.mock.patch.object(rw, loader, lambda *a: doc), \
+                        unittest.mock.patch.object(rw, "need", lambda *a: "tool"), unittest.mock.patch.object(rw, "tools", lambda: tl), \
+                        unittest.mock.patch.object(rw, "CACHE_OFF", False):
+                    call(self.src)
+                self.assertEqual(cp.read_bytes(), b"made")
+                self.assertEqual(list(cp.parent.glob(cp.stem + ".*.tmp*")), [])
+                failing = unittest.mock.Mock(return_value=subprocess.CompletedProcess([], 1, b"", b"boom"))
+                cp.unlink()
+                with unittest.mock.patch.object(rw, "run", failing), unittest.mock.patch.object(rw, "need", lambda *a: "tool"), \
+                        unittest.mock.patch.object(rw, "tools", lambda: tl), unittest.mock.patch.object(rw, "CACHE_OFF", False):
+                    with self.assertRaises(rw.RWError):
+                        call(self.src)
+                self.assertFalse(cp.exists())
+            finally:
+                cp.unlink(missing_ok=True)
+
+    def test_calibre_cache_is_atomic(self):
+        self.run_converter("calibre", ".epub", lambda c: c[2], lambda p: rw.load_via_calibre(p, "azw3"), "load_epub")
+
+    def test_soffice_cache_is_atomic(self):
+        self.run_converter("soffice", ".docx", lambda c: pathlib.Path(c[c.index("--outdir") + 1]) / "made.docx",
+                           lambda p: rw.load_via_office(p, "doc"), "load_docx")
+
+    def test_pandoc_cache_is_atomic(self):
+        self.run_converter("pandoc", ".md", lambda c: c[c.index("-o") + 1], lambda p: rw.load_via(p, "pandoc"), "load_text")
+
     def test_reader_never_sees_a_partial_cache(self):
         with tempfile.TemporaryDirectory() as d:
             cp = pathlib.Path(d) / "x.txt"

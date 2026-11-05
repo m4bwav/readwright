@@ -2,6 +2,8 @@
 
 ## Current state
 
+readwright 0.44.0 (2026-11-05): `<pre>` in a table cell stays a code block, `read --max-row-words N` cuts long table rows (L-051). Paragraph numbers shift in books with code in tables. Tried on one Manning EPUB.
+
 readwright 0.43.2 (2026-11-05): `--skip-code` also drops listing captions and callout legends, and the footer counts them (L-050). Tried on one publisher's EPUB only.
 readwright 0.43.1 (2026-11-04): nested HTML and EPUB lists keep their depth (L-049). Open: PDF and other formats keep flat lists.
 

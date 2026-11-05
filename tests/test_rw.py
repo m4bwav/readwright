@@ -1422,6 +1422,43 @@ class TestCommands(Base):
                 zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
         return dst
 
+    def table_epub(self):
+        src, dst = self.f("plain.epub"), self.f("turns.epub")
+        make_epub(src)
+        reply = " ".join(f"word{i}" for i in range(40))
+        ch2 = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+               "<h1 id='c2'>Chapter Two</h1><p>Prose before the turns.</p>"
+               "<table><tr><td><img src='me.png' alt=''/></td><td><p>Ask for a tide table</p></td></tr>"
+               "<tr><td><img src='ai.png' alt=''/></td><td><pre class='programlisting'>import tide\nprint(tide)</pre></td></tr>"
+               f"<tr><td><img src='ai.png' alt=''/></td><td><p>{reply}</p></td></tr>"
+               "<tr><td>Lead words</td><td>Before <pre>x = 1</pre> after</td></tr></table>"
+               "<h1 id='c3'>Chapter Three</h1><p>The ledger listed every ship.</p></body></html>")
+        with zipfile.ZipFile(src) as zi, zipfile.ZipFile(dst, "w") as zo:
+            for info in zi.infolist():
+                zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
+        return dst
+
+    def test_skip_code_finds_pre_in_a_table_cell(self):
+        e = self.table_epub()
+        _, full, _ = cli("read", e, "--section", "2")
+        self.assertIn("import tide\nprint(tide)", full)   # lines intact, not flattened into a row
+        _, out, _ = cli("read", e, "--section", "2", "--skip-code")
+        self.assertNotIn("import tide", out)
+        self.assertNotIn("x = 1", out)
+        self.assertIn("Ask for a tide table", out)
+        self.assertIn("Before", out)                       # the prose beside a listing stays
+        self.assertIn("after", out)
+        self.assertIn("Lead words", out)
+
+    def test_max_row_words_cuts_long_rows_only(self):
+        e = self.table_epub()
+        _, out, _ = cli("read", e, "--section", "2", "--max-row-words", "5")
+        self.assertIn("word4 [row cut: 35 more words]", out)
+        self.assertNotIn("word5", out)
+        self.assertIn("Prose before the turns.", out)
+        self.assertIn("--max-row-words cut 1 long table row(s)", out)
+        self.assertIn("word39", cli("read", e, "--section", "2")[1])
+
     def test_toc_code_counts_code_words(self):
         e = self.code_epub()
         plain = cli("toc", e)[1]

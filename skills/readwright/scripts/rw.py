@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.43.2"
+VERSION = "0.44.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -450,6 +450,8 @@ class HTMLText(HTMLParser):
         self.title = ""
         self.in_title = False
         self.cells: list[str] | None = None
+        self.row_pres: list[str] = []   # <pre> blocks set inside this table row
+        self.cell_lead = ""             # cell text before the <pre> it holds
         self.links: list = []  # (href, text, depth) for nav documents
         self._a = None
         self.depth = 0
@@ -534,6 +536,7 @@ class HTMLText(HTMLParser):
         if tag == "tr":
             self.flush()
             self.cells = []
+            self.row_pres = []
             self.buf = []
             return
         if tag == "li" and self.cells is not None and clean("".join(self.buf)):   # a list set inside a table cell keeps its items apart
@@ -548,6 +551,9 @@ class HTMLText(HTMLParser):
                 self.li_depth = self.depth
             elif tag == "pre":
                 self.pre += 1
+                if self.cells is not None and self.pre == 1:   # a listing in a cell stays a code block, lines intact
+                    self.cell_lead = "".join(self.buf)
+                    self.buf = []
             elif tag == "blockquote":
                 self.quote += 1
 
@@ -579,9 +585,17 @@ class HTMLText(HTMLParser):
                 cells.pop()
             if any(cells):
                 self.paras.append(Para("row", "\t".join(cells)))
+            for t in self.row_pres:
+                self.paras.append(Para("pre", t))
+            self.row_pres = []
             self.buf = []
             return
         if tag in BLOCK:
+            if tag == "pre" and self.cells is not None and self.pre == 1:
+                t = "".join(self.buf).replace("\r\n", "\n").replace("\r", "\n").replace("\u00a0", " ").strip()
+                if t:
+                    self.row_pres.append(t)
+                self.buf = [self.cell_lead]
             self.flush()
             if tag == "pre":
                 self.pre = max(0, self.pre - 1)
@@ -4080,6 +4094,19 @@ def skip_code(doc: Doc) -> dict:
     return out
 
 
+def cut_rows(doc: Doc, limit: int) -> int:
+    """Cut table rows longer than limit words, marking each cut. Some books set whole chat replies in table rows;
+    a long row is a sample more often than an argument. Prose paragraphs stay whole. Returns the rows cut."""
+    cut = 0
+    for s in doc.sections:
+        for p in s.paras:
+            words = p.text.split()
+            if p.kind == "row" and len(words) > limit:
+                p.text = " ".join(words[:limit]) + f" [row cut: {fmt_n(len(words) - limit)} more words]"
+                cut += 1
+    return cut
+
+
 def code_note(doc: Doc, skipped: dict, idx) -> str:
     blocks = sum(skipped[i][0] for i in idx if i in skipped)
     words = sum(skipped[i][1] for i in idx if i in skipped)
@@ -4566,6 +4593,7 @@ def cmd_toc(a) -> int:
 def flags_used(a) -> str:
     """The paragraph-dropping flags given, to repeat with --at-para (paragraph numbers count what is left)."""
     return "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
+                                   (f" --max-row-words {getattr(a, 'max_row_words', '')}", getattr(a, "max_row_words", None)),
                                    (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                    (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                    (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
@@ -4600,6 +4628,9 @@ def cmd_read(a) -> int:
         raise RWError("this is a zip archive; list it with toc and pick a member with --member NAME")
     hints = []
     skipped = skip_code(doc) if getattr(a, "skip_code", False) else None
+    if getattr(a, "max_row_words", None):
+        n = cut_rows(doc, a.max_row_words)
+        hints.append(f"--max-row-words cut {n} long table row(s) across the book; read without it to see them whole")
     if getattr(a, "drop_repeated", False):
         n = drop_repeated(doc)
         hints.append(f"--drop-repeated dropped {n} short paragraph(s) that recur across the book (credit lines, notices)")
@@ -4634,6 +4665,7 @@ def cmd_read(a) -> int:
     if skipped is not None:
         hints.insert(0, code_note(doc, skipped, idx))
     flags = "".join(f for f, on in ((" --skip-code", getattr(a, "skip_code", False)),
+                                   (f" --max-row-words {getattr(a, 'max_row_words', '')}", getattr(a, "max_row_words", None)),
                                     (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                     (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
@@ -5177,6 +5209,7 @@ def main(argv=None) -> int:
     p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")
     p.add_argument("--strip-boilerplate", action="store_true", help="drop lines repeated on most pages (PDF footers, page numbers, running headers)")
     p.add_argument("--skip-code", action="store_true", help="drop code blocks (<pre> in EPUB and HTML, fenced Markdown; not PDF) and say how many words went")
+    p.add_argument("--max-row-words", type=int, metavar="N", help="read only: cut table rows over N words and mark the cut (books that set chat replies or samples in tables)")
     p.add_argument("--drop-repeated", action="store_true", help="drop short paragraphs that recur in 30%% or more of "
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")
     p.add_argument("--drop-epigraphs", action="store_true", help="drop quotations of 80 words or fewer followed by a "

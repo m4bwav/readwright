@@ -67,6 +67,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A book of prompts and model replies: add `--max-row-words 60` when replies sit in table rows (0.44.0), and judge the prose around a sample, since one run's reply proves little. A paragraph printed twice can be in the publisher's file: grep it before blaming the reader.
 - A book that argues from studies: open the paper behind any number you keep. The unit is a common slip (one testing book says 201 flaky tests where the paper studied 201 commits).
 - A multilingual edition: read one language with `--lang`, and check a garbled number against the page image with `RW page` before citing it (0.43.0).
 - A how-to book about working with people: its worked example letters and the answers closing each chapter often hold the method, so read those as well as the argument prose (0.42.0 sets `Q /` letters apart in PDFs whose lines are whole paragraphs, and moves page-foot notes out of sentences as `[note N: text]`).

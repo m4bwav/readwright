@@ -578,6 +578,12 @@ class TestFormats(Base):
         self.assertIn("Paraffin & kerosene.", body)
         self.assertEqual(doc.meta["author"], "D. Lamplighter")
 
+    def test_index_anchor_leaves_no_space_before_punctuation(self):   # O'Reilly EPUB, 2026-11-05
+        p = self.f("idx.html")
+        p.write_text('<html><body><h1>T</h1><p>Watch cost <a data-type="indexterm" id="i1"></a> <a id="i2"></a>. See <a href="#x">Chapter 4</a> <a id="i3"></a>, (<a href="#y">Figure 1</a>' + chr(10) + ' ) and keep <a id="i4"></a>words apart.</p></body></html>', encoding="utf-8")
+        body = rw.render_paras(rw.load(str(p)).sections[0].paras)
+        self.assertIn("Watch cost. See Chapter 4, (Figure 1) and keep words apart.", body)
+
     def test_html_noterefs_bracketed(self):
         # note numbers glued to the sentence ("after that.40 Uber") misread as figures; they print as [40]
         html = ('<p>They raised $1.4 billion after that.<sup><a href="notes.xhtml#n40" role="doc-noteref">40</a></sup> Uber grew.'

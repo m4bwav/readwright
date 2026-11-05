@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-1 · 2026-11-05 · Release 0.43.2: `--skip-code` also drops listing captions and callout legends
+because: L-050; a Manning testing book printed `Listing 5.23 ...` and circled-number lines with no code to explain, 45 of them in one section.
+files: scripts/rw.py (`skip_code`, `code_note`), tests/test_rw.py, SKILL.md (distilling section). A short caption right before a block and the run of legends right after one go, and the footer counts them; paragraph numbers under `--skip-code` shift on such books. A legend's explanation goes with it, so read without the flag when a listing matters.
+
 ### C-20261104-7 · 2026-11-04 · Release 0.43.1: nested lists keep their depth; distilling tip on the sources a book leans on
 because: L-049; a testing book's list of four bad metrics printed each metric level with its examples, so sub-points read as new points.
 files: scripts/rw.py (`render_paras`, HTML parser), tests/test_rw.py, SKILL.md (distilling section). HTML and EPUB items two levels down now print indented; paragraph numbers do not change, character offsets inside lists can.

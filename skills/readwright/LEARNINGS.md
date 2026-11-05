@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-050 · 2026-11-05 · `skip-code-legends`: listing captions and legends outlive their code
+Dropping a code block left its `Listing N.N` caption and circled-number legend lines in the text. Tied to position (caption right before a block, legends in a run right after one), so prose that merely names a listing stays. Measured on one Manning EPUB: 45 lines gone from one section, no prose line lost in the two sections checked.
+
 ### L-049 · 2026-11-04 · `nested-lists`: flattened sub-items read as new points
 - Trigger: a testing book's four kinds of bad metric printed level with their own examples, and only the sense showed where one ended.
 - Rule: keep each list item's depth from its opening tag; the parent's text is flushed after the inner list has already raised the depth.

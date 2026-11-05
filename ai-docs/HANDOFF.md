@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current state
+
+readwright 0.43.2 (2026-11-05): `--skip-code` also drops listing captions and callout legends, and the footer counts them (L-050). Tried on one publisher's EPUB only.
 readwright 0.43.1 (2026-11-04): nested HTML and EPUB lists keep their depth (L-049). Open: PDF and other formats keep flat lists.
 
 readwright 0.43.0 (2026-11-04): `read --lang CODE` and `grep --lang CODE` keep one language's paragraphs (en, de, es, fr, it, nl, pt), `info` names the flag on a polyglot book, an open foot note takes its tail over the page, and fixed-layout folios are found on two-page spreads and in roman numerals (L-047, L-048).

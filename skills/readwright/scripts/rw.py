@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.43.1"
+VERSION = "0.43.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4048,6 +4048,8 @@ def cut_offset(body: list, part, fmt: str) -> int:
 
 
 CODE_CALLOUT = re.compile(r"\[image omitted: \d+\.\w+\]")
+CODE_LEGEND = re.compile("[①-⑳❶-➓]")   # a circled number opens a line explaining a listing
+CODE_CAPTION = re.compile(r"(?:Listing|Example|Code) \d+(?:[.-]\d+)*\b")
 
 
 def skip_code(doc: Doc) -> dict:
@@ -4055,8 +4057,9 @@ def skip_code(doc: Doc) -> dict:
     structure, never by guessing from a line's look. A prose paragraph or list item that ends with ':' and sits
     right before a dropped block goes too (its lead-in, noise once the code is gone); a colon line before prose
     stays. A picture marker named only by a number (a publisher's code callout, `[image omitted: 1.png]`) goes too,
-    in a section with code, since it points into the dropped code. Returns {section number: (blocks, words, lead-ins)}
-    for sections that had any."""
+    in a section with code, since it points into the dropped code. So do a short caption right before a block
+    (`Listing 5.1 ...`) and the run of circled-number legend lines right after one. Returns {section number:
+    (blocks, words, lead-ins, captions and legends)} for sections that had any."""
     out = {}
     for n, s in enumerate(doc.sections, 1):
         code = [p for p in s.paras if p.kind == "pre"]
@@ -4064,9 +4067,16 @@ def skip_code(doc: Doc) -> dict:
             ps = s.paras
             lead = {i for i in range(len(ps) - 1)
                     if ps[i + 1].kind == "pre" and ps[i].kind in ("p", "li") and ps[i].text.rstrip().endswith(":")}
-            out[n] = (len(code), sum(len(p.text.split()) for p in code), len(lead))
+            notes = {i for i in range(len(ps) - 1)
+                     if ps[i + 1].kind == "pre" and CODE_CAPTION.match(ps[i].text.strip())
+                     and len(ps[i].text.split()) <= 25} - lead
+            for i in range(1, len(ps)):   # legends chain: each follows the code or another legend
+                if CODE_LEGEND.match(ps[i].text.strip()) and (ps[i - 1].kind == "pre" or i - 1 in notes):
+                    notes.add(i)
+            out[n] = (len(code), sum(len(p.text.split()) for p in code), len(lead), len(notes))
             s.paras = [p for i, p in enumerate(ps)
-                       if p.kind != "pre" and i not in lead and not CODE_CALLOUT.fullmatch(p.text.strip())]
+                       if p.kind != "pre" and i not in lead and i not in notes
+                       and not CODE_CALLOUT.fullmatch(p.text.strip())]
     return out
 
 
@@ -4074,9 +4084,11 @@ def code_note(doc: Doc, skipped: dict, idx) -> str:
     blocks = sum(skipped[i][0] for i in idx if i in skipped)
     words = sum(skipped[i][1] for i in idx if i in skipped)
     leads = sum(skipped[i][2] for i in idx if i in skipped)
+    notes = sum(skipped[i][3] for i in idx if i in skipped)
     if blocks:
         return (f"--skip-code left out {fmt_n(words)} words in {fmt_n(blocks)} code blocks"
-                + (f" and {fmt_n(leads)} lead-in lines" if leads else ""))
+                + (f" and {fmt_n(leads)} lead-in lines" if leads else "")
+                + (f" and {fmt_n(notes)} captions and legends" if notes else ""))
     if doc.fmt.startswith("pdf"):
         return "--skip-code found no code blocks: a PDF has no structural code marker, so code stays in (EPUB, HTML and Markdown only)"
     return "--skip-code found no code blocks"

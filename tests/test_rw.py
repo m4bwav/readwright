@@ -1447,6 +1447,26 @@ class TestCommands(Base):
         self.assertIn("left out 10 words in 2 code blocks", g)
         self.assertIn("3 matches", cli("grep", e, "import")[1])
 
+    def test_skip_code_drops_captions_and_legends_only(self):
+        src, dst = self.f("plain.epub"), self.f("legend.epub")
+        make_epub(src)
+        c1, c2 = chr(0x2776), chr(0x2777)
+        ch2 = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+               "<h1 id='c2'>Chapter Two</h1><p>Listing 2.1 shows the idea in prose.</p><p>Middle.</p>"
+               "<p>Listing 2.2 Loading the tide</p><pre>import tide</pre>"
+               f"<p>{c1} Loads it</p><p>{c2} Stores it</p><p>Prose after.</p><p>{c1} A stray mark stays.</p>"
+               "</body></html>")
+        with zipfile.ZipFile(src) as zi, zipfile.ZipFile(dst, "w") as zo:
+            for info in zi.infolist():
+                zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
+        _, out, _ = cli("read", dst, "--section", "2", "--skip-code")
+        self.assertNotIn("Loading the tide", out)
+        self.assertNotIn("Loads it", out)
+        self.assertNotIn("Stores it", out)
+        self.assertIn("Listing 2.1 shows", out)   # not before a block
+        self.assertIn("A stray mark stays.", out)  # not after code
+        self.assertIn("3 captions and legends", out)
+
     def test_skip_code_drops_numbered_callouts_only(self):
         src, dst = self.f("plain.epub"), self.f("callout.epub")
         make_epub(src)

@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261104-4 · 2026-11-04 · Release 0.41.2: `--skip-code` drops numbered code callout markers
+because: an O'Reilly EPUB read with `--skip-code` left lines such as `[image omitted: 1.png]` pointing into removed code.
+files: scripts/rw.py (CODE_CALLOUT, skip_code); tests/test_rw.py; SKILL.md (Distilling a book)
+In a section with code, a paragraph that is only a picture marker with a numeric name goes with the code. Named pictures and sections without code keep theirs. Tip on code-heavy books added.
+
 ### C-20261104-3 · 2026-11-04 · Release 0.41.1: UTF-8 beats a wrong meta charset, `no text layer` names rw.py commands, markers and folios stay out of fixed-layout sentences
 because: L-043, L-044; a book run printed "Donât" and "Ã¶" from an EPUB declaring UTF-8 in its XML line and iso-8859-1 in its meta; open items on the scan note and on markers below the caption rule.
 files: scripts/rw.py (decode_text, scan_note, FIXED_MARKER, fixed_folio_offset, split_fixed_markers, split_fixed_page, load_epub); tests/test_rw.py; SKILL.md (Distilling a book); references/formats.md

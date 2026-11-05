@@ -1426,6 +1426,23 @@ class TestCommands(Base):
         self.assertIn("left out 10 words in 2 code blocks", g)
         self.assertIn("3 matches", cli("grep", e, "import")[1])
 
+    def test_skip_code_drops_numbered_callouts_only(self):
+        src, dst = self.f("plain.epub"), self.f("callout.epub")
+        make_epub(src)
+        ch2 = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+               "<h1 id='c2'>Chapter Two</h1><p>Set the flag first.</p>"
+               "<pre>import tide</pre><p><img src='1.png'/></p><p>Loads the tide.</p>"
+               "<p><img src='chart.png'/></p>"
+               "<h1 id='c3'>Chapter Three</h1><p>No listing here.</p><p><img src='2.png'/></p></body></html>")
+        with zipfile.ZipFile(src) as zi, zipfile.ZipFile(dst, "w") as zo:
+            for info in zi.infolist():
+                zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
+        _, out, _ = cli("read", dst, "--section", "2-3", "--skip-code")
+        self.assertNotIn("1.png", out)
+        self.assertIn("Loads the tide.", out)
+        self.assertIn("chart.png", out)      # a named picture is not a callout
+        self.assertIn("2.png", out)          # no code in that section, so the marker stays
+
     def test_skip_code_drops_colon_lead_ins(self):
         src, dst = self.f("plain.epub"), self.f("leadin.epub")
         make_epub(src)

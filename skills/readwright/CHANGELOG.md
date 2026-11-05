@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261104-3 · 2026-11-04 · Release 0.41.1: UTF-8 beats a wrong meta charset, `no text layer` names rw.py commands, markers and folios stay out of fixed-layout sentences
+because: L-043, L-044; a book run printed "Donât" and "Ã¶" from an EPUB declaring UTF-8 in its XML line and iso-8859-1 in its meta; open items on the scan note and on markers below the caption rule.
+files: scripts/rw.py (decode_text, scan_note, FIXED_MARKER, fixed_folio_offset, split_fixed_markers, split_fixed_page, load_epub); tests/test_rw.py; SKILL.md (Distilling a book); references/formats.md
+`decode_text` tries strict UTF-8 first on non-ASCII data, then the hint, then cp1252; a UTF-16 or UTF-32 hint still goes first, and real latin-1 still reads. No cache change: conversion cache keys include VERSION and the EPUB text is not cached. The no-break-space paragraphs that printed "Â" now clean to nothing and are dropped. The scan note names `rw.py page` and `rw.py ocr`. In a fixed-layout EPUB, picture markers (`[image: alt]` too) and folios go beside the text with or without a caption size; a folio is a bare number rising with the spine through a quarter of the pages, at least 3. With such folios a sentence over a page turn also rejoins.
+
 ### C-20261104-2 · 2026-11-04 · Release 0.41.0: `page` command, scrambled text layer note, fixed-layout captions leave the body
 because: L-041, L-042. A 129 MB plate book is too big for an agent's image reader and its OCR layer glues words; Typeset in the Future had captions and folios in the middle of sentences.
 files: scripts/rw.py (cmd_page, page_numbers, scrambled_note, cmd_info, fixed_css, fixed_styles, fixed_plan, split_fixed_page, rejoin_fixed_pages, load_epub); tests/test_rw.py; SKILL.md (Step 1, Distilling a book); README.md (Commands); references/formats.md; metadata.version and evergreen.json version, which had fallen behind

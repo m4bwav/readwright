@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.41.0"
+VERSION = "0.41.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -167,7 +167,12 @@ def decode_text(data: bytes, hint: str | None = None) -> str:
         return data[3:].decode("utf-8", "replace")
     if data.startswith(b"\xff\xfe") or data.startswith(b"\xfe\xff"):
         return data.decode("utf-16", "replace")
-    for enc in ([hint] if hint else []) + ["utf-8"]:
+    # Non-ASCII that is valid UTF-8 is UTF-8, whatever a meta tag claims, since latin-1 never fails (L-043 `utf8-before-meta`).
+    # UTF-16 and UTF-32 without a BOM can also pass as UTF-8, so a hint naming them goes first.
+    wide = hint and re.match(r"(utf-?(16|32)|ucs-?[24])", hint.lower().replace("_", "-"))
+    for enc in ([hint, "utf-8"] if wide or data.isascii() else ["utf-8", hint]):
+        if not enc:
+            continue
         try:
             return data.decode(enc)
         except (UnicodeDecodeError, LookupError):
@@ -820,14 +825,38 @@ def fixed_plan(pages: list) -> dict | None:
     return {"body": body, "caption": caption, "folio": folio}
 
 
-def split_fixed_page(paras: list, styles: list, plan: dict) -> list:
+FIXED_MARKER = re.compile(r"\[(?:image omitted|image:|equation ).*\]")
+FIXED_NUMBER = re.compile(r"\d{1,4}")
+
+
+def fixed_folio_offset(pages: list) -> int | None:
+    """From (spine position, paras) of every page: printed number minus spine position, when a bare number rises with the
+    pages through the book. A number in a sentence ('the year', '1984') does not fit it, so it stays where it is."""
+    counts = {}
+    for n, paras in pages:
+        for off in {int(p.text) - n for p in paras if p.kind == "p" and FIXED_NUMBER.fullmatch(p.text)}:
+            counts[off] = counts.get(off, 0) + 1
+    if not counts:
+        return None
+    best = max(counts, key=counts.get)
+    return best if counts[best] >= max(3, FIXED_REPEAT_MIN_PAGES * len(pages)) else None
+
+
+def split_fixed_markers(paras: list, is_folio) -> list:
+    """No caption size to go on: still set picture markers and folios beside the text, so a sentence closes over them."""
+    asides = [p for p in paras if p.kind == "p" and (FIXED_MARKER.fullmatch(p.text) or is_folio(p))]
+    gone = {id(p) for p in asides}
+    return merge_fixed_layout([p for p in paras if id(p) not in gone]) + [Para("p", p.text, aside=True) for p in asides]
+
+
+def split_fixed_page(paras: list, styles: list, plan: dict, is_folio=lambda p: False) -> list:
     """Merge a page's body lines and set its captions, folio lines and pictures after them as asides. A caption is marked
     `[caption] `, unless the page has no body type to tell it from (acknowledgements set small on a page of their own)."""
     roles = []
     for p, (size, top) in zip(paras, styles):
         if p.kind != "p":
             roles.append("body")
-        elif p.text.startswith("[image omitted"):
+        elif FIXED_MARKER.fullmatch(p.text) or is_folio(p):
             roles.append("other")
         elif size == plan["caption"]:
             roles.append("caption")
@@ -976,11 +1005,11 @@ def load_epub(path) -> Doc:
                 return True
             return False
 
-        plan, styles_of = None, {}
+        plan, styles_of, folio_at, offset = None, {}, {}, None
         spine_files = [manifest[i][0] for i, _ in spine if i in manifest]
         if any(FIXED_VIEWPORT.search(decode_text(get(f) or b"")[:4000]) for f in spine_files[:5]):
             css_cache, census = {}, []
-            for f in spine_files:
+            for pos, f in enumerate(spine_files):
                 data = get(f)
                 page = decode_text(data, html_charset(data)) if data else ""
                 if not FIXED_VIEWPORT.search(page[:4000]) or any(fr for fr, _, _ in by_file.get(f.lower(), [])):
@@ -995,7 +1024,9 @@ def load_epub(path) -> Doc:
                 pg = html_paras(page)
                 styles_of[f] = fixed_styles(page, pg, css)
                 census.append((pg.paras, styles_of[f]))
+                folio_at[f] = pos
             plan = fixed_plan(census)
+            offset = fixed_folio_offset([(folio_at[f], c[0]) for f, c in zip(folio_at, census)])
 
         seen = set()
         for idref, linear in spine:
@@ -1013,8 +1044,11 @@ def load_epub(path) -> Doc:
             h = html_paras(page)
             targets = by_file.get(item[0].lower(), [])
             if FIXED_VIEWPORT.search(page[:4000]) and not any(frag for frag, _, _ in targets):   # fragments index blocks
-                h.paras = split_fixed_page(h.paras, styles_of[item[0]], plan) if plan and item[0] in styles_of \
-                    else merge_fixed_layout(h.paras)
+                pos = folio_at.get(item[0])
+                is_folio = lambda p: offset is not None and pos is not None and p.kind == "p" \
+                    and FIXED_NUMBER.fullmatch(p.text) is not None and int(p.text) - pos == offset
+                h.paras = split_fixed_page(h.paras, styles_of[item[0]], plan, is_folio) if plan and item[0] in styles_of \
+                    else split_fixed_markers(h.paras, is_folio)
                 fixed_layout = True
             cuts = {}   # block index -> [titles], depth
             for frag, title, depth in targets:
@@ -1067,7 +1101,7 @@ def load_epub(path) -> Doc:
         if gap:
             doc.notes.append(gap)
     if fixed_layout:
-        if plan:
+        if plan or offset is not None:
             for s in doc.sections:
                 s.paras = rejoin_fixed_pages(s.paras)
         unbreak_fixed_layout(doc.sections)
@@ -3431,14 +3465,13 @@ def scan_note(doc: Doc, path: str) -> None:
     elif find_tool("ocrmypdf"):
         routes.append("add a text layer with `ocrmypdf --skip-text IN OUT` (installed)")
     elif doc.fmt == "pdf":
-        routes.append("OCR it (Windows' built-in OCR, ocrmypdf or tesseract; none is available)")
+        routes.append("OCR it: `rw.py ocr` needs Windows' built-in OCR or tesseract, and neither is available (ocrmypdf also works)")
     else:
-        routes.append("OCR it (Windows' built-in OCR or tesseract; neither is available)")
+        routes.append("OCR it: `rw.py ocr` needs Windows' built-in OCR or tesseract, and neither is available")
     if doc.fmt == "pdf":
-        mt, pp = tools()["mutool"], find_tool("pdftoppm")
-        routes.append("render pages and view them with the agent's image reader: "
-                      + (f"`mutool draw -r 60 -o page-%d.png \"{p.name}\" 1-5`" if mt
-                         else f"`pdftoppm -r 60 -f 1 -l 5 -png \"{p.name}\" page`" if pp else "mutool or pdftoppm at 50-80 dpi"))
+        routes.append("look at pages: " + (f"`rw.py page \"{p.name}\" 1-5` writes PNGs for the agent's image reader"
+                                           if tools()["mutool"] or find_tool("pdftoppm")
+                                           else "`rw.py page` writes PNGs for the agent's image reader, once mutool or pdftoppm is installed"))
     else:
         routes.append("the page images are inside the EPUB (a zip): extract a few and view them with the agent's image reader")
     unit = "pages" if doc.fmt == "pdf" else "sections"

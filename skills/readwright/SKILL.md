@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.41.0"
+  version: "0.41.1"
 ---
 
 # readwright
@@ -66,6 +66,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- `RW` output with odd characters such as `â` or `Ã¶` points to a decoding bug: report it, and do not clean it with sed.
+- A popular nonfiction book resting on studies: follow the notes to two or three headline studies and look up what they measured. Popular books often report only the subgroup that fits, such as a study whose effect held for women only, presented without the men.
 - A specimen or art book's text misses the plates, and few words a page signals that (`info`: words over pages; one type book had 89 where clean books had 220 to 420). View a few with `RW page FILE 40-42`; a PDF too big for your image reader still renders page by page. If `info` notes a scrambled text layer, treat exact wording with care and re-OCR with `RW ocr` or check the page (0.41.0).
 - A designed art book in fixed-layout EPUB: lines rejoin into paragraphs (0.40.2). When one smaller type size recurs through the book, captions leave the body, marked `[caption] ` after the paragraph they interrupted, and a sentence over a page turn rejoins (0.41.0). Captions often hold the evidence, so read them too, and look at the page (`RW image`) when a claim rests on a picture. A book with no such size stays in file order. Pull quotes and sidebars set in larger type stay in the flow. Interviews and a closing summary usually hold the transferable rules; case chapters are examples.
 - A book that ranks things in a list set inside a table (a one-cell box) now reads `a; b; c` in order (0.40.1). Before reporting a lost symbol such as `60 percent 25 percent`, look at the raw XHTML: this one was missing from the retail file. Recompute a printed table and compare it with the sentence under it: The Bogleheads' Guide prints $886,430 in a table and $866,078 in the text.

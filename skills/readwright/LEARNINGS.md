@@ -6,6 +6,11 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-049 · 2026-11-04 · `nested-lists`: flattened sub-items read as new points
+- Trigger: a testing book's four kinds of bad metric printed level with their own examples, and only the sense showed where one ended.
+- Rule: keep each list item's depth from its opening tag; the parent's text is flushed after the inner list has already raised the depth.
+- Evidence: test on three levels; ch. 9 of the real book now indents. Formats other than HTML and EPUB keep flat lists.
+
 ### L-047 · 2026-11-04 · `read-lang`: common words sort a polyglot edition, once words inside glued tokens count
 - Trigger: a type manual printing German, English and French paragraphs in one scrambled OCR layer: `read` gave three copies of everything, and a throwaway word filter was needed.
 - Rule: score each paragraph by short common words; a word inside a token of 12 or more letters counts half, since OCR glues `thelinearbranchesofthetree`. Needs 4 words, a score of 2 and a clear winner. Headings stay unless they clearly favour another language.

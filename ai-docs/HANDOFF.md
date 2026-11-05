@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current state
+readwright 0.43.1 (2026-11-04): nested HTML and EPUB lists keep their depth (L-049). Open: PDF and other formats keep flat lists.
+
 readwright 0.43.0 (2026-11-04): `read --lang CODE` and `grep --lang CODE` keep one language's paragraphs (en, de, es, fr, it, nl, pt), `info` names the flag on a polyglot book, an open foot note takes its tail over the page, and fixed-layout folios are found on two-page spreads and in roman numerals (L-047, L-048).
 
 Open from this work: when a note and the body sentence above both run on, the next page's top paragraph stays with the body, because nothing tells them apart. Interleaved lines inside one paragraph stay mixed under `--lang`; 2 of 40 sampled on the real book. Spread and roman folios and carried notes are checked on synthetic fixtures only: no such real EPUB was at hand, and 4 real PDFs tried had no lifted notes. A list at a page foot with a stray call can still read as notes (one case in 12 PDFs; the words stay, only the mark is wrong): no signal separates it, so left.

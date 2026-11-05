@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261104-7 · 2026-11-04 · Release 0.43.1: nested lists keep their depth; distilling tip on the sources a book leans on
+because: L-049; a testing book's list of four bad metrics printed each metric level with its examples, so sub-points read as new points.
+files: scripts/rw.py (`render_paras`, HTML parser), tests/test_rw.py, SKILL.md (distilling section). HTML and EPUB items two levels down now print indented; paragraph numbers do not change, character offsets inside lists can.
+
 ### C-20261104-6 · 2026-11-04 · Release 0.43.0: `read --lang`, a note carried over a page, spread and roman folios
 because: L-047, L-048; user request after a trilingual type manual's OCR layer printed everything three times; HANDOFF open items from 0.42.0 and L-044.
 files: scripts/rw.py (lang_scores, para_lang, filter_lang, lang_note, cmd_info, cmd_read, cmd_grep, carry_foot_notes, fixed_folio_lines); tests/test_rw.py; SKILL.md (Step 3, Distilling a book)

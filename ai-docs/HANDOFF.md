@@ -1,7 +1,11 @@
 # Handoff
 
 ## Current state
-readwright 0.42.0 (2026-11-04): PDF page-foot notes leave the sentence as `[note N: text]`, page-break hyphens are judged by the book's word counts, and a PDF whose lines are whole paragraphs splits at each line (L-045, L-046). Open: a note carried onto the next page keeps its tail there; such a page's first paragraph is not told from body text. A list at a page foot with a stray call can still read as notes: one case in 12 other PDFs sampled (two items; the words stay, only the mark is wrong). Paragraph numbers from before 0.42.0 no longer match on most PDFs.
+readwright 0.43.0 (2026-11-04): `read --lang CODE` and `grep --lang CODE` keep one language's paragraphs (en, de, es, fr, it, nl, pt), `info` names the flag on a polyglot book, an open foot note takes its tail over the page, and fixed-layout folios are found on two-page spreads and in roman numerals (L-047, L-048).
+
+Open from this work: when a note and the body sentence above both run on, the next page's top paragraph stays with the body, because nothing tells them apart. Interleaved lines inside one paragraph stay mixed under `--lang`; 2 of 40 sampled on the real book. Spread and roman folios and carried notes are checked on synthetic fixtures only: no such real EPUB was at hand, and 4 real PDFs tried had no lifted notes. A list at a page foot with a stray call can still read as notes (one case in 12 PDFs; the words stay, only the mark is wrong): no signal separates it, so left.
+
+readwright 0.42.0 (2026-11-04): PDF page-foot notes leave the sentence as `[note N: text]`, page-break hyphens are judged by the book's word counts, and a PDF whose lines are whole paragraphs splits at each line (L-045, L-046). Paragraph numbers from before 0.42.0 no longer match on most PDFs.
 
 readwright 0.41.2 (2026-11-04): `--skip-code` drops numbered code callout markers. Before that 0.41.1 (2026-11-04): strict UTF-8 is tried before a meta charset hint (mojibake fix, L-043), the `no text layer` note names `rw.py page` and `rw.py ocr`, and picture markers and folios stay out of fixed-layout sentences below the caption rule (L-044). `python -m unittest discover -s tests`: 179 tests pass.
 
@@ -42,13 +46,13 @@ Nothing half-done.
 Scan note threshold and routes (decision entry in [INDEX.md](INDEX.md)).
 
 ## Open
-- Fixed-layout folios are found when the printed number rises one per spine file. A spread with two pages per file, or roman-numeral front matter, keeps its numbers in the text; checked on synthetic fixtures only (L-044).
 - PDF tables now collapse runs of one-cell lines into ` | ` rows (0.23.0, L-031), but rows and columns are not recovered and multi-token cell lines stay as prose; definition lists and sidebars still come out flat (code blocks fixed in 0.11.0, L-022). Why not done: `pdftotext -layout` lines interleave the columns of a table or a sidebar with the body, so finding them needs block coordinates. Next step: run `pdftotext -bbox-layout` (XHTML with <block>/<line>/<word> xMin/yMin per page) on pages flagged by a cheap hint (many short lines, aligned gaps of 3+ spaces in the -layout page), group lines into rows by yMin and columns by xMin, and emit `row` paragraphs (Para kind "row" exists) for tables and a separate paragraph for blocks whose xMin sits outside the body column (sidebars). Needs a real PDF with tables to calibrate; none was at hand.
 - EPUB equations set as pictures are marked (0.24.0) but not read; OCR of formula images is not attempted (math OCR is poor and no reader has needed the formula text yet).
 - Two-column PDFs were not changed: plain pdftotext already reads each column in order on the test files seen.
 - MuPDF 1.24 to 1.27 outline format unchecked (only 1.23); a DRM-protected KFX never seen on disk; pdftotext `-remove-hyphens` undecided (RESEARCH.md, Open questions).
 - ubuntu-latest moves to Ubuntu 26 from 2026-10-19; the `routes` job's apt package names may need a look then.
 - A partly scanned book (text on some pages only) is not flagged; no real example to calibrate on.
+- Symbol-font math stays detected, not repaired: the fix needs a per-character font route through mutool, a project of its own (L-036).
 
 ## Next single action
 None owed. Next scheduled work is the evergreen refresh due 2026-11-03 (or the EPUB 3.4 event after 2026-10-19).

@@ -1040,8 +1040,25 @@ class TestFixedLayoutMarkers(Base):
         self.assertIn("It was the year 1984 and it rained.", self.texts(pages, caption_px=55))
 
     def test_numbers_that_do_not_rise_are_not_folios(self):
-        self.assertIsNone(rw.fixed_folio_offset([(i, [rw.Para("p", "7")]) for i in range(6)]))
-        self.assertEqual(rw.fixed_folio_offset([(i, [rw.Para("p", str(i + 9))]) for i in range(6)]), 9)
+        self.assertEqual(rw.fixed_folio_lines([(i, [rw.Para("p", "7")]) for i in range(6)]), set())
+        self.assertEqual(len(rw.fixed_folio_lines([(i, [rw.Para("p", str(i + 9))]) for i in range(6)])), 6)
+
+    def test_spread_of_two_pages_a_file(self):
+        pages = [(i, [rw.Para("p", "Some text."), rw.Para("p", str(2 * i + 4)), rw.Para("p", str(2 * i + 5))]) for i in range(6)]
+        self.assertEqual(len(rw.fixed_folio_lines(pages)), 12)
+
+    def test_roman_front_matter(self):
+        romans = ["v", "vi", "vii", "viii", "ix", "x"]
+        pages = [(i, [rw.Para("p", "Text."), rw.Para("p", r)]) for i, r in enumerate(romans)]
+        pages += [(i + 6, [rw.Para("p", "Text."), rw.Para("p", str(i + 1))]) for i in range(30)]
+        found = rw.fixed_folio_lines(pages)
+        self.assertEqual(len(found), 36)
+        self.assertIn((5, "x"), found)
+        self.assertEqual(rw.roman_value("xiv"), 14)
+
+    def test_a_lone_letter_i_is_not_a_folio(self):
+        pages = [(i, [rw.Para("p", "i")]) for i in range(6)]
+        self.assertEqual(rw.fixed_folio_lines(pages), set())
 
 
 class TestPageCommand(Base):
@@ -2611,6 +2628,119 @@ class ImageAndSuperscript(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parent.parent
         for m in ("plugin.json", ".claude-plugin/plugin.json"):
             self.assertEqual(json.loads((root / m).read_text(encoding="utf-8"))["version"], rw.VERSION, m)
+
+
+EN_PARA = "The harbour clerk and the keeper of the light were in the tower that was built for the ships of the bay, and it is said that they have not left."
+DE_PARA = "Der Hafenmeister und die Frau von dem Turm sind nicht auf der Insel, aber sie wird mit dem Boot nach dem Sturm auch wieder bei den Leuten sein."
+FR_PARA = "Le gardien et la femme du phare sont dans une maison qui est sur les rochers, et ils ne sont pas avec les marins pour la nuit dans le port."
+ES_PARA = "El guardia y la mujer del faro son de una casa que por los barcos para el puerto no se va con sus amigos, pero como lo dijo al alba."
+IT_PARA = "Il guardiano e la donna del faro sono in una casa che per le navi della baia non si muove, ma anche gli amici come il mare sono nel porto."
+PT_PARA = "Os guardas do farol e as mulheres da casa em uma ilha que para os barcos não se move, mas como os amigos nos portos são mais do mar."
+NL_PARA = "De wachter en het meisje van de toren zijn op een eiland dat niet aan de haven is, maar die ook voor het schip met de storm naar huis door de nacht."
+
+
+class TestReadLang(Base):
+    """--lang keeps one language's paragraphs from an edition printing several; every sample here is invented."""
+
+    def book(self, body):
+        path = self.tmp / "polyglot.md"
+        path.write_text("# Chapter\n\n" + body, encoding="utf-8")
+        return str(path)
+
+    def test_each_language_wins_its_own_paragraph(self):
+        for code, para in (("en", EN_PARA), ("de", DE_PARA), ("fr", FR_PARA), ("es", ES_PARA), ("it", IT_PARA), ("pt", PT_PARA), ("nl", NL_PARA)):
+            self.assertEqual(rw.para_lang(para), code, para)
+
+    def test_glued_words_still_count_at_their_edges(self):
+        glued = "thekeeperofthelight wasinthetowerand thelightofthebayand thehouseofthekeeperand oftheshipsandthe"
+        self.assertEqual(rw.para_lang(glued), "en")
+
+    def test_tie_and_fragment_decide_nothing(self):
+        self.assertIsNone(rw.para_lang("Lorem ipsum dolor sit amet consectetur"))
+        self.assertIsNone(rw.para_lang("the and"))
+
+    def test_read_keeps_one_language_and_says_how_many_went(self):
+        f = self.book("\n\n".join([EN_PARA, DE_PARA, FR_PARA, "xyz 12", EN_PARA]))
+        code, out, _ = cli("read", f, "--lang", "en")
+        self.assertEqual(code, 0)
+        self.assertEqual(out.count("harbour clerk"), 2)
+        self.assertNotIn("Hafenmeister", out)
+        self.assertNotIn("gardien", out)
+        self.assertIn("--lang en dropped 3 paragraph(s)", out)
+
+    def test_heading_stays_unless_it_favours_another_language(self):
+        f = self.book(EN_PARA + "\n\n## Rhythm\n\n" + EN_PARA + "\n\n## Der Hafen und die Stadt von dem Meer\n\n" + EN_PARA)
+        code, out, _ = cli("read", f, "--lang", "en")
+        self.assertIn("Rhythm", out)
+        self.assertEqual(out.count("Der Hafen"), 1)   # the section header keeps its title; the paragraph goes
+
+    def test_max_chars_counts_after_the_filter(self):
+        f = self.book("\n\n".join([DE_PARA] * 40 + [EN_PARA]))
+        whole = cli("read", f, "--max-chars", "1000")[1]
+        self.assertNotIn("harbour clerk", whole)
+        kept = cli("read", f, "--lang", "en", "--max-chars", "1000")[1]
+        self.assertIn("harbour clerk", kept)
+        self.assertNotIn("shown chars", kept)
+
+    def test_cut_footer_repeats_the_flag(self):
+        f = self.book("\n\n".join([EN_PARA] * 30))
+        out = cli("read", f, "--section", "1", "--lang", "en", "--max-words", "20")[1]
+        self.assertIn("--lang en", out)
+
+    def test_bad_code_refused(self):
+        with self.assertRaises(SystemExit):
+            rw.main(["read", self.book(EN_PARA), "--lang", "xx"])
+
+    def test_grep_filters_too(self):
+        f = self.book("\n\n".join([EN_PARA, DE_PARA]))
+        self.assertEqual(cli("grep", f, "Hafenmeister", "--lang", "en")[0], 1)
+
+    def test_info_names_lang_on_a_polyglot_book(self):
+        f = self.book("\n\n".join([EN_PARA, DE_PARA, FR_PARA] * 25))
+        out = cli("info", f)[1]
+        self.assertIn("--lang", out)
+        self.assertIn("languages", out)
+
+    def test_info_quiet_on_one_language_with_some_quotation(self):
+        f = self.book("\n\n".join([EN_PARA] * 200 + [DE_PARA] * 5 + [FR_PARA] * 3))
+        self.assertNotIn("--lang", cli("info", f)[1])
+
+
+class TestFootNoteCarried(unittest.TestCase):
+    """A note left open at a page foot goes on over the page (HANDOFF open item from 0.42.0)."""
+
+    def run_it(self, pages):
+        notes = [rw.lift_foot_notes(pp) for pp in pages]
+        rw.carry_foot_notes(pages, notes)
+        return notes
+
+    def test_tail_at_top_of_next_page(self):
+        pages = [[rw.Para("p", "The clerk filed it.1"), rw.Para("p", "1. Tide Tables, a long note that")],
+                 [rw.Para("p", "runs over the page."), rw.Para("p", "New paragraph here.")]]
+        notes = self.run_it(pages)
+        self.assertEqual(notes[0][0].text, "[note 1: Tide Tables, a long note that runs over the page.]")
+        self.assertEqual([p.text for p in pages[1]], ["New paragraph here."])
+
+    def test_tail_at_foot_of_next_page(self):
+        pages = [[rw.Para("p", "The clerk filed it.1"), rw.Para("p", "1. Tide Tables, a long note that")],
+                 [rw.Para("p", "New paragraph here."), rw.Para("p", "runs over the page."), rw.Para("p", "8")]]
+        notes = self.run_it(pages)
+        self.assertEqual(notes[0][0].text, "[note 1: Tide Tables, a long note that runs over the page.]")
+        self.assertEqual([p.text for p in pages[1]], ["New paragraph here.", "8"])
+
+    def test_open_body_keeps_its_own_top_paragraph(self):
+        pages = [[rw.Para("p", "The clerk filed it.1 Then he went"), rw.Para("p", "1. Tide Tables, a long note that")],
+                 [rw.Para("p", "home by the road."), rw.Para("p", "Next one.")]]
+        notes = self.run_it(pages)
+        self.assertEqual(notes[0][0].text, "[note 1: Tide Tables, a long note that]")
+        self.assertEqual(pages[1][0].text, "home by the road.")
+
+    def test_closed_note_takes_nothing(self):
+        pages = [[rw.Para("p", "The clerk filed it.1"), rw.Para("p", "1. Tide Tables.")],
+                 [rw.Para("p", "lower case start of a page."), rw.Para("p", "Next one.")]]
+        notes = self.run_it(pages)
+        self.assertEqual(notes[0][0].text, "[note 1: Tide Tables.]")
+        self.assertEqual(len(pages[1]), 2)
 
 
 class TestPdfNotesAndUnfolding(Base):

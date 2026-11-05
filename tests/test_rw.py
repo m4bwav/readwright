@@ -2613,5 +2613,88 @@ class ImageAndSuperscript(unittest.TestCase):
             self.assertEqual(json.loads((root / m).read_text(encoding="utf-8"))["version"], rw.VERSION, m)
 
 
+class TestPdfNotesAndUnfolding(Base):
+    """L-045, L-046: synthetic book pages; the long lines are what pdftotext prints for a block it has already joined."""
+
+    def setUp(self):
+        super().setUp()
+        rw.VOCAB.clear()
+        self.addCleanup(rw.VOCAB.clear)
+
+    def test_foot_note_leaves_sentence_and_split_word_rejoins(self):
+        pages = [[rw.Para("p", "The harbour clerk filed a report.1 He then saved the wrong ver-"),
+                  rw.Para("p", "1. Tide Tables, vol. 2, page 9."), rw.Para("p", "7")],
+                 [rw.Para("p", "sion over the right one.")]]
+        rw.VOCAB.update({"version": 3})
+        notes = [rw.lift_foot_notes(pp) for pp in pages]
+        rw.join_split_pages(pages)
+        for pp, n in zip(pages, notes):
+            pp.extend(n)
+        self.assertEqual([p.text for p in pages[0]],
+                         ["The harbour clerk filed a report.1 He then saved the wrong version over the right one.",
+                          "[note 1: Tide Tables, vol. 2, page 9.]"])
+
+    def test_numbered_list_without_call_stays(self):
+        pp = [rw.Para("p", "Three steps follow."), rw.Para("p", "1. Ask first."), rw.Para("p", "2. Check in.")]
+        self.assertEqual(rw.lift_foot_notes(pp), [])
+        self.assertEqual(len(pp), 3)
+
+    def test_list_item_above_real_note_stays(self):
+        pp = [rw.Para("p", "Body with a call.1"), rw.Para("p", "2. A list item."), rw.Para("p", "1. The note.")]
+        self.assertEqual([n.text for n in rw.lift_foot_notes(pp)], ["[note 1: The note.]"])
+        self.assertEqual(pp[-1].text, "2. A list item.")
+
+    def test_list_that_goes_on_is_not_notes(self):
+        call = rw.Para("p", "Body text with a stray call.1 and.2")
+        pp = [call, rw.Para("p", "1. First."), rw.Para("p", "2. Second.")]
+        self.assertEqual(rw.lift_foot_notes(pp, nxt=[rw.Para("p", "3. Third.")]), [])
+        pp = [call, rw.Para("p", "1. First."), rw.Para("p", "2. Second.")]
+        self.assertEqual(len(rw.lift_foot_notes(pp, nxt=[rw.Para("p", "More text.")])), 2)
+
+    def test_section_number_and_math_are_not_calls(self):
+        for body in ("See section 2.1 of the guide.", "Let x1 be the first value."):
+            pp = [rw.Para("p", body), rw.Para("p", "1. An item.")]
+            self.assertEqual(rw.lift_foot_notes(pp), [], body)
+
+    def test_break_hyphen_rules(self):
+        rw.VOCAB.update({"deadlines": 4, "dead": 3, "lines": 3, "well": 9, "documented": 1, "in": 40, "evitably": 1,
+                         "pol": 1, "ish": 1, "post": 5, "war": 5, "re": 2, "sign": 1, "self-esteem": 2, "self": 3,
+                         "esteem": 2})
+        for a, b, want in (("dead-", "lines", "deadlines"), ("in-", "evitably", "inevitably"), ("pol-", "ish", "polish"),
+                           ("well-", "documented", "well-documented"), ("post-", "war", "post-war"),
+                           ("re-", "sign", "re-sign"), ("self-", "esteem", "self-esteem")):
+            self.assertEqual(rw.join_broken(a, b), want)
+
+    def test_long_lines_mean_paragraphs(self):
+        long = "word " * 60
+        page = f"{long}\nwho goes there?\n{long}\n"
+        self.assertTrue(rw.unfolded_text([page]))
+        self.assertFalse(rw.unfolded_text(["a printed line of ordinary width\n" * 40]))
+        paras = rw.text_paras(rw.unfold_page(page), "txt")
+        self.assertEqual(len(paras), 3)
+        self.assertEqual(paras[1].text, "who goes there?")
+        code = f"{long}\n{rw.PRE_OPEN}\nx = 1\ny = 2\n{rw.PRE_CLOSE}\n"
+        self.assertEqual(rw.text_paras(rw.unfold_page(code), "txt")[1].text, "x = 1\ny = 2")
+        short = "Smith, A printed entry\nthat wraps here\n"
+        self.assertEqual(rw.unfold_page(short), short)
+
+    @unittest.skipUnless(rw.tools()["pdftotext"], "no pdftotext")
+    def test_pdf_end_to_end(self):
+        long = ("The clerk counted crates at the quay all day long and wrote the figures down " * 4).strip()
+        p = self.f("foot.pdf")
+        make_pdf(p, pages=("one", "two"))
+        cached = rw.cache_path(p, "pdftotext", ".txt")   # a synthetic PDF cannot print a line this long, so seed the text
+        self.addCleanup(cached.unlink, missing_ok=True)
+        cached.write_text("\n".join(["CHAPTER ONE", long + ".1", "who keeps count?", long + " and then the clerk went",
+                                     "1. Quay Ledger, page 3.", "\f" + "home to sleep. " + long, ""]), encoding="utf-8")
+        with unittest.mock.patch.object(rw, "CACHE_OFF", False):
+            texts = [x.text for s in rw.load_pdf(p).sections for x in s.paras]
+        self.assertIn("who keeps count?", texts)
+        self.assertIn("[note 1: Quay Ledger, page 3.]", texts)
+        joined = [t for t in texts if "clerk went home to sleep." in t]
+        self.assertEqual(len(joined), 1)
+        self.assertEqual(texts[texts.index(joined[0]) + 1], "[note 1: Quay Ledger, page 3.]")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

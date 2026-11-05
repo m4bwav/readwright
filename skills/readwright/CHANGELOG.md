@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261104-5 · 2026-11-04 · Release 0.42.0: PDF foot notes leave the sentence, page-break hyphens heal, long lines are paragraphs
+because: L-045, L-046; a book run on a PDF printed notes in mid-sentence, kept `pol-ish` and `dead-lines`, and glued subheads and epigraphs into body text; user request for the how-to book tip.
+files: scripts/rw.py (join_broken, unfolded_text, unfold_page, lift_foot_notes, merge_wrapped, load_pdf); tests/test_rw.py; SKILL.md (Distilling a book); references/formats.md
+A note at a page foot, with a call to its number in the body above, moves after the interrupted paragraph as `[note N: text]`, and the sentence and any split word rejoin. A hyphen at a break is judged by the book's own word counts. When most text sits on lines over 200 characters, each line is a paragraph, so lowercase subheads and `Q /` epigraphs stand alone.
+
 ### C-20261104-4 · 2026-11-04 · Release 0.41.2: `--skip-code` drops numbered code callout markers
 because: an O'Reilly EPUB read with `--skip-code` left lines such as `[image omitted: 1.png]` pointing into removed code.
 files: scripts/rw.py (CODE_CALLOUT, skip_code); tests/test_rw.py; SKILL.md (Distilling a book)

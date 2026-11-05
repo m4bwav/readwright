@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.41.2"
+  version: "0.42.0"
 ---
 
 # readwright
@@ -66,6 +66,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A how-to book about working with people: its worked example letters and the answers closing each chapter often hold the method, so read those as well as the argument prose (0.42.0 sets `Q /` letters apart in PDFs whose lines are whole paragraphs, and moves page-foot notes out of sentences as `[note N: text]`).
 - A code-heavy technical book: read with `--skip-code`, since listings otherwise eat the character cap before later sections print (0.41.2 also drops numbered callout markers). Grep for what the book should cover: a topic with a thin section and no index entry is a finding about the book. Trace a case study's note to its source; one security book joined two different 2021 incidents under one citation.
 - `RW` output with odd characters such as `â` or `Ã¶` points to a decoding bug: report it, and do not clean it with sed.
 - A popular nonfiction book resting on studies: follow the notes to two or three headline studies and look up what they measured. Popular books often report only the subgroup that fits, such as a study whose effect held for women only, presented without the men.

@@ -244,7 +244,7 @@ def make_pdf(path, pages=("Hello from page one", "Second page text")):
         if isinstance(text, str):
             stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET"
         else:   # [(x, line), ...] top down, 14 points apart
-            stream = " ".join(f"BT /F1 12 Tf {x} {720 - 14 * k} Td ({t}) Tj ET" for k, (x, t) in enumerate(text))
+            stream = " ".join(f"BT /F1 12 Tf {x} {y[0] if y else 720 - 14 * k} Td ({t}) Tj ET" for k, (x, t, *y) in enumerate(text))
         objs.append(f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream")
         objs.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents {len(objs)} 0 R >>")
         kids.append(f"{len(objs)} 0 R")
@@ -1986,6 +1986,88 @@ class TestRealWorldShapes(Base):
         self.assertIn("A | 7", out)   # not at a page edge
         self.assertIn("Body text here.", out)
         self.assertEqual(rw.strip_running_heads("Name | Age | 3\nrow\nx | y | 9"), "Name | Age | 3\nrow\nx | y | 9")
+
+    def folio_book(self):
+        """Alternating two-line heads: "NNN" over the part name on even pages, the chapter over "NNN" on odd ones."""
+        pages = []
+        for n in range(30):
+            head = ["Chapter 2 Salt Roads", str(n + 100)] if n % 2 else [str(n + 100), "Part One Field Notes"]
+            pages.append("\n\n".join(head + [f"Body words of page {n} run on and on here."]) + "\n\n")
+        return pages
+
+    def stripped(self, pages, titles=None):
+        shifts = rw.folio_shifts(pages)
+        keys = rw.beside_folio_keys(pages, shifts)
+        first = rw.first_near_edge(pages, keys)
+        return [rw.strip_folio_heads(p, n, shifts, keys, first, (titles or {}).get(n, ())) for n, p in enumerate(pages)]
+
+    def test_alternating_heads_and_folios_drop(self):   # L-052 `alternating-folio-heads`
+        out = "".join(self.stripped(self.folio_book()))
+        self.assertNotIn("Part One Field Notes", out)
+        self.assertNotIn("Chapter 2 Salt Roads", out)
+        self.assertNotRegex(out, r"(?m)^1\d\d\s*$")
+        self.assertEqual(out.count("Body words"), 30)
+        crlf = "".join(self.stripped([p.replace("\n", "\r\n") for p in self.folio_book()]))   # xpdf on Windows
+        self.assertNotIn("Part One Field Notes", crlf)
+
+    def test_folio_head_openers_stay(self):
+        pages = ["Part One Field Notes\n\nThis part opens here.\n\n"] + self.folio_book()[1:]
+        pages[1] = "Chapter 2 Salt Roads\n\n101\n\nThe chapter opens here.\n\n"
+        out = self.stripped(pages, {1: ["2. Salt Roads"]})
+        self.assertIn("Part One Field Notes", out[0])      # first copy, no number beside it
+        self.assertIn("Chapter 2 Salt Roads", out[1])      # names this page's outline entry
+        self.assertNotIn("101", out[1])
+        self.assertNotIn("Chapter 2 Salt Roads", "".join(out[2:]))
+
+    def test_head_below_a_sidebar_drops(self):
+        pages = self.folio_book()
+        pages[4] = "104\n\nExhibit 2-1 A Sidebar\n\nPart One Field Notes\n\nBody text of the page.\n\n"
+        out = self.stripped(pages)[4]
+        self.assertIn("Exhibit 2-1 A Sidebar", out)
+        self.assertNotIn("Part One Field Notes", out)
+        self.assertNotIn("104", out)
+
+    def test_folio_heads_do_not_over_strip(self):
+        pages = self.folio_book()
+        for n in (4, 8, 12):   # a heading that recurs a few times by a number
+            pages[n] = f"{n + 100}\n\nField Repairs\n\nBody text.\n\n"
+        for n in range(14, 30, 2):   # numbered captions differ, though each sits by a number
+            pages[n] = f"{n + 100}\n\nExhibit 2-{n}\n\nBody text.\n\n"
+        pages[6] = "Part One Field Notes\n\n" + "\n\n".join(f"Line {k} of a long page." for k in range(9)) + "\n\nPart One Field Notes in the middle\n\n"
+        pages[20] = "Total Assets\n\n7\n\nBody text.\n\n"   # a table figure, not this page's number
+        out = self.stripped(pages)
+        self.assertEqual("".join(out).count("Field Repairs"), 3)
+        self.assertEqual("".join(out).count("Exhibit 2-"), 7)
+        self.assertIn("Total Assets\n\n7", out[20])
+        self.assertIn("Part One Field Notes in the middle", out[6])
+        pages = ["\n\n".join((str(n), "a", "b c d")) for n in range(9)]
+        self.assertEqual(rw.beside_folio_keys(pages, {0}), set())   # one letter is no head
+
+    @unittest.skipUnless(rw.tools()["pdftotext"], "no pdftotext")
+    def test_alternating_heads_keep_a_section_whole(self):
+        pages = [[(72, "Part One Field Notes", 720), (72, "The part opener speaks.", 660)],
+                 [(72, "Chapter 2 Salt Roads", 720), (72, "The chapter opener speaks.", 660)]]
+        for n in range(2, 30):
+            head = ["Chapter 2 Salt Roads", str(n + 100)] if n % 2 else [str(n + 100), "Part One Field Notes"]
+            first = "wall stood firm and" if n == 16 else "Reading the Tides" if n == 2 else f"mark{n} comes first and"
+            last = "of the harbour" if n == 15 else "ends the page here."
+            pages.append([(72, head[0], 740), (72, head[1], 700), (72, first, 640), (72, f"mark{n} comes first and", 626),
+                          (72, lorem(10, "tide"), 612), (72, last, 598)])
+        p = self.f("heads.pdf")
+        make_pdf(p, pages)
+        outline = [("Part One", 1, 1), ("2. Salt Roads", 2, 2), ("Reading the Tides", 3, 3)]
+        tl = dict(rw.tools(), mutool="mutool")
+        with unittest.mock.patch.object(rw, "tools", lambda: tl), unittest.mock.patch.object(rw, "pdf_outline", lambda *a: outline), \
+                unittest.mock.patch.object(rw, "pdf_math_fonts", lambda *a: None):
+            doc = rw.load(str(p))
+        self.assertEqual([s.title.split(" (p.")[0] for s in doc.sections], ["Part One", "2. Salt Roads", "Reading the Tides"])
+        tides = rw.render_paras(doc.sections[2].paras)
+        self.assertTrue(all(f"mark{n} " in tides for n in range(2, 30)))
+        self.assertNotIn("Part One Field Notes", tides)
+        self.assertNotIn("Chapter 2 Salt Roads", tides)
+        self.assertIn("the harbour wall stood firm", " ".join(tides.split()))
+        self.assertIn("Part One Field Notes", rw.render_paras(doc.sections[0].paras))
+        self.assertIn("Chapter 2 Salt Roads", rw.render_paras(doc.sections[1].paras))
 
     def test_pipeless_running_heads_drop(self):
         pages = [f"{n}  Chapter 3: Doing Things\n\nBody {n} text.\n\nInput:\n" if n % 2 else

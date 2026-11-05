@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-3 · 2026-11-05 · Release 0.44.1: alternating running heads set beside a page number leave the text
+because: L-052; a textbook PDF printed the part name on even pages and the chapter on odd ones, each on its own line by a bare folio, so about 100 heads opened false sections and split real ones.
+files: scripts/rw.py (`folio_pairs`, `folio_shifts`, `beside_folio_keys`, `first_near_edge`, `strip_folio_heads`, `load_pdf`), tests/test_rw.py, SKILL.md (distilling section). A number that matches the page's own shift goes from the top or foot of a PDF page. A line beside it on 5 or more pages is a head and goes wherever it lands in the first four or last three lines. An outline title of that page and the book's first copy, when no number sits beside it, stay. Paragraph numbers and section numbers shift on such books.
+
 ### C-20261105-2 · 2026-11-05 · Release 0.44.0: code in table cells counts as code; `read --max-row-words`
 because: L-051; a Manning book sets each chat turn in a two-cell table, so its listings passed `--skip-code` and model replies filled much of the sections read.
 files: scripts/rw.py (HTML parser, `cut_rows`, `read`), tests/test_rw.py, SKILL.md (distilling section). A `<pre>` in a cell becomes its own code block after its row, so its lines stay and `--skip-code` drops it, which shifts paragraph numbers in such books. `--max-row-words N` cuts long rows and marks each cut. Tried on this one EPUB.

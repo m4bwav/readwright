@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current state
+readwright 0.41.1 (2026-11-04): strict UTF-8 is tried before a meta charset hint (mojibake fix, L-043), the `no text layer` note names `rw.py page` and `rw.py ocr`, and picture markers and folios stay out of fixed-layout sentences below the caption rule (L-044). `python -m unittest discover -s tests`: 179 tests pass.
+
 readwright 0.39.0 (2026-11-03): for OCR text, `info` notes printed-page jumps that suggest leaves missing from a scan (CHANGELOG C-20261103-21); both gaps in a real two-up scan were found. Double-page scans can over-report when one page number was misread, so the note says to look at the images.
 
 readwright 0.30.0 (2026-11-03): an EPUB whose outline collapsed into one giant section is split at the chapters of a one-line printed contents page (`1 TITLE`), cutting at a bare chapter-number paragraph above the title; contents-page lines no longer open false sections (CHANGELOG C-20261103-9, LEARNINGS L-039). `python tests/test_rw.py`: 137 tests pass; `tests/real_files.py` 38/38.
@@ -38,6 +40,7 @@ Nothing half-done.
 Scan note threshold and routes (decision entry in [INDEX.md](INDEX.md)).
 
 ## Open
+- Fixed-layout folios are found when the printed number rises one per spine file. A spread with two pages per file, or roman-numeral front matter, keeps its numbers in the text; checked on synthetic fixtures only (L-044).
 - PDF tables now collapse runs of one-cell lines into ` | ` rows (0.23.0, L-031), but rows and columns are not recovered and multi-token cell lines stay as prose; definition lists and sidebars still come out flat (code blocks fixed in 0.11.0, L-022). Why not done: `pdftotext -layout` lines interleave the columns of a table or a sidebar with the body, so finding them needs block coordinates. Next step: run `pdftotext -bbox-layout` (XHTML with <block>/<line>/<word> xMin/yMin per page) on pages flagged by a cheap hint (many short lines, aligned gaps of 3+ spaces in the -layout page), group lines into rows by yMin and columns by xMin, and emit `row` paragraphs (Para kind "row" exists) for tables and a separate paragraph for blocks whose xMin sits outside the body column (sidebars). Needs a real PDF with tables to calibrate; none was at hand.
 - EPUB equations set as pictures are marked (0.24.0) but not read; OCR of formula images is not attempted (math OCR is poor and no reader has needed the formula text yet).
 - Two-column PDFs were not changed: plain pdftotext already reads each column in order on the test files seen.

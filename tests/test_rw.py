@@ -682,6 +682,9 @@ class TestFormats(Base):
         code, out, _ = cli("info", p)
         self.assertIn("no text layer", out)
         self.assertIn("plates.djvu", out)
+        self.assertIn("rw.py page", out)
+        self.assertNotIn("mutool draw", out)
+        self.assertNotIn("pdftoppm -r", out)
         self.assertIn("next: no text to read", out)
         code, out, _ = cli("read", p)
         self.assertIn("no text layer", out)
@@ -968,6 +971,77 @@ class TestFixedLayoutCaptions(Base):
         paras = [p.text for p in rw.load_epub(str(self.book(pages=doc_pages))).sections[0].paras]
         self.assertIn("Thanks to my friends.", paras)
         self.assertIn("[caption] A ship.", paras)
+
+
+class TestCharsetHints(Base):
+    META = '<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>'
+
+    def book(self, body: bytes):
+        path = self.f("meta.epub")
+        head = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><head><title>t</title>" + self.META + "</head><body>").encode("ascii")
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("mimetype", "application/epub+zip")
+            z.writestr("META-INF/container.xml", '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                       '<rootfile full-path="p.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
+            z.writestr("p.opf", '<package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>M</dc:title></metadata>'
+                       '<manifest><item id="a" href="a.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="a"/></spine></package>')
+            z.writestr("a.xhtml", head + body + b"</body></html>")
+        return path
+
+    def test_utf8_beats_a_latin1_meta_in_body_and_titles(self):
+        body = "<h1>Schön Don’t</h1><p>Don’t walk to Köln.</p><p> </p><p>End.</p>".encode("utf-8")
+        doc = rw.load_epub(str(self.book(body)))
+        self.assertEqual(doc.sections[0].title, "Schön Don’t")
+        self.assertEqual([p.text for p in doc.sections[0].paras if p.kind == "p"], ["Don’t walk to Köln.", "End."])   # no blank paragraph from the no-break space
+
+    def test_real_latin1_still_reads(self):
+        doc = rw.load_epub(str(self.book("<h1>Schön</h1><p>Café in Köln.</p>".encode("latin-1"))))
+        self.assertEqual(doc.sections[0].title, "Schön")
+        self.assertIn("Café in Köln.", [p.text for p in doc.sections[0].paras])
+
+    def test_decode_order(self):
+        self.assertEqual(rw.decode_text("ö".encode("utf-8"), "iso-8859-1"), "ö")
+        self.assertEqual(rw.decode_text("ö x".encode("latin-1"), "iso-8859-1"), "ö x")
+        self.assertEqual(rw.decode_text("’".encode("cp1252")), "’")
+        self.assertEqual(rw.decode_text(b"hi", "no-such-codec"), "hi")
+        wide = "ab".encode("utf-16-le")   # no BOM, and also valid UTF-8
+        wide.decode("utf-8")
+        for hint in ("utf-16-le", "UTF_16LE"):
+            self.assertEqual(rw.decode_text(wide, hint), "ab")
+        self.assertEqual(rw.decode_text("ab".encode("utf-32-le"), "utf-32-le"), "ab")
+
+
+class TestFixedLayoutMarkers(Base):
+    """Pictures and page numbers set between the lines of a sentence stay out of it, with or without a caption size."""
+    book = TestFixedLayoutCaptions.book
+
+    def texts(self, pages, **kw):
+        return [p.text for p in rw.load_epub(str(self.book(pages=pages, **kw))).sections[0].paras]
+
+    def test_below_the_caption_rule(self):   # all one size, so no caption plan
+        pages = [[("b", "The sentence starts"), ("b", '<img src="a.jpg" alt=""/>'), ("b", "and ends here.")], [("b", "Second page starts")],
+                 [("b", "and runs over.")], [("b", "Fourth page.")]]
+        paras = self.texts(pages, caption_px=55)
+        self.assertIn("The sentence starts and ends here.", paras)
+        self.assertIn("[image omitted: a.jpg]", paras)
+        self.assertIn("Second page starts and runs over.", paras)
+        for n in "1234":
+            self.assertIn(n, paras)
+
+    def test_marker_with_alt_text_under_a_caption_plan(self):
+        pages = [[("b", "The sentence starts"), ("b", '<img src="a.jpg" alt="A red ship"/>'), ("b", "and ends here."), ("c", "A ship.")],
+                 [("b", "Page two."), ("c", "A door.")], [("b", "Page three."), ("c", "A bridge.")], [("b", "Page four."), ("c", "A hall.")]]
+        paras = self.texts(pages)
+        self.assertIn("The sentence starts and ends here.", paras)
+        self.assertIn("[image: A red ship]", paras)
+
+    def test_a_number_that_is_not_the_folio_stays_in_the_sentence(self):
+        pages = [[("b", "It was the year"), ("b", "1984"), ("b", "and it rained.")], [("b", "Page two.")], [("b", "Page three.")], [("b", "Page four.")]]
+        self.assertIn("It was the year 1984 and it rained.", self.texts(pages, caption_px=55))
+
+    def test_numbers_that_do_not_rise_are_not_folios(self):
+        self.assertIsNone(rw.fixed_folio_offset([(i, [rw.Para("p", "7")]) for i in range(6)]))
+        self.assertEqual(rw.fixed_folio_offset([(i, [rw.Para("p", str(i + 9))]) for i in range(6)]), 9)
 
 
 class TestPageCommand(Base):

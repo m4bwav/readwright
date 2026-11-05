@@ -6,6 +6,16 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-043 · 2026-11-04 · utf8-before-meta: a wrong meta charset turned every non-ASCII character to mojibake
+- Trigger: an EPUB with `encoding='utf-8'` in the XML line and a `charset=iso-8859-1` meta, in UTF-8 bytes: `html_charset` preferred the meta, and latin-1 never fails, so body text and titles came out with `â` and `Ã¶`, and no-break spaces as lone `Â` paragraphs.
+- Rule: non-ASCII bytes that are valid UTF-8 are UTF-8; the hint comes second, except a UTF-16 or UTF-32 hint, whose BOM-less data can pass as UTF-8. `clean` already drops a paragraph of only no-break space.
+- Evidence: Tests: TestCharsetHints (fail before the fix, pass after). Applied: C-20261104-3.
+
+### L-044 · 2026-11-04 · fixed-folio-rises: markers and folios glue without a caption size to separate them
+- Trigger: a synthetic fixed-layout EPUB in one type size gave `1 The sentence starts [image omitted: a.jpg] and ends here.`; with a caption size, a marker with alt text still glued.
+- Rule: tell a folio by its number, since size and height may be unknown: printed number minus spine position stays constant. A year in a sentence does not fit. A spread holding two pages per file does not either, so its numbers stay in the text.
+- Evidence: Tests: TestFixedLayoutMarkers; synthetic only, no real book of this kind was rerun. Applied: C-20261104-3.
+
 ### L-041 · 2026-11-04 · `scrambled-text-layer`: long lowercase runs separate a bad OCR layer from clean books
 - Trigger: Arcade Game Typography (PDF, 129 MB): an embedded OCR layer glues and interleaves words, and upside-down lines become contents titles.
 - Measured, lowercase runs of 18+ letters per 1,000 words, URLs and identifiers excluded: that book 1.43 (35 runs). Clean PDFs from the same folder: 0.08, 0.06, 0.01, 0.01, and 0.00 on six others. At 14+ letters the two groups overlap (5.08 against up to 5.17), so length 18 is what separates them.

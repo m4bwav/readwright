@@ -97,3 +97,4 @@ From the everscout distill of Manning, Raghavan and Schutze, *Introduction to In
 ## [2026-11-03] update | 0.30.0: collapsed EPUB sections split at a one-line printed contents page (L-039)
 ## [2026-11-03] update | 0.31.0: read --each-chars (per-section cap for multi-section reads), [image omitted]/[math] markers, isbn in info (reader feedback on an EPUB textbook)
 ## [2026-11-04] update | 0.41.0: `page` command, scrambled text layer note (L-041), fixed-layout captions by type size (L-042)
+## [2026-11-04] update | 0.41.1: UTF-8 before a meta charset hint (L-043), scan note names rw.py page and ocr, markers and folios out of fixed-layout sentences (L-044), two distilling tips

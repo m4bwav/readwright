@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-4 · 2026-11-05 · Release 0.44.2: cache files appear whole or not at all
+because: a run during the 0.44.1 check reported 94% fewer words for one PDF and no error, when two first reads of one file ran at once.
+files: scripts/rw.py (`tmp_cache`, `publish_cache`, PDF text, layout, font and OCR caches), tests/test_rw.py. Tools write to a private temp name that moves into place when finished. The other converters' caches (calibre, soffice, pandoc) were not changed.
+
 ### C-20261105-3 · 2026-11-05 · Release 0.44.1: alternating running heads set beside a page number leave the text
 because: L-052; a textbook PDF printed the part name on even pages and the chapter on odd ones, each on its own line by a bare folio, so about 100 heads opened false sections and split real ones.
 files: scripts/rw.py (`folio_pairs`, `folio_shifts`, `beside_folio_keys`, `first_near_edge`, `strip_folio_heads`, `load_pdf`), tests/test_rw.py, SKILL.md (distilling section). A number that matches the page's own shift goes from the top or foot of a PDF page. A line beside it on 5 or more pages is a head and goes wherever it lands in the first four or last three lines. An outline title of that page and the book's first copy, when no number sits beside it, stay. Paragraph numbers and section numbers shift on such books.

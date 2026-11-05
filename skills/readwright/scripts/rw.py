@@ -43,6 +43,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import sys
 import tempfile
 import zipfile
@@ -53,7 +54,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.44.1"
+VERSION = "0.44.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -293,6 +294,21 @@ def run(cmd: list, timeout=600) -> subprocess.CompletedProcess:
         return subprocess.run(cmd, capture_output=True, timeout=timeout, env=env, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         raise RWError(f"{Path(cmd[0]).name} took longer than {timeout} s")
+
+
+def tmp_cache(cp: Path) -> Path:
+    """A private name beside a cache file: tools write here, so a concurrent reader never sees a half-written cache."""
+    return cp.with_name(f"{cp.stem}.{os.getpid()}.{threading.get_ident()}.tmp{cp.suffix}")
+
+
+def publish_cache(tmp: Path, cp: Path) -> None:
+    """Move a finished temp file into place. On Windows a reader can hold cp open; its copy is as good, so keep that."""
+    try:
+        os.replace(tmp, cp)
+    except PermissionError:
+        if not cp.exists():
+            raise
+        tmp.unlink(missing_ok=True)
 
 
 def tool_error(r: subprocess.CompletedProcess, limit=400) -> str:
@@ -2597,16 +2613,22 @@ def load_pdf(path) -> Doc:
     if tl["pdftotext"]:
         cp = cache_path(path, "pdftotext", ".txt")
         if CACHE_OFF or not cp.exists():
-            r = run([tl["pdftotext"], "-enc", "UTF-8", path, str(cp)])
-            if r.returncode != 0 or not cp.exists():
+            tmp = tmp_cache(cp)
+            r = run([tl["pdftotext"], "-enc", "UTF-8", path, str(tmp)])
+            if r.returncode != 0 or not tmp.exists():
+                tmp.unlink(missing_ok=True)
                 raise RWError("pdftotext failed: " + tool_error(r))
+            publish_cache(tmp, cp)
         text = cp.read_bytes().decode("utf-8", "replace")
     elif tl["mutool"]:
         cp = cache_path(path, "mutool", ".txt")
         if CACHE_OFF or not cp.exists():
-            r = run([tl["mutool"], "draw", "-q", "-F", "txt", "-o", str(cp), path])
-            if r.returncode != 0 or not cp.exists():
+            tmp = tmp_cache(cp)
+            r = run([tl["mutool"], "draw", "-q", "-F", "txt", "-o", str(tmp), path])
+            if r.returncode != 0 or not tmp.exists():
+                tmp.unlink(missing_ok=True)
                 raise RWError("mutool failed: " + tool_error(r))
+            publish_cache(tmp, cp)
         text = cp.read_bytes().decode("utf-8", "replace")
     else:
         raise RWError("PDF needs pdftotext (poppler-utils; Windows: `choco install poppler` or `scoop install poppler`, "
@@ -2789,9 +2811,12 @@ def pdf_layout(path, tl) -> list:
         return []
     cp = cache_path(path, "pdftotext-layout", ".txt")
     if CACHE_OFF or not cp.exists():
-        r = run([tl["pdftotext"], "-layout", "-enc", "UTF-8", path, str(cp)])
-        if r.returncode != 0 or not cp.exists():
+        tmp = tmp_cache(cp)
+        r = run([tl["pdftotext"], "-layout", "-enc", "UTF-8", path, str(tmp)])
+        if r.returncode != 0 or not tmp.exists():
+            tmp.unlink(missing_ok=True)
             return []
+        publish_cache(tmp, cp)
     return cp.read_bytes().decode("utf-8", "replace").split("\f")
 
 
@@ -3496,7 +3521,9 @@ def pdf_math_fonts(path: str, tl: dict) -> list:
     cp = cache_path(path, "pdffonts", ".txt")
     if not cp.exists():
         r = run([tl["pdffonts"], path], 180)
-        cp.write_bytes(r.stdout)
+        tmp = tmp_cache(cp)
+        tmp.write_bytes(r.stdout)
+        publish_cache(tmp, cp)
     names = [ln.split()[0] for ln in cp.read_bytes().decode("utf-8", "replace").splitlines()[2:] if ln.strip()]
     return sorted({re.sub(r"^[A-Z]{6}[+]", "", n) for n in names if MATH_FONT_RE.search(n)})
 
@@ -3920,7 +3947,9 @@ def cmd_ocr(a) -> int:
         hi = min(last, lo + batch - 1)
         pages[lo - 1:hi] = ocr_pages(a.file, lo, hi, a.dpi, engine, images)
         cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_bytes("\f".join(pages).encode("utf-8"))
+        tmp = tmp_cache(cache)
+        tmp.write_bytes("\f".join(pages).encode("utf-8"))
+        publish_cache(tmp, cache)
         print(f"ocr: pages {lo}-{hi} of {total}", file=sys.stderr, flush=True)
     words = sum(len(p.split()) for p in pages)
     print(f"ocr ({engine}): {fmt_n(total)} pages, {fmt_n(words)} words, kept in {cache}. info, toc, read and grep "

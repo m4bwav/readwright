@@ -101,3 +101,7 @@ From the everscout distill of Manning, Raghavan and Schutze, *Introduction to In
 ## [2026-11-04] update | 0.41.2: `--skip-code` drops numbered code callout markers; tip on code-heavy books
 ## [2026-11-04] update | 0.42.0: foot notes out of sentences (L-046), break hyphens by book counts, long lines are paragraphs (L-045), how-to book tip
 ## [2026-11-05] update | 0.44.1: alternating running heads beside a folio stripped (L-052); distilling tip on thin sections spanning many pages
+
+## [2026-11-05] 0.44.2 cache race
+
+Concurrent first reads could read a half-written pdftotext cache, silently losing most of a book. Fixed with temp file plus atomic move; unit tests cover the helpers, the race itself was not reproduced.

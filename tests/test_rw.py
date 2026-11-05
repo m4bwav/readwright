@@ -2969,5 +2969,30 @@ class TestPdfNotesAndUnfolding(Base):
         self.assertEqual(texts[texts.index(joined[0]) + 1], "[note 1: Quay Ledger, page 3.]")
 
 
+class CacheWriteTests(unittest.TestCase):
+    def test_reader_never_sees_a_partial_cache(self):
+        with tempfile.TemporaryDirectory() as d:
+            cp = pathlib.Path(d) / "x.txt"
+            cp.write_text("whole")
+            tmp = rw.tmp_cache(cp)
+            self.assertNotEqual(tmp, cp)
+            tmp.write_text("half")
+            self.assertEqual(cp.read_text(), "whole")
+            rw.publish_cache(tmp, cp)
+            self.assertEqual(cp.read_text(), "half")
+            self.assertFalse(tmp.exists())
+
+    def test_held_cache_keeps_the_existing_copy(self):
+        with tempfile.TemporaryDirectory() as d:
+            cp = pathlib.Path(d) / "x.txt"
+            cp.write_text("whole")
+            tmp = rw.tmp_cache(cp)
+            tmp.write_text("other")
+            with unittest.mock.patch.object(rw.os, "replace", side_effect=PermissionError):
+                rw.publish_cache(tmp, cp)
+            self.assertEqual(cp.read_text(), "whole")
+            self.assertFalse(tmp.exists())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

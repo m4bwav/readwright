@@ -2,6 +2,8 @@
 
 ## Current state
 
+readwright 0.44.2 (2026-11-05): PDF text, layout, font and OCR caches are written to a temp name and moved into place, so concurrent first reads no longer see half a file. Other converters' caches unchanged.
+
 readwright 0.44.1 (2026-11-05): alternating running heads set beside a bare page number leave PDF text and no longer open sections (L-052). Open: heads with no number beside them on any page are still found only by the older share test; a short chapter with under 5 head pages keeps its heads, though its folios go; a glued `122 Exhibit 4-3` line stays. `rw.py` caches pdftotext output with no lock, so concurrent first reads of one PDF can read a partial file.
 
 readwright 0.44.0 (2026-11-05): `<pre>` in a table cell stays a code block, `read --max-row-words N` cuts long table rows (L-051). Paragraph numbers shift in books with code in tables. Tried on one Manning EPUB.

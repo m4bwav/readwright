@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.44.1"
+  version: "0.44.2"
 ---
 
 # readwright
@@ -67,7 +67,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
-- A section with few words across many pages in `toc`: its text is sitting in false sections after it, usually running heads. Read on through the next sections, and report the book if their titles repeat (0.44.1 drops heads set beside a page number).
+- A section with few words across many pages in `toc`: its text is sitting in false sections after it, usually running heads. Read on through the next sections, and report the book if their titles repeat (0.44.2 drops heads set beside a page number).
 - A book of prompts and model replies: add `--max-row-words 60` when replies sit in table rows (0.44.0), and judge the prose around a sample, since one run's reply proves little. A paragraph printed twice can be in the publisher's file: grep it before blaming the reader.
 - A book that argues from studies: open the paper behind any number you keep. The unit is a common slip (one testing book says 201 flaky tests where the paper studied 201 commits).
 - A multilingual edition: read one language with `--lang`, and check a garbled number against the page image with `RW page` before citing it (0.43.0).

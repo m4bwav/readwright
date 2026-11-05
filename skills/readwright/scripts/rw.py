@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.43.0"
+VERSION = "0.43.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -125,7 +125,7 @@ def render_paras(paras, fmt="txt") -> str:
         if p.kind == "h" and fmt == "md":
             t = "#" * max(1, min(6, p.level or 1)) + " " + p.text
         elif p.kind == "li":
-            t = "- " + p.text
+            t = "  " * max(0, p.level - 1) + "- " + p.text   # a nested item stays under its parent
         elif p.kind == "quote" and fmt == "md":
             t = "> " + p.text
         elif p.kind == "pre" and fmt == "md":
@@ -453,6 +453,7 @@ class HTMLText(HTMLParser):
         self.links: list = []  # (href, text, depth) for nav documents
         self._a = None
         self.depth = 0
+        self.li_depth = 0
         self.sup = 0
         self.blockid = ""
         self.noteref = 0   # inside a note reference: its number prints as [40], not glued to the sentence
@@ -480,7 +481,7 @@ class HTMLText(HTMLParser):
                 kind = self.kind
                 if kind == "p" and self.quote:
                     kind = "quote"
-                self.paras.append(Para(kind, t, self.level))
+                self.paras.append(Para(kind, t, self.li_depth if kind == "li" else self.level))
         self.kind, self.level = "p", 0
 
     def handle_starttag(self, tag, attrs):
@@ -544,6 +545,7 @@ class HTMLText(HTMLParser):
                 self.kind, self.level = "h", int(tag[1])
             elif tag == "li":
                 self.kind = "li"
+                self.li_depth = self.depth
             elif tag == "pre":
                 self.pre += 1
             elif tag == "blockquote":

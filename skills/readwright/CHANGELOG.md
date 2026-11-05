@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-2 · 2026-11-05 · Release 0.44.0: code in table cells counts as code; `read --max-row-words`
+because: L-051; a Manning book sets each chat turn in a two-cell table, so its listings passed `--skip-code` and model replies filled much of the sections read.
+files: scripts/rw.py (HTML parser, `cut_rows`, `read`), tests/test_rw.py, SKILL.md (distilling section). A `<pre>` in a cell becomes its own code block after its row, so its lines stay and `--skip-code` drops it, which shifts paragraph numbers in such books. `--max-row-words N` cuts long rows and marks each cut. Tried on this one EPUB.
+
 ### C-20261105-1 · 2026-11-05 · Release 0.43.2: `--skip-code` also drops listing captions and callout legends
 because: L-050; a Manning testing book printed `Listing 5.23 ...` and circled-number lines with no code to explain, 45 of them in one section.
 files: scripts/rw.py (`skip_code`, `code_note`), tests/test_rw.py, SKILL.md (distilling section). A short caption right before a block and the run of legends right after one go, and the footer counts them; paragraph numbers under `--skip-code` shift on such books. A legend's explanation goes with it, so read without the flag when a listing matters.

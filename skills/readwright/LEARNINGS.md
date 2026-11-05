@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-051 · 2026-11-05 · `table-cell-code`: a chat turn in a table hides code from `--skip-code`
+Table cells were flattened into one row, so a `<pre>` inside lost its kind and its line breaks. Keep the kind by structure; cut long rows only on request, because no general mark says which speaker logo is the model. Evidence: Winteringham, Software Testing with Generative AI. Tests: test_skip_code_finds_pre_in_a_table_cell, test_max_row_words_cuts_long_rows_only.
+
 ### L-050 · 2026-11-05 · `skip-code-legends`: listing captions and legends outlive their code
 Dropping a code block left its `Listing N.N` caption and circled-number legend lines in the text. Tied to position (caption right before a block, legends in a run right after one), so prose that merely names a listing stays. Measured on one Manning EPUB: 45 lines gone from one section, no prose line lost in the two sections checked.
 

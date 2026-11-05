@@ -6,6 +6,16 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-045 · 2026-11-04 · `pdf-lines-are-paragraphs`: some PDFs give one line per paragraph and no blank lines
+- Trigger: a PDF whose pdftotext output had 929-character lines and blank lines only at page ends. Whole pages became one paragraph, gluing lowercase subheads and chapter-opening epigraphs into the body.
+- Rule: when at least half the characters sit on lines over 200 characters, no page could print them, so each line is a paragraph. Marked code blocks stay whole. Only an unfolded file loses its bare folio at the foot and the double-spacing rule.
+- Evidence: five sections went from 53 to 224 paragraphs with the subhead and epigraph on their own. Tests: TestPdfNotesAndUnfolding. Applied: C-20261104-5.
+
+### L-046 · 2026-11-04 · `pdf-foot-notes`: tell a note from a list by the call in the body
+- Trigger: `N. text` lines at the page foot stopped the page join, so a sentence, and a word split by a hyphen, broke around the note. The same book has numbered lists in the body with the same shape.
+- Rule: walk up from the page foot; a note has a call to its number straight after a letter or punctuation in the body above, and its number is one below the note under it. Lifted notes go after the page's last paragraph once pages are joined. For a hyphen at a break, compare the joined and hyphenated counts in the book; with neither printed, join only a fragment (a left half seen once, or a left half under 3 letters with a right half seen once), so `well-documented` keeps its hyphen.
+- Evidence: 15 notes lifted in five sections, list items untouched, all five reported split words healed. A note carried over onto the next page is not handled: its tail stays at the top of that page. Applied: C-20261104-5.
+
 ### L-043 · 2026-11-04 · utf8-before-meta: a wrong meta charset turned every non-ASCII character to mojibake
 - Trigger: an EPUB with `encoding='utf-8'` in the XML line and a `charset=iso-8859-1` meta, in UTF-8 bytes: `html_charset` preferred the meta, and latin-1 never fails, so body text and titles came out with `â` and `Ã¶`, and no-break spaces as lone `Â` paragraphs.
 - Rule: non-ASCII bytes that are valid UTF-8 are UTF-8; the hint comes second, except a UTF-16 or UTF-32 hint, whose BOM-less data can pass as UTF-8. `clean` already drops a paragraph of only no-break space.

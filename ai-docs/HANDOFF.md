@@ -1,6 +1,8 @@
 # Handoff
 
 ## Current state
+readwright 0.42.0 (2026-11-04): PDF page-foot notes leave the sentence as `[note N: text]`, page-break hyphens are judged by the book's word counts, and a PDF whose lines are whole paragraphs splits at each line (L-045, L-046). Open: a note carried onto the next page keeps its tail there; such a page's first paragraph is not told from body text.
+
 readwright 0.41.2 (2026-11-04): `--skip-code` drops numbered code callout markers. Before that 0.41.1 (2026-11-04): strict UTF-8 is tried before a meta charset hint (mojibake fix, L-043), the `no text layer` note names `rw.py page` and `rw.py ocr`, and picture markers and folios stay out of fixed-layout sentences below the caption rule (L-044). `python -m unittest discover -s tests`: 179 tests pass.
 
 readwright 0.39.0 (2026-11-03): for OCR text, `info` notes printed-page jumps that suggest leaves missing from a scan (CHANGELOG C-20261103-21); both gaps in a real two-up scan were found. Double-page scans can over-report when one page number was misread, so the note says to look at the images.

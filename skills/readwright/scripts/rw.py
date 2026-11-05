@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.41.2"
+VERSION = "0.42.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1931,6 +1931,80 @@ CAPTION_SPLIT = re.compile(r"(?<=[.!?:\u201d\"])\s+(?=(?:Figure|Table|Example) \
 SPLIT_TAIL_RE = re.compile(r"[.?!][\"”’)]*\s+(?=[\"“‘(]?[A-Z0-9])")
 
 
+def ends_open(text: str) -> bool:
+    """No sentence end at the close of TEXT; a note call after the end mark ('home.1') still closes the sentence."""
+    return text[-1:] not in SENTENCE_END and not re.search(r"[.?!:\"”’)]\d{1,3}$", text)
+
+
+def join_broken(a: str, b: str) -> str:
+    """Join text over a break. After an ASCII hyphen the book's own words decide: "dead-" + "lines" loses the hyphen
+    when "deadlines" is printed more often than "dead-lines". With neither printed, a left half under 3 letters or
+    seen only here is a fragment ("in-evitably", "ver-sion"); anything else keeps its hyphen ("well-documented")."""
+    w = WORD.findall(a)[-1:] + WORD.findall(b)[:1]
+    if a.endswith("-") and len(w) == 2 and b[:1].islower():
+        left, right = w[0].lower(), w[1].lower()
+        whole, hyph = VOCAB.get(left + right, 0), VOCAB.get(left + "-" + right, 0)
+        if whole > hyph or not whole and not hyph and left not in REAL_PREFIXES and (
+                len(left) < 3 and VOCAB.get(right, 0) < 2 or VOCAB.get(left, 0) < 2):
+            return a[:-1] + b
+    return join_lines([a, b])
+
+
+UNFOLDED_LINE = 200   # longer than any printed line: pdftotext has already joined this block's lines
+UNFOLDED_SHARE = 0.5
+BARE_FOLIO = re.compile(r"(?:\d{1,4}|[ivxlc]{1,7})$")
+
+
+def unfolded_text(pages: list) -> bool:
+    """True when most of the text sits on lines no page could print, so each line is a whole paragraph and blank lines
+    mean nothing (L-045 `pdf-lines-are-paragraphs`)."""
+    lengths = [len(s) for p in pages for s in map(str.strip, p.splitlines()) if s]
+    return sum(n for n in lengths if n > UNFOLDED_LINE) >= sum(lengths) * UNFOLDED_SHARE > 0
+
+
+def unfold_page(page: str) -> str:
+    """Give each line of an unfolded page its own paragraph; marked code blocks stay whole."""
+    out, code = [], False
+    for line in page.splitlines():
+        s = line.strip()
+        code = code or s == PRE_OPEN
+        out.append(line if code else line + "\n")
+        code = code and s != PRE_CLOSE
+    return "\n".join(out) + "\n"
+
+
+FOOT_NOTE = re.compile(r"(\d{1,3})\.\s+(\S.*)$", re.S)
+
+
+def lift_foot_notes(pp: list, drop_folio: bool = False) -> list:
+    """Take the notes off a page's foot and return them as `[note N: ...]` paragraphs, for the caller to set after the
+    paragraph they interrupted. Walking up from the foot, a note is `N. text` with N one below the note under it and a
+    call to N (a number straight after a letter or punctuation) in the body above. Numbered lists have no such call and
+    stay. A bare folio under the notes goes too, since it would stop the sentence rejoining (L-046 `pdf-foot-notes`)."""
+    end = len(pp)
+    folio = end > 0 and pp[-1].kind == "p" and bool(BARE_FOLIO.match(pp[-1].text))
+    if folio:
+        end -= 1
+    notes, want = [], None
+    i = end - 1
+    while i > 0:
+        m = FOOT_NOTE.match(pp[i].text) if pp[i].kind == "p" else None
+        if not m or (want is not None and int(m.group(1)) != want):
+            break
+        n = m.group(1)
+        call = re.compile(r"(?<=[^\W\d]|[.,;:?!\"'”’)\]])" + n + r"(?=[\s.,;:)]|$)")
+        if not any(call.search(p.text) for p in pp[:i]):
+            break
+        notes.insert(0, Para("p", f"[note {n}: {m.group(2)}]"))
+        want = int(n) - 1
+        i -= 1
+    if notes:
+        del pp[i + 1:]
+    elif folio and drop_folio:
+        pp.pop()
+    return notes
+
+
 def join_split_pages(page_paras) -> None:
     """A word hyphenated across a page break ("conven-" at the bottom, "tions" at the top of the next), or a sentence
     that runs on (no . ? ! : or closing quote before the break, a lower-case letter after it), becomes one paragraph:
@@ -1940,20 +2014,20 @@ def join_split_pages(page_paras) -> None:
         if prev and pp and prev[-1].kind == "p" and pp[0].kind == "p" and (
                 prev[-1].text[-1:] in BREAK_HYPHENS and pp[0].text[:1].isalpha()
                 or prev[-1].text[-1:] == "-" and pp[0].text[:1].islower()
-                or prev[-1].text[-1:] not in SENTENCE_END and pp[0].text[:1].islower()):
+                or ends_open(prev[-1].text) and pp[0].text[:1].islower()):
             m = SPLIT_TAIL_RE.search(pp[0].text)
             if m and len(pp[0].text[m.end():].split()) >= 20:
                 # only the run-on sentence moves; the rest stays on its own page (L-033 `page-join-empties-page`)
-                prev[-1].text = join_lines([prev[-1].text, pp[0].text[:m.end()].rstrip()])
+                prev[-1].text = join_broken(prev[-1].text, pp[0].text[:m.end()].rstrip())
                 pp[0].text = pp[0].text[m.end():].lstrip()
             else:
-                prev[-1].text = join_lines([prev[-1].text, pp[0].text])
+                prev[-1].text = join_broken(prev[-1].text, pp[0].text)
                 pp.pop(0)
         if pp:
             prev = pp
 
 
-def merge_wrapped(pp) -> None:
+def merge_wrapped(pp, unfolded: bool = False) -> None:
     """Some PDFs come out of pdftotext double-spaced: a blank line after every printed line, so each line became its
     own paragraph and a word hyphenated at a line or column break ("fre-" ... "quency") stayed split (L-030
     `pdf-double-spaced`). Within one page a paragraph is joined to the next (lower case start) when it ends in a
@@ -1962,20 +2036,15 @@ def merge_wrapped(pp) -> None:
     ps = [p for p in pp if p.kind == "p"]
     one = sorted(len(p.text) for p in ps)
     width = one[int(len(one) * 0.8)] if len(one) >= 8 else 0
-    double = width >= 40 and sum(width * 0.8 <= len(p.text) <= width * 1.1 for p in ps) >= len(ps) * 0.5
+    double = not unfolded and width >= 40 and sum(width * 0.8 <= len(p.text) <= width * 1.1 for p in ps) >= len(ps) * 0.5
     i = 0
     while i < len(pp) - 1:
         a, b = pp[i], pp[i + 1]
         if a.kind == "p" and b.kind == "p" and (
-                b.text[:1].islower() and (a.text[-1:] in "-" + BREAK_HYPHENS or a.text[-1:] not in SENTENCE_END)
+                b.text[:1].islower() and (a.text[-1:] in "-" + BREAK_HYPHENS or ends_open(a.text))
                 or double and width * 0.9 <= len(a.text) <= width * 1.1 and b.text[:1].isalnum()
                 and not REPO_MARK.match(b.text) and not LISTING_CAPTION.match(b.text)):
-            w = WORD.findall(a.text)[-1:] + WORD.findall(b.text)[:1]
-            if a.text.endswith("-") and len(w) == 2 and VOCAB.get((w[0] + w[1]).lower(), 0) > VOCAB.get(
-                    (w[0] + "-" + w[1]).lower(), 0):
-                a.text = a.text[:-1] + b.text   # "fre-" + "quency": the book prints "frequency" more often
-            else:
-                a.text = join_lines([a.text, b.text])
+            a.text = join_broken(a.text, b.text)   # "fre-" + "quency": the book prints "frequency" more often
             pp.pop(i + 1)
             continue
         i += 1
@@ -2411,6 +2480,9 @@ def load_pdf(path) -> Doc:
     if not oc.exists() and CODE_HINT.search(text):   # a cheap gate before a second pdftotext run
         lay = pdf_layout(path, tl)
         pages = [mark_code(p, lay[n] if n < len(lay) else None) for n, p in enumerate(pages)]
+    unfolded = not oc.exists() and unfolded_text(pages)
+    if unfolded:
+        pages = [unfold_page(p) for p in pages]
     VOCAB.clear()
     for w in WORD.findall(text):
         EXACT[w] = EXACT.get(w, 0) + 1
@@ -2422,10 +2494,11 @@ def load_pdf(path) -> Doc:
         VOCAB[h] = VOCAB.get(h, 0) + 1
     try:
         page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
+        foot_notes = [lift_foot_notes(pp, unfolded) for pp in page_paras]
         join_split_pages(page_paras)
         for pp in page_paras:
             collapse_cells(pp)
-            merge_wrapped(pp)
+            merge_wrapped(pp, unfolded)
         for pp in page_paras:
             for i in range(len(pp) - 1, -1, -1):
                 if pp[i].kind not in ("h", "pre"):
@@ -2436,6 +2509,8 @@ def load_pdf(path) -> Doc:
         VOCAB.clear()
         EXACT.clear()
         COMPOUNDS.clear()
+    for pp, notes in zip(page_paras, foot_notes):
+        pp.extend(notes)   # the page's last paragraph now holds the sentence the page break cut
     for pp in page_paras:
         for p in pp:
             if p.kind == "h":

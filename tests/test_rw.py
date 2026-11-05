@@ -2644,6 +2644,18 @@ class TestPdfNotesAndUnfolding(Base):
         self.assertEqual([n.text for n in rw.lift_foot_notes(pp)], ["[note 1: The note.]"])
         self.assertEqual(pp[-1].text, "2. A list item.")
 
+    def test_list_that_goes_on_is_not_notes(self):
+        call = rw.Para("p", "Body text with a stray call.1 and.2")
+        pp = [call, rw.Para("p", "1. First."), rw.Para("p", "2. Second.")]
+        self.assertEqual(rw.lift_foot_notes(pp, nxt=[rw.Para("p", "3. Third.")]), [])
+        pp = [call, rw.Para("p", "1. First."), rw.Para("p", "2. Second.")]
+        self.assertEqual(len(rw.lift_foot_notes(pp, nxt=[rw.Para("p", "More text.")])), 2)
+
+    def test_section_number_and_math_are_not_calls(self):
+        for body in ("See section 2.1 of the guide.", "Let x1 be the first value."):
+            pp = [rw.Para("p", body), rw.Para("p", "1. An item.")]
+            self.assertEqual(rw.lift_foot_notes(pp), [], body)
+
     def test_break_hyphen_rules(self):
         rw.VOCAB.update({"deadlines": 4, "dead": 3, "lines": 3, "well": 9, "documented": 1, "in": 40, "evitably": 1,
                          "pol": 1, "ish": 1, "post": 5, "war": 5, "re": 2, "sign": 1, "self-esteem": 2, "self": 3,
@@ -2661,8 +2673,10 @@ class TestPdfNotesAndUnfolding(Base):
         paras = rw.text_paras(rw.unfold_page(page), "txt")
         self.assertEqual(len(paras), 3)
         self.assertEqual(paras[1].text, "who goes there?")
-        code = f"{rw.PRE_OPEN}\nx = 1\ny = 2\n{rw.PRE_CLOSE}\n"
-        self.assertEqual(rw.text_paras(rw.unfold_page(code), "txt")[0].text, "x = 1\ny = 2")
+        code = f"{long}\n{rw.PRE_OPEN}\nx = 1\ny = 2\n{rw.PRE_CLOSE}\n"
+        self.assertEqual(rw.text_paras(rw.unfold_page(code), "txt")[1].text, "x = 1\ny = 2")
+        short = "Smith, A printed entry\nthat wraps here\n"
+        self.assertEqual(rw.unfold_page(short), short)
 
     @unittest.skipUnless(rw.tools()["pdftotext"], "no pdftotext")
     def test_pdf_end_to_end(self):

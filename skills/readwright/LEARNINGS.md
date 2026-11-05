@@ -8,12 +8,13 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ### L-045 · 2026-11-04 · `pdf-lines-are-paragraphs`: some PDFs give one line per paragraph and no blank lines
 - Trigger: a PDF whose pdftotext output had 929-character lines and blank lines only at page ends. Whole pages became one paragraph, gluing lowercase subheads and chapter-opening epigraphs into the body.
-- Rule: when at least half the characters sit on lines over 200 characters, no page could print them, so each line is a paragraph. Marked code blocks stay whole. Only an unfolded file loses its bare folio at the foot and the double-spacing rule.
-- Evidence: five sections went from 53 to 224 paragraphs with the subhead and epigraph on their own. Tests: TestPdfNotesAndUnfolding. Applied: C-20261104-5.
+- Rule: when at least half the characters sit on lines over 200 characters, no page could print them, so each line on a page holding such a line is a paragraph. Marked code blocks and pages of only short lines stay as they were. An unfolded file also loses its bare folio at the foot and the double-spacing rule.
+- Evidence: five sections went from 53 to 224 paragraphs with the subhead and epigraph on their own. All 12 other PDFs sampled from one folder also met the test, so this changes paragraph numbers on most PDFs, with about 0.1 to 0.8% more characters. Tests: TestPdfNotesAndUnfolding. Applied: C-20261104-5.
 
 ### L-046 · 2026-11-04 · `pdf-foot-notes`: tell a note from a list by the call in the body
 - Trigger: `N. text` lines at the page foot stopped the page join, so a sentence, and a word split by a hyphen, broke around the note. The same book has numbered lists in the body with the same shape.
 - Rule: walk up from the page foot; a note has a call to its number straight after a letter or punctuation in the body above, and its number is one below the note under it. Lifted notes go after the page's last paragraph once pages are joined. For a hyphen at a break, compare the joined and hyphenated counts in the book; with neither printed, join only a fragment (a left half seen once, or a left half under 3 letters with a right half seen once), so `well-documented` keeps its hyphen.
+- A digit straight after a letter or a dot is often math or a section number (`x1`, `2.1`), and steps on a page foot fooled the first version: the call must follow a lowercase word or a sentence's punctuation, and a run that continues at the top of the next page is a list. A list item just above a note can carry the number below it, so that is no signal.
 - Evidence: 15 notes lifted in five sections, list items untouched, all five reported split words healed. A note carried over onto the next page is not handled: its tail stays at the top of that page. Applied: C-20261104-5.
 
 ### L-043 · 2026-11-04 · utf8-before-meta: a wrong meta charset turned every non-ASCII character to mojibake

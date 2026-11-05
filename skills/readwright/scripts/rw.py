@@ -1963,7 +1963,10 @@ def unfolded_text(pages: list) -> bool:
 
 
 def unfold_page(page: str) -> str:
-    """Give each line of an unfolded page its own paragraph; marked code blocks stay whole."""
+    """Give each line of an unfolded page its own paragraph; marked code blocks stay whole, and so does a page with no
+    long line (a contents page, a bibliography), whose lines may still be printed ones."""
+    if not any(len(s.strip()) > UNFOLDED_LINE for s in page.splitlines()):
+        return page
     out, code = [], False
     for line in page.splitlines():
         s = line.strip()
@@ -1976,11 +1979,11 @@ def unfold_page(page: str) -> str:
 FOOT_NOTE = re.compile(r"(\d{1,3})\.\s+(\S.*)$", re.S)
 
 
-def lift_foot_notes(pp: list, drop_folio: bool = False) -> list:
+def lift_foot_notes(pp: list, drop_folio: bool = False, nxt: list | None = None) -> list:
     """Take the notes off a page's foot and return them as `[note N: ...]` paragraphs, for the caller to set after the
     paragraph they interrupted. Walking up from the foot, a note is `N. text` with N one below the note under it and a
-    call to N (a number straight after a letter or punctuation) in the body above. Numbered lists have no such call and
-    stay. A bare folio under the notes goes too, since it would stop the sentence rejoining (L-046 `pdf-foot-notes`)."""
+    call to N (a number straight after a word or a sentence's punctuation) in the body above. Numbered lists have no
+    such call and stay; a run that goes on at the top of the next page (NXT) is a list too. A bare folio under the notes goes too, since it would stop the sentence rejoining (L-046 `pdf-foot-notes`)."""
     end = len(pp)
     folio = end > 0 and pp[-1].kind == "p" and bool(BARE_FOLIO.match(pp[-1].text))
     if folio:
@@ -1992,12 +1995,17 @@ def lift_foot_notes(pp: list, drop_folio: bool = False) -> list:
         if not m or (want is not None and int(m.group(1)) != want):
             break
         n = m.group(1)
-        call = re.compile(r"(?<=[^\W\d]|[.,;:?!\"'”’)\]])" + n + r"(?=[\s.,;:)]|$)")
+        call = re.compile(r"(?:[a-z]{3}|[a-zA-Z)][.,;:?!][\"'”’)\]]?|[a-zA-Z.,;:?!][\"”’])" + n + r"(?=[\s.,;:)]|$)")
         if not any(call.search(p.text) for p in pp[:i]):
             break
         notes.insert(0, Para("p", f"[note {n}: {m.group(2)}]"))
         want = int(n) - 1
         i -= 1
+    if notes:
+        last = int(notes[-1].text[6:].split(":")[0])
+        below = FOOT_NOTE.match(nxt[0].text) if nxt else None
+        if below and int(below.group(1)) == last + 1:
+            notes = []
     if notes:
         del pp[i + 1:]
     elif folio and drop_folio:
@@ -2494,7 +2502,8 @@ def load_pdf(path) -> Doc:
         VOCAB[h] = VOCAB.get(h, 0) + 1
     try:
         page_paras = [text_paras(isolate_headings(p, on_page.get(n, [])), "txt") for n, p in enumerate(pages, 1)]
-        foot_notes = [lift_foot_notes(pp, unfolded) for pp in page_paras]
+        foot_notes = [lift_foot_notes(pp, unfolded, page_paras[n + 1] if n + 1 < len(page_paras) else None)
+                      for n, pp in enumerate(page_paras)]
         join_split_pages(page_paras)
         for pp in page_paras:
             collapse_cells(pp)

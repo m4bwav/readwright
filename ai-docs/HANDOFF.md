@@ -1,7 +1,7 @@
 # Handoff
 
 ## Current state
-readwright 0.42.0 (2026-11-04): PDF page-foot notes leave the sentence as `[note N: text]`, page-break hyphens are judged by the book's word counts, and a PDF whose lines are whole paragraphs splits at each line (L-045, L-046). Open: a note carried onto the next page keeps its tail there; such a page's first paragraph is not told from body text.
+readwright 0.42.0 (2026-11-04): PDF page-foot notes leave the sentence as `[note N: text]`, page-break hyphens are judged by the book's word counts, and a PDF whose lines are whole paragraphs splits at each line (L-045, L-046). Open: a note carried onto the next page keeps its tail there; such a page's first paragraph is not told from body text. A list at a page foot with a stray call can still read as notes: one case in 12 other PDFs sampled (two items; the words stay, only the mark is wrong). Paragraph numbers from before 0.42.0 no longer match on most PDFs.
 
 readwright 0.41.2 (2026-11-04): `--skip-code` drops numbered code callout markers. Before that 0.41.1 (2026-11-04): strict UTF-8 is tried before a meta charset hint (mojibake fix, L-043), the `no text layer` note names `rw.py page` and `rw.py ocr`, and picture markers and folios stay out of fixed-layout sentences below the caption rule (L-044). `python -m unittest discover -s tests`: 179 tests pass.
 

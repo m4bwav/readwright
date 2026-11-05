@@ -48,7 +48,7 @@ A PDF or EPUB with fewer than 10 words a page (an EPUB counts sections) gets a `
 
 A section over 12,000 words with no headings (calibre's DjVu output, plain text, OCR) is split at ALL-CAPS headings, inline ones too: a caps phrase opening many pages is a running head (the book's title, dropped, or a chapter, a level-1 section), other caps runs of 1-8 words after a sentence end are topic headings (level 2). Fewer than 3 headings: unchanged.
 
-PDF page-foot notes: a `N. text` paragraph at the foot, with a call to N in the body above, moves after the interrupted paragraph as `[note N: text]`, and the sentence, including a word split by a hyphen, rejoins. Numbered lists have no call and stay. A note carried over onto the next page keeps its tail there. When most characters sit on lines over 200 characters, each line is read as a paragraph.
+PDF page-foot notes: a `N. text` paragraph at the foot, with a call to N in the body above, moves after the interrupted paragraph as `[note N: text]`, and the sentence, including a word split by a hyphen, rejoins. Numbered lists have no call and stay. A note carried over onto the next page keeps its tail there. When most characters sit on lines over 200 characters, each line of a page holding one is read as a paragraph; paragraph numbers from before 0.42.0 no longer match.
 
 PDF code blocks: when the text hints at code, a second `pdftotext -layout` pass (cached) finds runs of 3+ code-shaped lines and puts them back, with indentation, as `pre` paragraphs in place of their flattened words. Tables, definition lists and sidebars are not handled.
 

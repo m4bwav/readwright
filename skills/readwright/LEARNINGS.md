@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-052 · 2026-11-05 · `alternating-folio-heads`: two heads by a folio pass every share test
+A textbook sets `368` over the part name on even pages and the chapter over `369` on odd ones. No text reaches a fifth of the pages, each head changes by chapter, and only the bare number was on the edge line. What proves a head is the number beside it matching the page's own shift, so count recurrence there, on exact text: with digits folded, `Exhibit 9-3` beside a folio looks like a head. Evidence: `toc` 357 to 258 sections, the split section 125 to 7,399 words, 30 sampled PDFs lose under 1.8% of words. pdftotext can read a sidebar before the head, so the drop reaches four lines in. Test: test_alternating_heads_and_folios_drop and its neighbours. Applied: C-20261105-3. Two runs at once on an uncached PDF read each other's half-written cache: run them in turn.
+
 ### L-051 · 2026-11-05 · `table-cell-code`: a chat turn in a table hides code from `--skip-code`
 Table cells were flattened into one row, so a `<pre>` inside lost its kind and its line breaks. Keep the kind by structure; cut long rows only on request, because no general mark says which speaker logo is the model. Evidence: Winteringham, Software Testing with Generative AI. Tests: test_skip_code_finds_pre_in_a_table_cell, test_max_row_words_cuts_long_rows_only.
 

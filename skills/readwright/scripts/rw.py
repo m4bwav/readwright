@@ -53,7 +53,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.44.0"
+VERSION = "0.44.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1828,6 +1828,108 @@ def strip_running_heads(page: str, keys=frozenset()) -> str:
     return "\n".join(lines)
 
 
+BESIDE_FOLIO_LEAST = 5   # a heading that sits by a page number fewer times than this is still a heading
+HEAD_TOP_LINES, HEAD_FOOT_LINES = 4, 3
+FOLIO_LINE = re.compile(r"\s*\d{1,4}\s*")
+
+
+def folio_pairs(page: str) -> list:
+    """(index of a bare number line, index of the line beside it) at the top and at the foot of a page, for heads set
+    over two lines ("Chapter 9 Title" then "369", "370" then "Part 1 Title")."""
+    lines = page.split("\n")
+    idx = [i for i, l in enumerate(lines) if l.strip()]
+    if len(idx) < 2:
+        return []
+    out = []
+    for a, b in ((idx[0], idx[1]), (idx[-1], idx[-2])):
+        for num, other in ((a, b), (b, a)):
+            if FOLIO_LINE.fullmatch(lines[num]) and not FOLIO_LINE.fullmatch(lines[other]):
+                out.append((num, other))
+    return out
+
+
+def folio_shifts(pages) -> set:
+    """Printed number minus page position, for the shifts that hold on many pages: what makes a number a folio and not
+    a figure in a table. Several shifts can hold when the numbering jumps."""
+    count = collections.Counter()
+    for n, p in enumerate(pages):
+        lines = p.split("\n")
+        count.update({int(lines[i]) - n for i, _ in folio_pairs(p)})
+    least = max(BESIDE_FOLIO_LEAST, sum(count.values()) // 10)
+    return {s for s, c in count.items() if c >= least}
+
+
+def beside_folio_keys(pages, shifts) -> set:
+    """Keys of lines that sit beside the page's own number on several pages: alternating heads, where the part name
+    fills the even pages and "Chapter N Title" the odd ones, so no one text reaches a share of the book."""
+    count = collections.Counter()
+    for n, p in enumerate(pages):
+        lines = p.split("\n")
+        for num, other in folio_pairs(p):
+            if int(lines[num]) - n in shifts:
+                count[line_key(lines[other])] += 1
+    return {k for k, c in count.items() if c >= BESIDE_FOLIO_LEAST and len(k) <= 90 and k[-1] not in ".?!:,;"
+            and len(letters_key(k)) >= 3}
+
+
+def line_key(text: str) -> str:
+    return " ".join(text.split()).casefold()   # digits count: "Exhibit 9-3" and "Exhibit 9-4" are two lines
+
+
+def letters_key(text: str) -> str:
+    return re.sub(r"[\W\d_]+", "", text).casefold()
+
+
+def near_edge(lines: list) -> list:
+    """Where a head can land when pdftotext reads a sidebar or an exhibit caption first: the first four and last three
+    non-blank lines."""
+    idx = [i for i, l in enumerate(lines) if l.strip()]
+    return sorted(set(idx[:HEAD_TOP_LINES] + idx[-HEAD_FOOT_LINES:]))
+
+
+def first_near_edge(pages, keys) -> dict:
+    """Head key -> first page it appears on near an edge: a copy there, not beside a number, is the opener."""
+    first = {}
+    for n, p in enumerate(pages):
+        lines = p.split("\n")
+        for i in near_edge(lines):
+            k = line_key(lines[i])
+            if k in keys:
+                first.setdefault(k, n)
+    return first
+
+
+def strip_folio_heads(page: str, n: int, shifts, keys, first=None, titles=()) -> str:
+    """Drop the page's own number from the top or foot of page `n` (counted from 0), and a recurring head near the
+    edge. Stays: a line that matches an outline title of this page, and the first copy in the book unless a number sits
+    beside it. Those are the real openers."""
+    lines = page.split("\n")
+    own = [letters_key(t) for t in titles]
+    first = first or {}
+    beside, numbers = set(), set()
+    for num, other in folio_pairs(page):
+        if int(lines[num]) - n in shifts:
+            numbers.add(num)
+            beside.add(other)
+    idx = [i for i, l in enumerate(lines) if l.strip()]
+    for pos, i in enumerate(idx):
+        if i not in near_edge(lines):
+            continue
+        k = line_key(lines[i])
+        if k not in keys or (i not in beside and first.get(k, n) >= n):
+            continue
+        text = letters_key(lines[i])
+        if any(t and (t in text or text in t) for t in own):
+            continue
+        numbers.discard(i)
+        lines_i = [idx[j] for j in (pos - 1, pos + 1) if 0 <= j < len(idx)]
+        numbers.update(j for j in lines_i if FOLIO_LINE.fullmatch(lines[j]) and int(lines[j]) - n in shifts)
+        lines[i] = "\0"
+    for i in numbers:
+        lines[i] = ""
+    return "\n".join("" if l == "\0" else l for l in lines)
+
+
 SENTENCE_END = ".?!:\u201d\""
 EXACT: dict = {}   # case-sensitive word counts, for rejoining "Inter viewChain"
 COMPOUNDS: dict = {}   # "commaseparated" -> "comma-separated" for hyphenated words printed in the PDF
@@ -2541,6 +2643,10 @@ def load_pdf(path) -> Doc:
     for t, pg, _ in outline:
         if 1 <= pg <= len(pages):
             on_page.setdefault(pg, []).append(t)
+    shifts = folio_shifts(pages)
+    beside = beside_folio_keys(pages, shifts)
+    first_copy = first_near_edge(pages, beside)
+    pages = [strip_folio_heads(p, n, shifts, beside, first_copy, on_page.get(n + 1, ())) for n, p in enumerate(pages)]
     head_keys = running_head_keys(pages, [t for t, _, _ in outline])
     pages = [strip_running_heads(p, head_keys) for p in pages]
     if not oc.exists() and CODE_HINT.search(text):   # a cheap gate before a second pdftotext run

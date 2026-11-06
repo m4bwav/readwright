@@ -2021,6 +2021,16 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.parse_outline(sample), [("Why Are Cycles So Difficult to Predict?", 9, 2)])
         self.assertEqual(rw.clean("eﬀect of a ﬁrm"), "effect of a firm")
 
+    def test_outline_named_dests_get_their_pages(self):
+        sample = ('+\t"7 Retrieval"\t#page=389&zoom=100,0,0\n'
+                  '|\t\t"7.1 Matching"\t#nameddest=section.7.1\n'
+                  '|\t\t"7.2 Unknown"\t#nameddest=section.7.2\n')
+        dests = rw.parse_dests('Page  Destination                 Name\n'
+                               ' 405 [ XYZ  135  696 null      ] "section.7.1"\n')
+        self.assertEqual(dests, {"section.7.1": 405})
+        self.assertEqual(rw.parse_outline(sample, dests), [("7 Retrieval", 389, 1), ("7.1 Matching", 405, 2)])
+        self.assertEqual(rw.parse_outline(sample), [("7 Retrieval", 389, 1)])
+
     def test_outline_title_takes_spacing_from_the_page(self):   # L-015: "approachto" from a wrapped heading
         text = "Running head\n\nThe lighthouse keeper is a careful\nwatcher of ships\nbody text follows here.\n"
         t = rw.isolate_headings(text, ["The lighthouse keeper is a carefulwatcher of ships"])

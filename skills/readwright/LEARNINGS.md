@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-061 · 2026-11-06 · `outline-named-dests`: LaTeX outlines lost most of their entries
+`mutool show` prints `#nameddest=section.7.2` instead of a page for hyperref PDFs, and the parser only took page numbers. Müller's 287 outline entries came out as 132 sections, with section 7.2 inside "7.1.2.2 Fingerprint Matching" and no warning. An earlier reader had to interpolate page numbers. `pdfinfo -dests` gives the pages. 10 of the first 40 PDFs in the book folder have such entries. When a toc shows one huge leaf, compare its entry count with the PDF's outline.
+
 ### L-060 · 2026-11-06 · `pull-quote-fragments`: a short line repeated in the next paragraph is nearly always a heading
 - Trigger: a PDF with pull quotes put a sidebar's fragment in the body, then the same sentence whole. Dropping such a fragment looked cheap.
 - Hypothesis: a line of 4 to 25 words found word for word in one of the next two longer paragraphs would mark these fragments.

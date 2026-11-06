@@ -101,3 +101,6 @@ The routes CI job hung in its apt install step on PR #73 and #75 (cause not foun
 
 ### L-058 · 2026-11-06 · Notes sections looked like second copies of the chapters
 Quietly Powerful (one-file EPUB) split its endnotes at headings named Chapter 1, Chapter 2 and so on, so the outline showed each chapter twice, and a citation could point at the wrong one. Repeats at the book's end under half the first copy's words are now titled as notes. A book built from interviews with people the author already admires selects on the outcome: that is now a distilling tip.
+
+### L-059 · 2026-11-06 · A cap could end on a bare section title
+Reading The Argument Culture, a batch ended at the title of section 135 with no body, which looked like an empty section until the footer was read. A cut now backs up to before such a header.

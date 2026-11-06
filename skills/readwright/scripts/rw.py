@@ -54,7 +54,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.45.0"
+VERSION = "0.45.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4426,7 +4426,12 @@ def clean_cut(piece: str) -> str:
     for mark, keep in (("\n\n", 2), ("\n", 1), (". ", 2), ("? ", 2), ("! ", 2), (" ", 1)):
         k = piece.rfind(mark, floor)
         if k >= 0:
-            return piece[:k + keep]
+            piece = piece[:k + keep]
+            break
+    # A section's header and title with no body wastes the cap and reads as an empty section: resume there.
+    orphan = re.search(r"(?:^|\n)=== \[\d+/\d+\][^\n]*===\n(?:[^\n]*\n)?\s*$", piece)
+    if orphan and orphan.start() > 0:
+        piece = piece[:orphan.start() + 1]
     return piece
 
 
@@ -5533,7 +5538,7 @@ def main(argv=None) -> int:
     p.add_argument("query", nargs="+", help="topic words; stop words and plural or -ing endings are folded")
     p.add_argument("--paras", action="store_true", help="rank paragraphs instead of sections")
     p.add_argument("--body", action="store_true", help="leave out everything from a NOTES, BIBLIOGRAPHY or INDEX section on")
-    p.add_argument("--top", type=int, default=10, help="results shown (default 10)")
+    p.add_argument("--top", "--limit", dest="top", type=int, default=10, help="results shown (default 10)")
     p.add_argument("--width", type=int, default=300, help="characters of each paragraph shown with --paras")
     p.add_argument("--k1", type=float, default=1.2, help="BM25 term-frequency saturation (1.2 to 2.0)")
     p.add_argument("--b", type=float, default=0.75, help="BM25 length normalisation (0 none, 1 full)")

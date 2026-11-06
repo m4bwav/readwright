@@ -109,3 +109,7 @@ Concurrent first reads could read a half-written pdftotext cache, silently losin
 ## [2026-11-05] 0.44.4 open items
 
 Short chapter heads, glued caption folios, spread real headings and converter cache atomicity. Old and new compared on 46 cached PDF texts; L-053, L-054.
+
+## [2026-11-05] consolidation | learnings 34 active to 11
+
+19 promoted, 4 merged, 11 kept because their evidence is thin or their limits are open (C-20261105-7). The archive holds two L-034 entries with different code names, from the 2026-11-03 renumbering.

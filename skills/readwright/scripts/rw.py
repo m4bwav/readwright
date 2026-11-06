@@ -54,7 +54,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.44.4"
+VERSION = "0.44.5"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5211,6 +5211,35 @@ def smart_case(pattern: str, fixed: bool = False) -> bool:
     return not re.search(r"[A-Z]", pattern if fixed else re.sub(r"\\.", "", pattern))
 
 
+def loose_typography(pat: str) -> str:
+    """Let a hyphen or apostrophe in a pattern match its typographic forms (L-057).
+
+    Books print U+2010 and U+2019 where a typed pattern has - and '. Character classes and inline flags stay as written."""
+    out, i, in_class = [], 0, False
+    while i < len(pat):
+        c = pat[i]
+        escaped = c == "\\" and i + 1 < len(pat)
+        lit = pat[i + 1] if escaped else c
+        if not in_class and lit in "-‐‑" and not re.search(r"\(\?[a-zA-Z]*$", "".join(out)):
+            out.append("[-‐‑­]")
+        elif not in_class and lit in "'’":
+            out.append("['’]")
+        else:
+            out.append(pat[i:i + 2] if escaped else c)
+            if not escaped and c == "[":
+                in_class = True
+                if pat[i + 1:i + 2] == "^":
+                    out.append("^")
+                    i += 1
+                if pat[i + 1:i + 2] == "]":
+                    out.append("]")
+                    i += 1
+            elif not escaped and c == "]":
+                in_class = False
+        i += 2 if escaped else 1
+    return "".join(out)
+
+
 def cmd_grep(a) -> int:
     if not os.path.isfile(a.file) and os.path.isfile(a.pattern):   # grep "champion list" FILE (Manning IR reader, 2026-11-03)
         raise RWError(f"no such file: {a.file}; the file goes first: grep FILE PATTERN")
@@ -5226,7 +5255,7 @@ def cmd_grep(a) -> int:
     try:
         if smart_case(a.pattern, a.fixed) and not getattr(a, "case_sensitive", False):
             a.ignore_case = True   # smart case, as in ripgrep -S: 'consumer price index' finds 'Consumer Price Index'
-        rx = re.compile(pat, re.I if a.ignore_case else 0)
+        rx = re.compile(loose_typography(pat), re.I if a.ignore_case else 0)
     except re.error as e:
         raise RWError(f"bad pattern: {e}")
     idx = select(doc, a.section, a.title) if (a.section or a.title) else range(1, len(doc.sections) + 1)

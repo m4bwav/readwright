@@ -93,3 +93,6 @@ Write an entry the moment a real signal happens: a user correction, the same err
 - Evidence: T-20260929-4, confirmed 2026-09-29
 - Scope: skill
 - Status: active · helpful 1 · harmful 0 · last_confirmed 2026-09-29
+
+### L-057 · 2026-11-05 · A typed hyphen missed a book's U+2010
+J.K. Lasser's Small Business Taxes 2024 (Wiley EPUB) prints U+2010: grep for self-employment tax found 2 matches where the true count was 73, and the small count looked like an answer. grep now treats the hyphen and apostrophe forms as one. It was tried on this one EPUB; en and em dashes stay distinct, since they often mean something else.

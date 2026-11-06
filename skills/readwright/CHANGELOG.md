@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-8 · 2026-11-05 · grep matches typographic hyphens and apostrophes
+because: L-057
+files: scripts/rw.py (loose_typography, cmd_grep), tests. A typed - or ' in a grep pattern now also matches U+2010, U+2011, a soft hyphen and U+2019, outside character classes.
+
 ### C-20261105-7 · 2026-11-05 · Learnings consolidation: 34 active to 11
 because: consolidate:34>25
 files: LEARNINGS.md (Active), LEARNINGS-ARCHIVE.md, SKILL.md (Step 4), references/formats.md (Detection, Built in, External tools), AGENTS.md (eval graders pointer). Promoted L-001, L-002, L-004, L-009, L-011, L-012, L-016, L-018, L-025, L-034, L-036, L-037, L-038, L-039, L-040, L-043, L-045, L-046, L-049. Merged and archived L-019 and L-035 into L-034 `printed-page-drift`, L-048 into L-044, L-050 into L-051. Tightened and put in the standard fields L-005, L-008, L-010, L-041, L-042, L-044, L-047, L-051, L-052, L-053, L-054. Dropped L-052's advice to run first reads one at a time, which the atomic caches of 0.44.2 and 0.44.4 made stale. Step 4 now states smart case. rw.py is unchanged.

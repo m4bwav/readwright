@@ -54,7 +54,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.44.6"
+VERSION = "0.45.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3155,6 +3155,26 @@ QUOTED_RE = re.compile(r'^\s*["\u201c\u201e\u00ab].*["\u201d\u00bb]\s*$', re.S)
 ATTRIB_RE = re.compile(r"^\s*(\u2014|\u2013|--)\s*\S")
 
 
+IMAGE_MARKER = re.compile(r"\s*\[image omitted[^\]]*\]")
+
+
+def drop_images(doc: Doc) -> int:
+    """Remove `[image omitted: NAME]` markers; a paragraph holding nothing else goes. `[image: ALT]` stays, since it
+    carries words. Returns how many markers went."""
+    gone = 0
+    for s in doc.sections:
+        kept = []
+        for p in s.paras:
+            text, n = IMAGE_MARKER.subn("", p.text)
+            gone += n
+            if n:
+                p.text = text.strip()
+            if p.text or not n:
+                kept.append(p)
+        s.paras = kept
+    return gone
+
+
 def drop_epigraphs(doc: Doc) -> int:
     """Drop quotation epigraphs: a paragraph of at most EPIGRAPH_MAX_WORDS wholly in quotation marks (straight or
     curly) followed at once by an attribution of at most ATTRIB_MAX_WORDS starting with an em dash, en dash or `--`.
@@ -4831,6 +4851,7 @@ def flags_used(a) -> str:
                                    (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                    (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                    (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
+                                   (" --drop-images", getattr(a, "drop_images", False)),
                                    (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None))) if on)
 
 
@@ -4871,6 +4892,9 @@ def cmd_read(a) -> int:
     if getattr(a, "drop_epigraphs", False):
         n = drop_epigraphs(doc)
         hints.append(f"--drop-epigraphs dropped {n} paragraph(s): quotation epigraphs and their attribution lines")
+    if getattr(a, "drop_images", False):
+        n = drop_images(doc)
+        hints.append(f"--drop-images removed {n} image marker(s); `RW image` still writes a picture")
     lang_dropped = filter_lang(doc, a.lang) if getattr(a, "lang", None) else None
     if not any(s.words() for s in doc.sections):   # a scan's pages are sections with no words (L-011)
         print(doc_head(doc))
@@ -4903,6 +4927,7 @@ def cmd_read(a) -> int:
                                     (" --strip-boilerplate", getattr(a, "strip_boilerplate", False)),
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                     (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
+                                   (" --drop-images", getattr(a, "drop_images", False)),
                                     (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None)),
                                     (" --compact", getattr(a, "compact", False)),
                                     (" --format md", a.format == "md")) if on)
@@ -5475,6 +5500,7 @@ def main(argv=None) -> int:
     p.add_argument("--max-row-words", type=int, metavar="N", help="read only: cut table rows over N words and mark the cut (books that set chat replies or samples in tables)")
     p.add_argument("--drop-repeated", action="store_true", help="drop short paragraphs that recur in 30%% or more of "
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")
+    p.add_argument("--drop-images", action="store_true", help="remove [image omitted: NAME] marker lines (a book with many figures)")
     p.add_argument("--drop-epigraphs", action="store_true", help="drop quotations of 80 words or fewer followed by a "
                    "dash attribution line of 8 words or fewer (both paragraphs)")
     p.add_argument("--lang", choices=sorted(LANG_WORDS), help="on a multilingual edition keep the paragraphs whose common "

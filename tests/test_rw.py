@@ -1375,6 +1375,14 @@ class TestCommands(Base):
         self.assertIn("[readwright: cut at 10 of 122 words; continue with --section 2 --offset ", out)
         self.assertEqual(cli("read", t, "--section", "1", "--max-words", "0")[0], 1)
 
+    def test_clean_cut_drops_a_section_header_with_no_body(self):
+        body = "=== [1/2] A ===\nA\n" + "Sentence here.\n\n" * 50
+        out = rw.clean_cut(body + "=== [2/2] B | 9 words ===\nB\n\n")
+        self.assertNotIn("[2/2]", out)
+        self.assertTrue(out.endswith("Sentence here.\n\n"))
+        kept = body + "=== [2/2] B | 9 words ===\nB\nA real first line.\n\n"
+        self.assertIn("[2/2]", rw.clean_cut(kept))
+
     def test_char_cut_footer_offers_max_chars_for_the_rest(self):
         t = self.cookbook()
         _, out, _ = cli("read", t, "--section", "2", "--max-chars", "30", "--quiet")

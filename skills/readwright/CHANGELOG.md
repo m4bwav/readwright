@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-3 · 2026-11-06 · Release 0.45.1: no empty section at a character cut
+- because: L-059
+- files: scripts/rw.py (`clean_cut`, rank's `--limit`), SKILL.md (distilling), tests
+A `--max-chars` cut no longer ends on a section header and title with no body, and the footer resumes at that header. `rank --limit` works as `--top`. Tip for endnotes with no markers.
+
 ### C-20261106-1 · 2026-11-06 · Trailing notes that repeat chapter titles are titled as notes
 because: L-058
 files: scripts/rw.py (title_repeated_notes, load, back_matter_start), tests, SKILL.md (Distilling a book). Three or more trailing sections repeating an earlier title at under half its words become `Notes: Chapter N`, and `rank --body` treats them as back matter. Section numbers do not change. Tried on one EPUB.

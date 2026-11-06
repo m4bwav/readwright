@@ -1263,6 +1263,27 @@ def notes_part_title(sections, paras, first_h) -> str:
     return f"{base}: {first_h}" if first_h else base
 
 
+def title_repeated_notes(doc):
+    """Notes sections that sit at the end and repeat their chapters' titles read as second copies of the chapters in
+    the outline. Three or more trailing sections, each repeating an earlier title at under half its words, become
+    'Notes: Chapter 8' (Quietly Powerful, 2026-11-06)."""
+    secs = doc.sections
+    first = {}
+    for i, s in enumerate(secs):
+        first.setdefault(s.title.strip().lower(), i)
+    start = len(secs)
+    while start > 0:
+        s = secs[start - 1]
+        j = first.get(s.title.strip().lower(), start - 1)
+        if j >= start - 1 or not s.title.strip() or s.words() * 2 >= secs[j].words():
+            break
+        start -= 1
+    if len(secs) - start >= 3:
+        for s in secs[start:]:
+            s.title = f"Notes: {s.title.strip()}"
+    return doc
+
+
 def untitled(s: Section) -> str:
     first = next((p.text for p in s.paras if p.text), "")
     return f"(untitled: {first[:50]}{'...' if len(first) > 50 else ''})" if first else "(untitled, no text)"
@@ -3807,7 +3828,7 @@ def collapse_leaders(doc: Doc) -> Doc:
 
 
 def load(path: str, member: str | None = None, via: str | None = None) -> Doc:
-    doc = split_at_contents(refine(collapse_leaders(load_raw(path, member, via))))
+    doc = title_repeated_notes(split_at_contents(refine(collapse_leaders(load_raw(path, member, via)))))
     if doc.fmt in ("pdf", "epub") and not member and not via:
         scan_note(doc, path)
     return doc
@@ -5174,7 +5195,7 @@ def back_matter_start(doc) -> int:
     total = sum(s.words() for s in doc.sections) or 1
     seen = 0
     for i, s in enumerate(doc.sections, 1):
-        if seen >= 0.3 * total and re.fullmatch(r"(end ?notes|notes|bibliography|references|works cited|index)", s.title.strip(), re.I):
+        if seen >= 0.3 * total and re.fullmatch(r"(end ?notes|notes(: .*)?|bibliography|references|works cited|index)", s.title.strip(), re.I):
             return i
         seen += s.words()
     return 0

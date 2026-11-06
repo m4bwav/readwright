@@ -2467,6 +2467,22 @@ class TestRoutes(unittest.TestCase):
 
 
 class TestNotesParts(Base):
+    def test_trailing_sections_repeating_chapter_titles_become_notes(self):
+        doc = type("D", (), {})()
+        mk = lambda t, n: rw.Section(t, [rw.Para("p", "w " * n)])  # noqa: E731
+        doc.sections = [mk("Chapter 1", 500), mk("Chapter 2", 500), mk("Chapter 3", 500),
+                        mk("Chapter 1", 40), mk("Chapter 2", 40), mk("Chapter 3", 40)]
+        rw.title_repeated_notes(doc)
+        self.assertEqual([s.title for s in doc.sections][:3], ["Chapter 1", "Chapter 2", "Chapter 3"])
+        self.assertEqual([s.title for s in doc.sections][3:], ["Notes: Chapter 1", "Notes: Chapter 2", "Notes: Chapter 3"])
+
+    def test_one_repeated_or_long_title_stays(self):
+        doc = type("D", (), {})()
+        mk = lambda t, n: rw.Section(t, [rw.Para("p", "w " * n)])  # noqa: E731
+        doc.sections = [mk("Interlude", 100), mk("Chapter 1", 100), mk("Interlude", 90), mk("Chapter 1", 10)]
+        rw.title_repeated_notes(doc)
+        self.assertEqual([s.title for s in doc.sections], ["Interlude", "Chapter 1", "Interlude", "Chapter 1"])
+
     def test_untocced_notes_file_after_endnotes_is_titled_as_notes(self):
         x = lambda body: ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"  # noqa: E731
                           + body + "</body></html>")

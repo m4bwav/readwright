@@ -68,6 +68,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 ## Distilling a book
 
 - A book of short rules: read its summary chart and any list of maxims first, and fetch several sections in one call (`RW read FILE -s 3,12,83 --each-chars 3800 --drop-images`), one process and one cut per section. Then grep the beat's vocabulary for the rest; most rule sections repeat what a similar book gave (0.45.0).
+- A practitioner book built on interviews: check how the people were chosen. When the author picked leaders already seen as good examples, the cases illustrate a claim and cannot show it causes results, so look for the cited studies and report them separately.
 - A vendor or platform book: check its product facts against the live docs, and read those docs for what the book leaves out. One 2026 book sold a per-request router as pure saving; the vendor's own page says routing can lose the prompt cache.
 - A section with few words across many pages in `toc`: its text is sitting in false sections after it, usually running heads. Read on through the next sections, and report the book if their titles repeat (0.44.2 drops heads set beside a page number).
 - A book of prompts and model replies: add `--max-row-words 60` when replies sit in table rows (0.44.0), and judge the prose around a sample, since one run's reply proves little. A paragraph printed twice can be in the publisher's file: grep it before blaming the reader.

@@ -4,8 +4,12 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
-### C-20261106-1 · 2026-11-06 · read --drop-images; a tip for rule books
-because: user request (every book run adds to readwright); Typography for Lawyers run, everscout T-20261106-1
+### C-20261106-1 · 2026-11-06 · Trailing notes that repeat chapter titles are titled as notes
+because: L-058
+files: scripts/rw.py (title_repeated_notes, load, back_matter_start), tests, SKILL.md (Distilling a book). Three or more trailing sections repeating an earlier title at under half its words become `Notes: Chapter N`, and `rank --body` treats them as back matter. Section numbers do not change. Tried on one EPUB.
+
+### C-20261106-2 · 2026-11-06 · read --drop-images; a tip for rule books
+because: user request (every book run adds to readwright); Typography for Lawyers run, everscout T-20261106-2
 files: scripts/rw.py (read), SKILL.md (Distilling a book), tests. Figure-heavy sections carried many bare image marker lines. The flag removes them and keeps `[image: ALT]`.
 
 ### C-20261105-8 · 2026-11-05 · grep matches typographic hyphens and apostrophes

@@ -2188,6 +2188,14 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.CAPTION_SPLIT.split("Some text. Figure 4-6. Refine chain"),
                          ["Some text.", "Figure 4-6. Refine chain"])
 
+    def test_drop_images(self):
+        P = rw.Para
+        paras = [P("p", "[image omitted: 00027.jpg]"), P("p", "Compare the two. [image omitted: a.jpg] See?"),
+                 P("p", "[image: A Brief History]"), P("p", "Body.")]
+        doc = rw.Doc("x.epub", "epub", sections=[rw.Section("Ten", paras, 1, "s1")])
+        self.assertEqual(rw.drop_images(doc), 2)
+        self.assertEqual([p.text for p in doc.sections[0].paras], ["Compare the two. See?", "[image: A Brief History]", "Body."])
+
     def test_drop_epigraphs(self):
         P = rw.Para
         paras = [P("h", "Ten", 1),

@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-1 · 2026-11-06 · read --drop-images; a tip for rule books
+because: user request (every book run adds to readwright); Typography for Lawyers run, everscout T-20261106-1
+files: scripts/rw.py (read), SKILL.md (Distilling a book), tests. Figure-heavy sections carried many bare image marker lines. The flag removes them and keeps `[image: ALT]`.
+
 ### C-20261105-8 · 2026-11-05 · grep matches typographic hyphens and apostrophes
 because: L-057
 files: scripts/rw.py (loose_typography, cmd_grep), tests. A typed - or ' in a grep pattern now also matches U+2010, U+2011, a soft hyphen and U+2019, outside character classes.

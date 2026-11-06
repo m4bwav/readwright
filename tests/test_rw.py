@@ -761,6 +761,17 @@ class TestFormats(Base):
         self.assertEqual(code, 1)
         self.assertIn("1 matches with -i", out)
 
+    def test_grep_matches_typographic_hyphen_and_apostrophe(self):   # L-057
+        p = self.f("t.md")
+        p.write_text("# One\n\nThe self‐employment tax is the owner’s cost.\n\nA self-employment note.\n", encoding="utf-8")
+        _, out, _ = cli("grep", p, "self-employment", "--count")
+        self.assertIn("2", out)
+        self.assertEqual(cli("grep", p, "self‐employment")[0], 0)
+        self.assertEqual(cli("grep", p, "owner's", "-F")[0], 0)
+        self.assertEqual(rw.loose_typography("[a-z]+"), "[a-z]+", "a class range stays a range")
+        self.assertEqual(rw.loose_typography("(?-i:x)"), "(?-i:x)", "inline flags stay")
+        self.assertTrue(re.search(rw.loose_typography(re.escape("a-b")), "a‐b"))
+
     def test_grep_smart_case(self):   # L-038: an all-lower-case pattern matches any case
         p = self.f("t.md")
         p.write_text("# One\n\nThe Consumer Price Index rose.\n", encoding="utf-8")

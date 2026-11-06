@@ -41,6 +41,7 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import threading
@@ -54,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.45.1"
+VERSION = "0.46.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4935,24 +4936,54 @@ def cmd_read(a) -> int:
                                    (" --drop-images", getattr(a, "drop_images", False)),
                                     (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None)),
                                     (" --compact", getattr(a, "compact", False)),
-                                    (" --format md", a.format == "md")) if on)
+                                    (" --format md", a.format == "md"),
+                                    (f" --until {shlex.quote(getattr(a, 'until_re', None) or '')}", getattr(a, "until_re", None))) if on)
     if getattr(a, "compact", False) and a.at_para:
         raise RWError("--at-para counts paragraphs of the full layout; drop --compact to use it")
     shape = compact_text if getattr(a, "compact", False) else (lambda t: t)
+    until_re = None
+    if getattr(a, "until_re", None):
+        try:
+            until_re = re.compile(a.until_re, re.M)
+        except re.error as e:
+            raise RWError(f"--until: bad regex: {e}")
+    no_until = []
+
+    def cut_until(raw: str, i: int) -> str:
+        """A section up to its first --until match. The search starts after the section's header and title, so a
+        pattern that also names the section cannot empty it; no match prints the section whole and is reported."""
+        if not until_re:
+            return raw
+        pos = raw.find("\n\n") + 2
+        nxt = raw.find("\n\n", pos)
+        if nxt >= 0 and clean(raw[pos:nxt].lstrip("# ")) == clean(doc.sections[i - 1].title):   # the title as a first paragraph
+            pos = nxt + 2
+        m = until_re.search(raw, pos)
+        if not m:
+            no_until.append(i)
+            return raw
+        return raw[:m.start()].rstrip() + "\n"
+
+    def note_until():
+        if no_until:
+            shown = ",".join(map(str, no_until[:10])) + (",..." if len(no_until) > 10 else "")
+            hints.append(f"--until {a.until_re!r}: no match in {len(no_until)} section(s) ({shown}), printed whole")
     if getattr(a, "out_dir", None):   # one file per section: a reader agent opens only the ones it needs
         os.makedirs(a.out_dir, exist_ok=True)
         ext = "md" if a.format == "md" else "txt"
         total = 0
         for i in idx:
-            body = shape(compose(doc, [i], a.format, a.max_words, flags))
+            body = shape(cut_until(compose(doc, [i], a.format, a.max_words, flags), i))
             slug = re.sub(r"[^a-z0-9]+", "-", doc.sections[i - 1].title.lower()).strip("-")[:40] or "section"
             path = os.path.join(a.out_dir, f"{i:03d}-{slug}.{ext}")
             write_out(path, body)
             total += len(body)
             print(f"{path}  {fmt_n(len(body))} chars (~{fmt_n(len(body) // 4)} tokens)")
         print(f"wrote {len(idx)} section file(s), {fmt_n(total)} chars (~{fmt_n(total // 4)} tokens) to {a.out_dir}")
-        if lang_dropped is not None and not getattr(a, "quiet", False):
-            print("[readwright: " + "; ".join(h for h in hints if h.startswith("--lang")) + "]")
+        note_until()
+        shown = [h for h in hints if h.startswith(("--lang", "--until"))]
+        if shown and not getattr(a, "quiet", False):
+            print("[readwright: " + "; ".join(shown) + "]")
         return 0
     each = getattr(a, "each_chars", None)
     if each is not None and each < 1:
@@ -4962,7 +4993,7 @@ def cmd_read(a) -> int:
         if a.at_para:
             raise RWError("--from and --at-para both set the start; use one")
         try:
-            from_re = re.compile(a.from_re)
+            from_re = re.compile(a.from_re, re.M)
         except re.error as e:
             raise RWError(f"--from: bad regex: {e}")
     if from_re:   # the end of each section from the match on: chapter summaries without the chapters
@@ -4971,7 +5002,10 @@ def cmd_read(a) -> int:
             body = shape(compose(doc, [i], a.format, a.max_words, flags))
             m = from_re.search(body)
             if m:
-                piece = body[m.start():]
+                end = until_re.search(body, m.end()) if until_re else None
+                if until_re and not end:
+                    no_until.append(i)
+                piece = body[m.start():end.start() if end else None]
                 if each and each >= 1 and len(piece) > each:
                     piece = clean_cut(piece[:each]).rstrip("\n") + "\n"
                 parts.append(f"=== [{i}] {doc.sections[i - 1].title} ===\n{piece.rstrip()}\n\n")
@@ -4981,15 +5015,18 @@ def cmd_read(a) -> int:
     elif each and not a.at_para:   # several sections in one call, each cut on its own so a long one cannot crowd out the rest
         parts = []
         for i in idx:
-            body = shape(compose(doc, [i], a.format, a.max_words, flags))
+            body = shape(cut_until(compose(doc, [i], a.format, a.max_words, flags), i))
             if len(body) > each:
                 cut = clean_cut(body[:each]).rstrip("\n")
                 body = (f"{cut}\n[readwright: section {i} cut at chars 0-{fmt_n(len(cut))} of {fmt_n(len(body))}; "
                         f"continue with --section {i} --offset {len(cut)}{flags}]\n\n")
             parts.append(body)
         text = "".join(parts)
+    elif until_re:
+        text = shape("\n".join(cut_until(compose(doc, [i], a.format, a.max_words, flags), i) for i in idx))
     else:
         text = shape(compose(doc, idx, a.format, a.max_words, flags))
+    note_until()
     if a.out:
         full, start = len(text), a.offset or 0
         text = text[start:]
@@ -5022,6 +5059,8 @@ def cmd_read(a) -> int:
         if not 1 <= a.at_para <= len(po):
             raise RWError(f"--at-para {a.at_para}: section {idx[0]} has {len(po)} paragraphs")
         start += po[a.at_para - 1]
+        if until_re and start >= len(text):
+            raise RWError(f"--until {a.until_re!r} matches before paragraph {a.at_para} of section {idx[0]}")
     piece = text[start:start + limit]
     if start + limit < len(text):
         piece = clean_cut(piece)
@@ -5492,7 +5531,9 @@ def main(argv=None) -> int:
     p.add_argument("--each-chars", type=int, default=None, metavar="N", help="with several sections: cap each one at N "
                    "chars (a resume line per cut section); --max-chars still caps the total")
     p.add_argument("--from", dest="from_re", default=None, metavar="REGEX",
-                   help="print each selected section from its first match on, skip sections without one ('Key takeaways' across chapters); case-sensitive, (?i) to ignore case")
+                   help="print each selected section from its first match on, skip sections without one ('Key takeaways' across chapters); case-sensitive, (?i) to ignore case; ^ and $ match at lines")
+    p.add_argument("--until", dest="until_re", default=None, metavar="REGEX",
+                   help="print each selected section up to, not including, its first match (after --from's match when both are set); a section without one prints whole. Case and ^ $ as --from")
     p.add_argument("--at-para", type=int, default=None, help="with --section: start at this paragraph (numbers from grep)")
     p.add_argument("--out", help="write the selection to this file instead of stdout")
     p.add_argument("--out-dir", help="write each selected section to its own file in this folder (NNN-title.txt) and list their sizes")

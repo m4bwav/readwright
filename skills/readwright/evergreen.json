@@ -66,11 +66,11 @@
       "date": "2026-11-03",
       "m": 0.3,
       "interval_after": 20.0,
-      "note": "calibre 9.17, pandoc 3.13, markitdown 0.1.9, poppler 26.10, MuPDF 1.28.5, EPUB 3.4 CRD; arXiv 2607.17598 backs one outline level; ebook-rs MCP noted; consolidation 34->13; cost: searches 5 \u00c2\u00b7 fetches 8 \u00c2\u00b7 tool calls 15"
+      "note": "calibre 9.17, pandoc 3.13, markitdown 0.1.9, poppler 26.10, MuPDF 1.28.5, EPUB 3.4 CRD; arXiv 2607.17598 backs one outline level; ebook-rs MCP noted; consolidation 34->13; cost: searches 5 Â· fetches 8 Â· tool calls 15"
     }
   ],
   "counts": {
-    "learnings": 11,
+    "learnings": 12,
     "changes": 8,
     "research": 11,
     "tests": 5
@@ -88,5 +88,5 @@
     "research_after_days": null
   },
   "version": "0.44.4",
-  "last_consolidated": "2026-11-03"
+  "last_consolidated": "2026-11-05"
 }

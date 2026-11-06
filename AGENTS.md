@@ -15,7 +15,7 @@ A cross-agent plugin with one skill, `skills/readwright/`: SKILL.md (when to use
 - Research beats recall: format facts and converter options carry an `R-` entry in RESEARCH.md with the date they were checked.
 - A release bumps the version in `.claude-plugin/plugin.json`, `plugin.json`, `VERSION` in `rw.py`, `metadata.version` in SKILL.md and `version` in `evergreen.json` together, then tags `vX.Y.Z` and publishes a GitHub Release with the CHANGELOG entry as notes.
 - No top-level `bin/` folder: Cowork refuses to install a plugin that has one. Launchers live next to `rw.py`.
-- Eval graders: JavaScript regex (`flags: i`, never `(?i)`), one literal tool name per `tool_used` grader, fixture archives written with ZIP_DEFLATED (LEARNINGS L-002). The Bash cases run under WSL2 or Linux, not native Windows.
+- Eval graders: JavaScript regex (`flags: i`, never `(?i)`), one literal tool name per `tool_used` grader, fixture archives written with ZIP_DEFLATED (LEARNINGS-ARCHIVE L-002). The Bash cases run under WSL2 or Linux, not native Windows.
 - Prose people read (README, SKILL.md, references) is checked with the everwrite checker when it is available: `python <everwrite>/scripts/tells.py <files>`, zero strong findings.
 - This is a public repository. Nothing in it names a person other than the author credit and the authors of credited public projects, a machine, an absolute path on someone's machine, a private project, or a credential.
 - No AI attribution anywhere: no Co-Authored-By trailers, no "generated with" lines in commits, pull requests, releases or files.

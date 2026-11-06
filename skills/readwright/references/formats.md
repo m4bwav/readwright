@@ -6,6 +6,8 @@ What `rw.py` reads, how it finds sections, and what each external tool is for. R
 
 The format comes from the file's first bytes and, for zip files, from what is inside: `mimetype` (EPUB, ODF), `META-INF/container.xml` with an `.opf` (EPUB), `word/document.xml` (DOCX), `ppt/presentation.xml` (PPTX), `xl/workbook.xml` (XLSX). Other signatures: `%PDF`, `{\rtf`, the OLE2 header `D0 CF 11 E0` (legacy Office; an encrypted DOCX, XLSX or PPTX is also OLE2 and holds an `EncryptedPackage` stream), `BOOKMOBI` or `TEXtREAd` at byte 60 (MOBI, AZW, AZW3, PRC, PDB), `CONT` followed by version 1 or 2 as two little-endian bytes (KFX), `ITOLITLS` (LIT), `AT&TFORM` (DjVu), `ITSF` (CHM). Text files are sorted by content first (a FictionBook root, an HTML root, email headers) and by extension after that. A renamed file still reads correctly.
 
+Encoding: non-ASCII bytes that are valid UTF-8 are read as UTF-8 whatever a meta tag claims, since latin-1 never fails. A UTF-16 or UTF-32 hint still wins, because BOM-less data of those kinds can pass as UTF-8.
+
 ## Built in (standard library)
 
 | Format | Sections | Notes |
@@ -27,6 +29,8 @@ The format comes from the file's first bytes and, for zip files, from what is in
 
 Every format then gets one more pass: a section of more than 12,000 words, or one with no title, that holds headings or CHAPTER lines is split at them. Converters lose outlines this way: calibre's FB2 output writes chapter titles as plain paragraphs, and its PDB round trip keeps three table-of-contents entries for a whole novel. Well-structured files are not changed by it.
 
+HTML and EPUB lists keep each item's depth when nested; other formats keep flat lists.
+
 ## External tools (used when found, never installed)
 
 | Format | Tool | Install |
@@ -47,6 +51,10 @@ Tools are looked for on PATH, then in their usual install folders: `Calibre2` an
 A PDF or EPUB with fewer than 10 words a page (an EPUB counts sections) gets a `no text layer` note from `info`, `toc` and `read`: it is page images. The note names a same-name copy in another format in the same folder, ocrmypdf when installed, and a `rw.py page` line that renders the first pages as pictures. On 83 real PDFs and EPUBs, the 6 scans had 0 words a page and the thinnest text book 132, so the note fired on exactly the 6. When an OCR engine is available the note names `rw.py ocr FILE` first: it renders each page with mutool (or pdftoppm) at 200 dpi, runs Windows' built-in OCR through Windows PowerShell 5.1 (`Windows.Media.Ocr`, no install) or tesseract, and keeps one text per page, form-feed separated, in `~/.readwright/ocr/` (or `READWRIGHT_OCR_DIR`), keyed by the file's path, size and modification time. `load_pdf` reads that text in place of the empty layer. Paragraphs are split where the gap between OCR lines is over 0.9 of a line height. `RW_HIDE_TOOLS=windows-ocr,tesseract` hides the engines. An EPUB whose spine shows page images (`<img>`, SVG `<image>`, or an image as a spine item) is OCR'd the same way from those images, without rendering (0.11.0); its text replaces the EPUB's sections, split at ALL-CAPS headings when it is one long run, else one section a page.
 
 A section over 12,000 words with no headings (calibre's DjVu output, plain text, OCR) is split at ALL-CAPS headings, inline ones too: a caps phrase opening many pages is a running head (the book's title, dropped, or a chapter, a level-1 section), other caps runs of 1-8 words after a sentence end are topic headings (level 2). Fewer than 3 headings: unchanged.
+
+PDF lines as paragraphs: when at least half the characters sit on lines over 200 characters, no page could print them, so each line on a page holding such a line is a paragraph. Marked code blocks and pages of only short lines stay as they were.
+
+When a tool fails, the message is its last exception line, since a Python traceback's first lines say nothing. pandoc and markitdown run with `-o FILE`, because console output uses the console code page on Windows.
 
 PDF page-foot notes: a `N. text` paragraph at the foot, with a call to N in the body above, moves after the interrupted paragraph as `[note N: text]`, and the sentence, including a word split by a hyphen, rejoins. Numbered lists have no call and stay. A note carried over onto the next page keeps its tail there. When most characters sit on lines over 200 characters, each line of a page holding one is read as a paragraph; paragraph numbers from before 0.42.0 no longer match.
 

@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261105-7 · 2026-11-05 · Learnings consolidation: 34 active to 11
+because: consolidate:34>25
+files: LEARNINGS.md (Active), LEARNINGS-ARCHIVE.md, SKILL.md (Step 4), references/formats.md (Detection, Built in, External tools), AGENTS.md (eval graders pointer). Promoted L-001, L-002, L-004, L-009, L-011, L-012, L-016, L-018, L-025, L-034, L-036, L-037, L-038, L-039, L-040, L-043, L-045, L-046, L-049. Merged and archived L-019 and L-035 into L-034 `printed-page-drift`, L-048 into L-044, L-050 into L-051. Tightened and put in the standard fields L-005, L-008, L-010, L-041, L-042, L-044, L-047, L-051, L-052, L-053, L-054. Dropped L-052's advice to run first reads one at a time, which the atomic caches of 0.44.2 and 0.44.4 made stale. Step 4 now states smart case. rw.py is unchanged.
+
 ### C-20261105-6 · 2026-11-05 · Release 0.44.4: heads of short chapters go, repeated real headings and captions stay, converter caches are atomic
 because: L-053, L-054; open items left by 0.44.1 and 0.44.2.
 files: scripts/rw.py (`pages_cluster`, `CAPTION_LINE`, `running_head_keys`, `beside_folio_keys`, `strip_glued_folio`, `load_pdf`, `load_via_calibre`, `load_via_office`, `load_via`), tests/test_rw.py. A head with 2 to 4 copies beside a folio goes when it keeps the book's every-other-page rhythm, sits on the book's head edge, and a proven head fills the pages between. A line that recurs spread out stays, at a page edge or beside a folio, unless its number follows the page or it fills a fifth of a book of 100 pages or more. A caption is never a head, and the page's own number comes off `122 Exhibit 4-3` and `Exhibit 4-3 122`. calibre, soffice, pandoc and markitdown caches use `tmp_cache` and `publish_cache`; a failed tool leaves no temp file. Paragraph numbers shift on PDFs with such heads.

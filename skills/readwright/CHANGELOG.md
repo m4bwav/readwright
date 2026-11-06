@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-1 · 2026-11-06 · Trailing notes that repeat chapter titles are titled as notes
+because: L-058
+files: scripts/rw.py (title_repeated_notes, load, back_matter_start), tests, SKILL.md (Distilling a book). Three or more trailing sections repeating an earlier title at under half its words become `Notes: Chapter N`, and `rank --body` treats them as back matter. Section numbers do not change. Tried on one EPUB.
+
 ### C-20261105-8 · 2026-11-05 · grep matches typographic hyphens and apostrophes
 because: L-057
 files: scripts/rw.py (loose_typography, cmd_grep), tests. A typed - or ' in a grep pattern now also matches U+2010, U+2011, a soft hyphen and U+2019, outside character classes.

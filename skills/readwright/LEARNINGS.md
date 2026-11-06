@@ -98,3 +98,6 @@ Write an entry the moment a real signal happens: a user correction, the same err
 J.K. Lasser's Small Business Taxes 2024 (Wiley EPUB) prints U+2010: grep for self-employment tax found 2 matches where the true count was 73, and the small count looked like an answer. grep now treats the hyphen and apostrophe forms as one. It was tried on this one EPUB; en and em dashes stay distinct, since they often mean something else.
 
 The routes CI job hung in its apt install step on PR #73 and #75 (cause not found); that step now has a 12-minute timeout and DEBIAN_FRONTEND=noninteractive.
+
+### L-058 · 2026-11-06 · Notes sections looked like second copies of the chapters
+Quietly Powerful (one-file EPUB) split its endnotes at headings named Chapter 1, Chapter 2 and so on, so the outline showed each chapter twice, and a citation could point at the wrong one. Repeats at the book's end under half the first copy's words are now titled as notes. A book built from interviews with people the author already admires selects on the outcome: that is now a distilling tip.

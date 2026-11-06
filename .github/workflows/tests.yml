@@ -35,6 +35,9 @@ jobs:
         with:
           python-version: "3.14"
       - name: install the external tools
+        timeout-minutes: 12   # hung over an hour twice (PR #73, #75); fail fast and rerun
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends calibre poppler-utils mupdf-tools antiword pandoc \

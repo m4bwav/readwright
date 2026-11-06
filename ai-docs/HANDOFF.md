@@ -2,6 +2,8 @@
 
 ## Current state
 
+readwright 0.46.0 (2026-11-06): `read --until REGEX`, the mirror of `--from`, plus distilling tips for chapter summaries and pull quotes. Open: pull-quote fragments stay in PDF text until layout data can mark them (L-060).
+
 readwright 0.44.4 (2026-11-05): closes the items left by 0.44.1 and 0.44.2. Short chapters' heads go (2 to 4 copies in the book's rhythm), `122 Exhibit 4-3` keeps only the caption, repeated real headings spread through a book stay, and calibre, soffice, pandoc and markitdown caches are atomic (L-053, L-054). Left on purpose: a head with one copy beside a folio stays, because nothing separates it from a real heading; a book with a short chapter head on the opposite edge from its other heads keeps it; a head with no folio beside it is judged only by the older tests. The 46-book check ran on cached pdftotext output with no outlines, so an outline title protects more in real use. soffice was not on this machine: its cache is tested with a fake tool only.
 
 readwright 0.44.2 (2026-11-05): PDF text, layout, font and OCR caches are written to a temp name and moved into place, so concurrent first reads no longer see half a file.

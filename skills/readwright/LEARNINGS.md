@@ -6,6 +6,14 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-060 · 2026-11-06 · `pull-quote-fragments`: a short line repeated in the next paragraph is nearly always a heading
+- Trigger: a PDF with pull quotes put a sidebar's fragment in the body, then the same sentence whole. Dropping such a fragment looked cheap.
+- Hypothesis: a line of 4 to 25 words found word for word in one of the next two longer paragraphs would mark these fragments.
+- Rule: do not drop them. Leave the text and tell the reader to check the page before quoting. A safe filter needs layout data (type size or position) that says the line sits outside the body column.
+- Evidence: 81 cached PDF texts, 269k paragraphs, 315 hits; of 40 sampled, about 38 were headings or table labels repeated in running text, and only 17 of the 315 ended in sentence punctuation. Those would be lost body structure. The book that prompted this was not at hand, so the true fragment rate on it is unmeasured.
+- Scope: skill
+- Status: active · helpful 0 · harmful 0 · last_confirmed 2026-11-06
+
 ### L-054 · 2026-11-05 · `short-chapter-heads`, `glued-folio-caption`: few copies need proof from the rhythm, a glued folio needs a caption
 - Trigger: a chapter of a few pages cannot reach the five-copy bar, so its heads stayed; `122 Exhibit 4-3` kept the page's number glued to a caption.
 - Hypothesis: lowering the bar would catch real headings, while the book's own rhythm separates them. `122 people came` may be a sentence, and `Table of Contents` has no number, so it is no caption.

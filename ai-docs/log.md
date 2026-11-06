@@ -113,3 +113,7 @@ Short chapter heads, glued caption folios, spread real headings and converter ca
 ## [2026-11-05] consolidation | learnings 34 active to 11
 
 19 promoted, 4 merged, 11 kept because their evidence is thin or their limits are open (C-20261105-7). The archive holds two L-034 entries with different code names, from the 2026-11-03 renumbering.
+
+## [2026-11-06] update | 0.46.0: read --until
+
+Added for chapter summaries that end in exercises and web links. A pull-quote fragment filter was measured and rejected (L-060).

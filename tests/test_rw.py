@@ -1327,6 +1327,75 @@ class TestCommands(Base):
         self.assertEqual(cli("read", t, "--section", "7", "--from", "(")[0], 1)
         self.assertEqual(cli("read", t, "--section", "7", "--from", "Brannoch", "--at-para", "1")[0], 1)
 
+    def test_read_until_regex(self):
+        t = self.big_text()
+        whole = cli("read", t, "--section", "7")[1]
+        word = "Brannoch"
+        code, got, _ = cli("read", t, "--section", "7", "--until", word)
+        self.assertEqual(code, 0)
+        self.assertNotIn(word, got)
+        self.assertTrue(whole.startswith(got.rstrip()), got[-80:])
+        self.assertLess(len(got), len(whole))
+        # no match: whole, with a note
+        code, got, _ = cli("read", t, "--section", "7", "--until", "no such words xyz")
+        self.assertEqual(code, 0)
+        self.assertTrue(got.startswith(whole.split("[readwright")[0].rstrip()), got[:80])
+        self.assertIn("no match in 1 section(s) (7)", got)
+        self.assertEqual(cli("read", t, "--section", "7", "--until", "(")[0], 1)
+
+    def test_read_until_keeps_the_section_title_and_combines(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        f = os.path.join(d, "book.md")
+        chap = ("# Chapter {n}\n\nOpening of {n}.\n\n## Summary {n}\n\nPoint {n} stands.\n\nSecond point {n}.\n\n"
+                "Exercises\n\nDo task {n}.\n\n")
+        with open(f, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("".join(chap.format(n=n) for n in (1, 2)) + "# Chapter 3\n\nNo drills here.\n")
+        # --title with --until: each section cut on its own, and a pattern naming the title does not empty it
+        code, got, _ = cli("read", f, "--title", "Summary", "--until", "^Exercises")
+        self.assertEqual(code, 0)
+        for n in (1, 2):
+            self.assertIn(f"Second point {n}.", got)
+            self.assertNotIn(f"Do task {n}", got)
+        code, got, _ = cli("read", f, "--title", "Summary 1", "--until", "Summary")
+        self.assertIn("Point 1 stands", got)
+        code, got, _ = cli("read", f, "--title", "Summary 1", "--until", "Summary", "--format", "md")
+        self.assertIn("Point 1 stands", got)
+        # --from then --until, searched after the --from match
+        code, got, _ = cli("read", f, "--title", "Summary", "--from", "Second", "--until", "Exercises")
+        self.assertIn("Second point 2.", got)
+        self.assertNotIn("Point 1 stands", got)
+        self.assertNotIn("Exercises", got)
+        code, got, _ = cli("read", f, "--title", "Summary 1", "--from", "Point", "--until", "Second|Do task")
+        self.assertIn("Point 1 stands", got)
+        self.assertNotIn("Second point", got)
+        # --each-chars: the cut comes first, and the resume line keeps --until
+        code, got, _ = cli("read", f, "--title", "Summary", "--until", "Exercises", "--each-chars", "40", "--compact")
+        self.assertIn("--until Exercises", got)
+        self.assertNotIn("Do task", got)
+        m = re.search(r"--section (\d+) --offset (\d+)", got)
+        code, rest, _ = cli("read", f, "--section", m.group(1), "--offset", m.group(2), "--until", "Exercises", "--compact")
+        self.assertNotIn("Do task", rest)
+        # --max-chars caps the total and its footer resumes inside the cut text
+        whole = cli("read", f, "--title", "Summary", "--until", "Exercises")[1]
+        code, got, _ = cli("read", f, "--title", "Summary", "--until", "Exercises", "--max-chars", "60")
+        self.assertIn("shown chars 0-", got)
+        self.assertNotIn("Do task", got)
+        self.assertTrue(whole.startswith(got.split("[readwright")[0].rstrip()))
+        # a section without a match prints whole beside cut ones
+        code, got, _ = cli("read", f, "--title", "Summary 1|Chapter 3", "--until", "Exercises")
+        self.assertNotIn("Do task", got)
+        self.assertIn("No drills here.", got)
+        self.assertIn("no match in", got)
+        # --out-dir files are cut too; --at-para past the cut says so
+        out = os.path.join(d, "parts")
+        self.assertEqual(cli("read", f, "--title", "Summary", "--until", "Exercises", "--out-dir", out)[0], 0)
+        for name in os.listdir(out):
+            with open(os.path.join(out, name), encoding="utf-8") as fh:
+                self.assertNotIn("Do task", fh.read())
+        sec = re.search(r"=== \[(\d+)", cli("read", f, "--title", "Summary 1")[1]).group(1)
+        self.assertEqual(cli("read", f, "--section", sec, "--until", "Exercises", "--at-para", "4")[0], 1)
+
     def test_read_at_para(self):
         t = self.big_text()
         code, out, _ = cli("grep", t, "Brannoch", "--max", "2")

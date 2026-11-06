@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.45.1"
+  version: "0.46.0"
 ---
 
 # readwright
@@ -67,6 +67,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A textbook with end-of-chapter summaries: read those first with `RW read FILE --title 'SUMMARY TITLE' --until 'boilerplate heading' --compact`, then only the sections they send you to. One 445-page PDF's 19 summaries, about 500 words each, covered the argument of its 182k words, once `--until` dropped the exercise list and web links closing each one (0.46.0).
+- A PDF with pull quotes can set the sidebar's words into the body: a fragment of a sentence, then the same sentence whole. Check such a passage against the page before quoting it (`RW page`). The reader leaves these in, since a short line repeated in the next paragraph is nearly always a heading (L-060).
 - A trade book whose endnotes have no markers in the text (keyed by page and a lead phrase): before trusting a claim, `grep` the name or phrase with `--title Notes` to reach its source.
 - A book of short rules: read its summary chart and any list of maxims first, and fetch several sections in one call (`RW read FILE -s 3,12,83 --each-chars 3800 --drop-images`), one process and one cut per section. Then grep the beat's vocabulary for the rest; most rule sections repeat what a similar book gave (0.45.0).
 - A practitioner book built on interviews: check how the people were chosen. When the author picked leaders already seen as good examples, the cases illustrate a claim and cannot show it causes results, so look for the cited studies and report them separately.

@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-4 · 2026-11-06 · Release 0.46.0: read --until; tips for chapter summaries and pull quotes
+- because: user request (a 445-page PDF's chapter summaries each ended in exercises and web links), L-060
+- files: scripts/rw.py (cmd_read, read's arguments), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places
+`read --until REGEX` prints each selected section up to its first match, searched after the section's header and title (after the `--from` match when both are set). It works with `--title`, `--section`, `--each-chars`, `--max-chars`, `--at-para`, `--out` and `--out-dir`; resume lines carry it, and a section with no match prints whole with a footer note. `^` and `$` in `--from` and `--until` now match at lines. No fragment filter: see L-060.
+
 ### C-20261106-3 · 2026-11-06 · Release 0.45.1: no empty section at a character cut
 - because: L-059
 - files: scripts/rw.py (`clean_cut`, rank's `--limit`), SKILL.md (distilling), tests

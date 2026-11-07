@@ -3281,5 +3281,24 @@ class ViewportOrderTests(unittest.TestCase):
             self.assertIn("past the end", r.stdout + r.stderr)
 
 
+class MarginFolioTests(unittest.TestCase):
+    def test_margin_number_leaves_the_sentence(self):
+        pages = [f"Words about sound {i + 5} more words here.\nFigure 3 and plain text." for i in range(40)]
+        self.assertEqual(rw.margin_folio_shift(pages), 5)
+        self.assertEqual(rw.strip_margin_folio(pages[0], 0, 5), "Words about sound more words here.\nFigure 3 and plain text.")
+
+    def test_no_shift_without_a_leader(self):
+        self.assertIsNone(rw.margin_folio_shift(["Born in 1900 with 3 cats."] * 40))
+        self.assertEqual(rw.strip_margin_folio("in 65 frequency", 60, None), "in 65 frequency")
+
+    def test_references_stay(self):
+        for s in ("See Figure 65 now", "lines 65 to 70", "Contents .... 65 next", "both 64 and 65 here"):
+            self.assertEqual(rw.strip_margin_folio(s, 60, 5), s)
+
+    def test_two_occurrences_stay(self):
+        s = "take 65 then 65 again"
+        self.assertEqual(rw.strip_margin_folio(s, 60, 5), s)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

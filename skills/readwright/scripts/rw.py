@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.47.2"
+VERSION = "0.47.3"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1897,6 +1897,43 @@ def strip_running_heads(page: str, keys=frozenset()) -> str:
     return "\n".join(lines)
 
 
+MARGIN_FOLIO_TOKEN = re.compile(r"(?<![\w.,:;/–-])\d{1,4}(?![\w%°/–-]|[.,:]\d)")
+MARGIN_FOLIO_BLOCK = re.compile(r"(?:figure|fig\.|table|pages?|pp?\.|chapter|ch\.|section|sec\.|demo|audio|images?|exhibit|lines?|and|to|or|\.{2,}|[,(×=+$])\s*$", re.I)
+MARGIN_FOLIO_SHARE = 4   # at least one page in this many must hold its own number in the running text
+
+
+def margin_folio_shift(pages):
+    """The printed-minus-position shift of a page number set in the side margin, which pdftotext drops into the running
+    text at that height ("close together in 65 frequency"). Runs after the head and folio passes, so a book whose folios
+    sit at the page edges has nothing left to count. None unless one shift clearly leads."""
+    count = collections.Counter()
+    for n, p in enumerate(pages):
+        count.update({int(m.group()) - n for m in MARGIN_FOLIO_TOKEN.finditer(p)})
+    top = count.most_common(2)
+    if not top or top[0][1] < max(20, len(pages) // MARGIN_FOLIO_SHARE):
+        return None
+    if len(top) > 1 and top[0][1] < 2 * top[1][1]:
+        return None
+    return top[0][0]
+
+
+def strip_margin_folio(page: str, n: int, shift) -> str:
+    """Take the page's own number out of the running text, only when it is the one plain occurrence on the page."""
+    if shift is None:
+        return page
+    want = str(n + shift)
+    hits = [m for m in MARGIN_FOLIO_TOKEN.finditer(page)
+            if m.group() == want and not MARGIN_FOLIO_BLOCK.search(page[max(0, m.start() - 12):m.start()])]
+    if len(hits) != 1:
+        return page
+    before, after = page[:hits[0].start()], page[hits[0].end():]
+    if after.startswith(" "):
+        after = after[1:]
+    elif before.endswith(" "):
+        before = before[:-1]
+    return before + after
+
+
 def strip_glued_folio(page: str, n: int, shifts) -> str:
     """Take the page's own number off a caption at the first or last line ("122 Exhibit 4-3", "Exhibit 4-3 122"). Only a
     caption: "122 people came" could be a sentence that happens to start with the page number (L-054 `glued-folio-caption`)."""
@@ -2767,6 +2804,8 @@ def load_pdf(path) -> Doc:
     pages = [strip_folio_heads(p, n, shifts, beside, first_copy, on_page.get(n + 1, ())) for n, p in enumerate(pages)]
     head_keys = running_head_keys(pages, [t for t, _, _ in outline])
     pages = [strip_glued_folio(strip_running_heads(p, head_keys), n, shifts) for n, p in enumerate(pages)]
+    margin = margin_folio_shift(pages)
+    pages = [strip_margin_folio(p, n, margin) for n, p in enumerate(pages)]
     if not oc.exists() and CODE_HINT.search(text):   # a cheap gate before a second pdftotext run
         lay = pdf_layout(path, tl)
         pages = [mark_code(p, lay[n] if n < len(lay) else None) for n, p in enumerate(pages)]

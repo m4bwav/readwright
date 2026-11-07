@@ -160,6 +160,7 @@ Project-based tutorial: run `read --headings` on a chapter first, and read the o
 - Several copies of one book in the folder (early-access EPUBs beside a final PDF): `info` and `toc` each and read the final edition; an early-access contents page says not final and has a different chapter order. A PDF of Python listings: `--skip-code` drops them since 0.26.0, but program output printed as prose stays in.
 - A grep over many sections where one section (a code walkthrough, an MCP listing) takes every hit: add `--per-section 2` (0.27.0). EPUB formulas print as `[formula: image]`: tell reader agents to infer them from the prose, and a sentence that stops short (`with 75.`) is usually cut in the EPUB itself.
 - Note where the book is dated (library versions, prices, APIs that have since changed).
+- An encyclopedia or recipe book (entries ending "Here is a list:"): the list items are the next outline entries. Select an entry with its subsections (`--section 342-350`); since 0.55.0 `read` names them when you do not.
 - A PDF whose toc is one section per page (no outline): read the printed Contents page first (`read --section N` on it) for chapter start pages, then give `read --headings` the whole chapter range at once, not page by page: numbered lists that cross pages (`1 Variable Tempo` ... `10 ...`) only show as a run (0.52.0).
 - In EPUBs a note reference prints as `[40]` after the sentence (0.9.3). Brief reader agents that bracketed numbers are note markers, not figures; one agent read "$1.4 billion.40" as a different sum before the brackets.
 

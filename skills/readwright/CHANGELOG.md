@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-17 · 2026-11-07 · A section that ends on a colon names the sections holding its entries (0.55.0)
+- because: L-074; Viers, The Sound Effects Bible read for everscout ai-sfx
+- files: scripts/rw.py `leadin_hint`, `cmd_read`; SKILL.md Distilling a book; tests
+When a selected section's last paragraph ends with a colon and the following section is not selected, `read` prints a hint with the subsection range to read (`--out` and `--out-dir` too).
+
 ### C-20261107-16 · 2026-11-07 · Same-page outline names run into one paragraph get their own text (0.54.0)
 - because: L-073; Ament, The Foley Grail read for everscout ai-sfx
 - files: scripts/rw.py `heading_at` (runin), `place_on_pages`; SKILL.md Distilling a book; tests

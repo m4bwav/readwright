@@ -509,6 +509,16 @@ class TestEpub(Base):
         self.assertIn("may continue in section 2: Chapter Two", out)
         self.assertNotIn("may continue", cli("read", p, "--section", "3")[1])
 
+    def test_lead_in_colon_points_to_the_entries_after_it(self):   # Sound Effects Bible ch. 18: lists live in subsections
+        p = self.f("enc.md")
+        p.write_text("# Explosions\n\nThey have three parts, and here is the approach:\n\n## Concussion\n\nA blast first.\n\n"
+                     "## Debris\n\nThen bits fall.\n\n# Fire\n\nFlames crackle and roar in the night.\n", encoding="utf-8")
+        code, out, _ = cli("read", str(p), "--section", "1")
+        self.assertIn("lead-in (a colon)", out)
+        self.assertIn("read 2-3 with --section", out)
+        self.assertNotIn("lead-in", cli("read", str(p), "--section", "1-3")[1])   # entries already selected
+        self.assertNotIn("lead-in", cli("read", str(p), "--section", "4")[1])
+
 
 class TestFormats(Base):
     def test_docx_headings_table_and_localised_style(self):

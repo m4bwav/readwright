@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.46.1"
+  version: "0.46.2"
 ---
 
 # readwright
@@ -67,6 +67,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- A polemic that builds a taxonomy: read the prologue and the opening of each chapter (`RW read FILE -s 8-16 --each-chars 2500`), since each names its move there and a later chapter may recap the list. Its numbers are often the author's own chosen samples, and its anecdotes single cases, so use it to name patterns, then search for studies of whether they happen and how often. Look for what complicates the claim as well as what supports it.
 - A textbook with end-of-chapter summaries: read those first with `RW read FILE --title 'SUMMARY TITLE' --until 'boilerplate heading' --compact`, then only the sections they send you to. One 445-page PDF's 19 summaries, about 500 words each, covered the argument of its 182k words, once `--until` dropped the exercise list and web links closing each one (0.46.0).
 - A PDF with pull quotes can set the sidebar's words into the body: a fragment of a sentence, then the same sentence whole. Check such a passage against the page before quoting it (`RW page`). The reader leaves these in, since a short line repeated in the next paragraph is nearly always a heading (L-060).
 - A trade book whose endnotes have no markers in the text (keyed by page and a lead phrase): before trusting a claim, `grep` the name or phrase with `--title Notes` to reach its source.

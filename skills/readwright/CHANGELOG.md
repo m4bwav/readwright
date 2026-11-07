@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-6 · 2026-11-06 · Release 0.46.2: distilling tip for polemics that build a taxonomy
+- because: user request (every book run adds to readwright)
+- files: SKILL.md (Distilling a book)
+From *How to Suppress Women's Writing*. No reader feature was missing: `--each-chars` covers sampling chapter openings; the run looped over sections by hand before noticing it.
+
 ### C-20261106-5 · 2026-11-06 · Release 0.46.1: PDF outline entries linked by name keep their sections
 - because: L-061
 - files: scripts/rw.py (`pdf_outline`, `parse_dests`, `parse_outline`), tests/test_rw.py

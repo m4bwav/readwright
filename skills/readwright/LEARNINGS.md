@@ -118,3 +118,6 @@ Quietly Powerful (one-file EPUB) split its endnotes at headings named Chapter 1,
 
 ### L-059 · 2026-11-06 · A cap could end on a bare section title
 Reading The Argument Culture, a batch ended at the title of section 135 with no body, which looked like an empty section until the footer was read. A cut now backs up to before such a header.
+
+### L-060 · 2026-11-07 · `margin-folio-in-text`: a side-margin page number lands inside sentences
+Refining Sound sets folios at mid-page height in the margin, so pdftotext read "close together in 65 frequency". The number is removed only when one shift holds on a quarter of the pages, twice the runner-up, and the page has one plain occurrence. Of 40 other PDFs 5 qualified; sampled removals were real folios except line references and contents leaders, which are now blocked. The sample was small, so an odd number could still go.

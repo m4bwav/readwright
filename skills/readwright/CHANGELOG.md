@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-1 · 2026-11-07 · Release 0.47.3: side-margin page numbers leave PDF running text
+- because: L-060 `margin-folio-in-text`
+- files: scripts/rw.py (margin_folio_shift, strip_margin_folio), SKILL.md (Distilling a book), tests
+
 ### C-20261106-10 · 2026-11-06 · Release 0.47.2: grep says how to read a hit from its paragraph's start; tip for interview books
 - because: user request (every book run adds to readwright)
 - files: scripts/rw.py (grep), SKILL.md (Distilling a book), tests

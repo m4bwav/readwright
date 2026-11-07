@@ -84,6 +84,8 @@ Synthesizer or software textbooks with worked patches: the settings belong to th
 
 Interview-led journalism: the methods sit inside the quotes and most of each chapter describes albums or works. Grep the craft words, read those hits with `--at-para`, and cite each method as that person's report.
 
+A recipe book built on patch diagrams (Pure Data, Max): object names in boxes vanish from the text and leave holes ("use the and objects"), square roots and superscripts flatten (`x2` may be x squared), and values in figures are missing. Rebuild formulas from the physics the text names and mark them restored; mark figure-only values as such; the section after a practical's DSP part may hold its tail, so read the next section too. Parallel reader agents, one per group of chapters, keep the main context small.
+
 Craft book from a neighbouring field (music mixing read for sound effects): take the reason behind each setting and mark its numbers as untested in your field.
 
 A methods book in a language you will not run (R read for its measures): add `--skip-code --drop-images`, then `read --headings`; take what each measure means and where it fails, and check any stated default against the package's own docs. Its list of figures sits in the frontmatter, so `grep` hits there first.

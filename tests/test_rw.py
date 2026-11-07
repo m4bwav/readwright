@@ -2144,6 +2144,10 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.strip_furniture(doc), 8 * 3 - 1)   # the heading line stays
         self.assertTrue(all("Body text" in p.text for p in doc.sections[0].paras[1:]))
 
+    def test_split_thousands_rejoin(self):
+        self.assertEqual(rw.join_lines(["3, 097Hz and 1, 000 through 50, 000RPM, 7, 060kW"]), "3,097Hz and 1,000 through 50,000RPM, 7,060kW")
+        self.assertEqual(rw.join_lines(["pages 3, 100 and 12, 140 to 2026, 097"]), "pages 3, 100 and 12, 140 to 2026, 097")
+
     def test_line_end_hyphens_rejoin(self):
         H = "‐"
         paras = rw.text_paras(f"The conven{H}\ntions of Lang{H}\nChain and soft­\nhyphens, a well-\nknown fact,\nnot a dash -\nOkay.", "txt")

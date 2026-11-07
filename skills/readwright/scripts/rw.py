@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.51.0"
+VERSION = "0.51.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1848,7 +1848,13 @@ def join_lines(lines) -> str:
         else:
             out = out + " " + line if out else line
     # pdftotext can already have joined the lines ("conven‐ tions"); "pre‐ and post-war" keeps its hyphen
-    return SPLIT_WORD.sub(lambda m: "-" if keep_break_hyphen(out[:m.start()], out[m.end():]) else "", out)
+    out = SPLIT_WORD.sub(lambda m: "-" if keep_break_hyphen(out[:m.start()], out[m.end():]) else "", out)
+    return SPLIT_THOUSANDS.sub(r"\1,", out)
+
+
+# "3, 097Hz", "1, 000 through 50, 000RPM": the thin space after a thousands comma came out as a space. A group that
+# starts with 0 or runs into a unit is one number; "pages 3, 100 and" stays a list.
+SPLIT_THOUSANDS = re.compile(r"(?<![\d,])(\d{1,3}), (?=0\d\d(?!\d)|\d{3}[A-Za-z])")
 
 
 SPLIT_WORD = re.compile(r"(?<=[^\W\d_])[‐­] (?!(?:and|or|nor|to)\b)(?=[^\W\d_])")

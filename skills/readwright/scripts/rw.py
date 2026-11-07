@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.49.1"
+VERSION = "0.49.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -448,6 +448,7 @@ def detect_zip(path: str, ext: str) -> str:
 BLOCK = {"p", "div", "section", "article", "header", "footer", "main", "aside", "nav", "blockquote", "figure",
          "figcaption", "table", "tr", "ul", "ol", "dl", "dt", "dd", "li", "pre", "h1", "h2", "h3", "h4", "h5", "h6",
          "hr", "address", "body", "center", "caption", "details", "summary", "form", "fieldset", "legend"}
+CODE_DIV = {"programcode", "programlisting", "sourcecode", "codeblock", "code-block"}   # code set in div or p, line by line (Springer)
 SKIP = {"script", "style", "noscript", "template", "svg", "math", "head", "object", "iframe", "button", "select", "nav"}
 
 
@@ -463,6 +464,7 @@ class HTMLText(HTMLParser):
         self.level = 0
         self.skip = 0
         self.pre = 0
+        self.code_div = None   # [tag, depth] while inside a block that CODE_DIV names
         self.quote = 0
         self.title = ""
         self.in_title = False
@@ -523,6 +525,19 @@ class HTMLText(HTMLParser):
             if a.get(key) and (key == "id" or tag == "a"):
                 pending = 1 if (tag in BLOCK and self.cells is None and clean("".join(self.buf))) else 0
                 self.ids.setdefault(a[key], len(self.paras) + pending)
+        if self.code_div:   # inner blocks are lines of the one listing
+            if tag == self.code_div[0]:
+                self.code_div[1] += 1
+            if tag in BLOCK or tag == "br":
+                self.buf.append("\n")
+            return
+        if (tag in ("div", "p") and self.cells is None and not self.pre
+                and CODE_DIV & set((a.get("class") or "").lower().split())):
+            self.flush()
+            self.blockid = a.get("id") or ""
+            self.pre += 1
+            self.code_div = [tag, 1]
+            return
         if tag == "sup":
             self.sup += 1
         if tag == "a":
@@ -585,6 +600,19 @@ class HTMLText(HTMLParser):
             self.skip = max(0, self.skip - 1)
             return
         if self.skip:
+            return
+        if self.code_div:
+            if tag == self.code_div[0]:
+                self.code_div[1] -= 1
+                if not self.code_div[1]:   # markup indentation goes; no-break-space indents stay (flush makes them spaces)
+                    lines = [x.strip(" \t\r\n") for x in "".join(self.buf).split("\n")]
+                    self.buf = ["\n".join(x for x in lines if x)]
+                    self.flush()
+                    self.pre = max(0, self.pre - 1)
+                    self.code_div = None
+                    return
+            if tag in BLOCK:
+                self.buf.append("\n")
             return
         if tag == "sup":
             self.sup = max(0, self.sup - 1)
@@ -5798,7 +5826,7 @@ def main(argv=None) -> int:
     p.add_argument("--compact", action="store_true", help="no blank line between paragraphs (offsets then count the compact text; pass it again with --offset)")
     p.add_argument("--max-words", type=int, default=None, help="show at most this many words of each section (batch reads)")
     p.add_argument("--strip-boilerplate", action="store_true", help="drop lines repeated on most pages (PDF footers, page numbers, running headers)")
-    p.add_argument("--skip-code", action="store_true", help="drop code blocks (<pre> in EPUB and HTML, fenced Markdown; not PDF) and say how many words went")
+    p.add_argument("--skip-code", action="store_true", help="drop code blocks (<pre> or a code-classed div in EPUB and HTML, fenced Markdown; not PDF) and say how many words went")
     p.add_argument("--max-row-words", type=int, metavar="N", help="read only: cut table rows over N words and mark the cut (books that set chat replies or samples in tables)")
     p.add_argument("--drop-repeated", action="store_true", help="drop short paragraphs that recur in 30%% or more of "
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")

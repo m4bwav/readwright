@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-8 · 2026-11-07 · Release 0.49.2: --skip-code finds code set in classed divs
+- because: L-065 and user request (every book run adds to readwright)
+- files: scripts/rw.py (CODE_DIV, HTMLText), tests, SKILL.md (Distilling a book), LEARNINGS.md. Springer EPUBs set listings as div.ProgramCode with one div per line and no pre, so --skip-code dropped nothing; in Sound Analysis and Synthesis with R it now drops about 47,000 of 151,000 words.
+
 ### C-20261107-7 · 2026-11-07 · Release 0.49.1: read --headings finds ruled headings; caps lists and acronyms open no section
 - because: L-064 and user request (every book run adds to readwright)
 - files: scripts/rw.py (heading_lines, ruled_headings, split_caps), tests, SKILL.md (Distilling a book). Oxford Handbook of Computer Music had long chapters with no headings listed, and DEC, IBM, CSIRAC and FORTRAN as false sections.

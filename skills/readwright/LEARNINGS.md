@@ -133,3 +133,6 @@ An OCR PDF of Introduction to Computer Music has several outline sections per pa
 
 ### L-064 · 2026-11-07 · `caps-list-acronym`: small-caps names opened sections, and ruled headings went unseen
 In an Oxford handbook, a list broken after DEC, IBM and glossary names such as CSIRAC became sections, while real headings over a rule of dots were missed by `read --headings`. A caps run ending in a comma, or one word also used inside sentences, is no longer a heading; `--headings` falls back to the rule of dots. A split two-line caps title still gives two sections.
+
+### L-065 · 2026-11-07 · `code-in-classed-divs`: --skip-code dropped nothing on Springer EPUBs
+Springer sets listings as div.ProgramCode with one div per line and no pre, so a third of Sound Analysis and Synthesis with R stayed in and ate the character cap. A div or p whose class names code now becomes one pre block, lines and no-break-space indents kept. When a skip flag leaves code in, look at the EPUB markup first.

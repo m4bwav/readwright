@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-5 · 2026-11-06 · Release 0.46.1: PDF outline entries linked by name keep their sections
+- because: L-061
+- files: scripts/rw.py (`pdf_outline`, `parse_dests`, `parse_outline`), tests/test_rw.py
+LaTeX PDFs link most outline entries by name, and those entries were dropped, so their text merged into the entry before. Their pages now come from `pdfinfo -dests`. Müller's book goes from 132 sections to 288.
+
 ### C-20261106-4 · 2026-11-06 · Release 0.46.0: read --until; tips for chapter summaries and pull quotes
 - because: user request (a 445-page PDF's chapter summaries each ended in exercises and web links), L-060
 - files: scripts/rw.py (cmd_read, read's arguments), SKILL.md (Distilling a book), ../../tests/test_rw.py, version in the five places

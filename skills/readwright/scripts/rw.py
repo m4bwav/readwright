@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.46.0"
+VERSION = "0.46.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2755,7 +2755,7 @@ def load_pdf(path) -> Doc:
     math = pdf_math_fonts(path, tl)
     if math:
         doc.notes.append(math_note(math))
-    outline = pdf_outline(path, tl["mutool"]) if tl["mutool"] else []
+    outline = pdf_outline(path, tl["mutool"], tl["pdfinfo"]) if tl["mutool"] else []
     raw_pages = pages
     on_page = {}
     for t, pg, _ in outline:
@@ -3229,20 +3229,44 @@ def heading_at(paras, title, lo=0, missing=-1) -> int:
     return missing
 
 
-def pdf_outline(path, mutool) -> list:
-    """(title, page, depth) from `mutool show FILE outline`; best effort, empty on any surprise."""
+def pdf_outline(path, mutool, pdfinfo=None) -> list:
+    """(title, page, depth) from `mutool show FILE outline`; best effort, empty on any surprise.
+    LaTeX PDFs link most entries by name, so pdfinfo -dests supplies their pages (L-061 `outline-named-dests`)."""
     try:
         r = run([mutool, "show", path, "outline"], 60)
     except RWError:
         return []
-    return parse_outline(r.stdout.decode("utf-8", "replace"))
+    text = r.stdout.decode("utf-8", "replace")
+    dests = {}
+    if pdfinfo and "#nameddest=" in text:
+        try:
+            d = run([pdfinfo, "-dests", path], 120)
+            dests = parse_dests(d.stdout.decode("utf-8", "replace"))
+        except RWError:
+            pass
+    return parse_outline(text, dests)
 
 
-def parse_outline(text: str) -> list:
+def parse_dests(text: str) -> dict:
+    """{name: page} from `pdfinfo -dests`: page, a bracketed destination, then the quoted name."""
+    out = {}
+    for line in text.splitlines():
+        m = re.match(r'^\s*(\d+)\s+\[.*\]\s+"(.*)"\s*$', line)
+        if m:
+            out[m.group(2)] = int(m.group(1))
+    return out
+
+
+def parse_outline(text: str, dests=None) -> list:
+    dests = dests or {}
     out = []
     # MuPDF 1.23: a marker (| leaf, + closed, - open), one tab per level, the quoted title, a tab, then
     # #page=N&zoom=... (checked on real files, L-005). Older builds indented with spaces.
+    # A named destination reads #nameddest=NAME instead of a page; dests gives its page.
     for line in text.splitlines():
+        n = re.match(r'^(.*"\s+)#nameddest=(\S+)\s*$', line)
+        if n and n.group(2) in dests:
+            line = f"{n.group(1)}#page={dests[n.group(2)]}"
         m = re.match(r'^( *)[|+\-]?(\t*) *"(.*)"\s+#?(?:page=)?(\d+)', line)
         if m:
             # MuPDF escapes quotes and backslashes (L-015) and writes a line break in a title as \r or \n

@@ -68,6 +68,7 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 ## Distilling a book
 
 - Building on an earlier read's notes: grep two or three of the passages they cite before reusing them, and read one chapter the notes skipped, so the new write-up adds something and carries no copied slip.
+- A toc row showing `(0 w)` beside siblings on the same page means its text landed in a neighbour: read the whole group with `--section N-M`. Practitioner books state frame or level tolerances as experience; cite them as the author's, not as measured.
 - Look up a study the author cites for a strong claim, and record its limits. A popular book can drop them: one reported a sex difference without saying the paper found it only in part of its age range.
 
 A broad reference already read for another subject: check what the earlier notes aimed at your subject, then read the chapters on your own job they skipped (an evaluation appendix, the analysis chapters), split by kind across two reader agents.

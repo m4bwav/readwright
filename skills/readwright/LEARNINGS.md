@@ -120,6 +120,9 @@ Power Tools for Synthesizer Programming has a contents file with no heading. `co
 ### L-071 · 2026-11-07 · `caption-credit-heading`: a photographer's name closing a caption opened a section
 split_caps took small-caps credits at the end of captions as inline headings, so body text sat under the photographer's name in a Crowood EPUB. A caps run closing a paragraph of 150 words or fewer now stays in the caption; OCR page paragraphs run longer.
 
+### L-073 · 2026-11-07 · `same-page-runin-titles`: names run into one paragraph gave their outline entries 0 words
+The Foley Grail's ch. 15 lists 44 experts as outline entries, several per page, each name run into one long paragraph ("... received. Mark Mangini (supervising ..."). Only numbered titles were split inside running text, so all but the last name on a page read as 0 words. When several entries share a page, an unnumbered title of two or more words in its exact case right after a sentence end now splits the paragraph; a lone entry never does.
+
 ### L-072 · 2026-11-07 · `chapter-mini-contents`: a chapter's own contents printed every heading twice
 MIT Press EPUBs (Roads, The Computer Music Tutorial) open each chapter with paragraphs that are each one link to a heading further down the file. Read printed them as bare lines before the body, which reader agents took for empty paragraphs. A run of three or more such blocks at the start or after a heading is now one `[chapter contents: N headings]` line; `--headings` still lists them.
 

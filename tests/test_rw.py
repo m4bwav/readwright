@@ -2145,6 +2145,16 @@ class TestRealWorldShapes(Base):
         self.assertEqual(paras[js[1] + 1].text, "The tide rose twice.")
         self.assertEqual(paras[js[2] + 1].text, "Every lamp was trimmed.")
 
+    def test_same_page_names_run_into_one_paragraph_split(self):   # L-073: Foley Grail ch. 15 gave six 0-word entries
+        P = rw.Para
+        paras = [P("p", "Parting words follow. Ann Lee (mixer) Keep it quiet. Bo Ray (editor) Cut less, listen more.")]
+        out = rw.place_on_pages([(1, "Ann Lee", 2), (1, "Bo Ray", 2)], [paras])
+        js = [j for _, _, _, j in out]
+        self.assertEqual([paras[j].text[:7] for j in js], ["Ann Lee", "Bo Ray "])
+        one = [P("p", "Words by Ann Lee here. Ann Lee (mixer) said it.")]   # a lone entry never splits running text
+        self.assertEqual(rw.place_on_pages([(1, "Ann Lee", 2)], [one])[0][3], 0)
+        self.assertEqual(len(one), 1)
+
     def test_page_furniture_by_frequency(self):
         P = rw.Para
         pages = [[P("p", "Lamp book"), P("p", "Body text " + " ".join(["lamp", "ship", "quay", "tide"][: n % 4 + 1]) + "x" * n),

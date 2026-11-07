@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-16 · 2026-11-07 · Same-page outline names run into one paragraph get their own text (0.54.0)
+- because: L-073; Ament, The Foley Grail read for everscout ai-sfx
+- files: scripts/rw.py `heading_at` (runin), `place_on_pages`; SKILL.md Distilling a book; tests
+Unnumbered titles of two or more words split running text only when several entries share the page and the title follows a sentence end in its exact case; a tip on `(0 w)` toc rows and on citing practitioner tolerances.
+
 ### C-20261107-14 · 2026-11-07 · `read --headings` finds bare-numbered heads across page sections (0.52.0)
 - because: L-069; Collins, Game Sound read for everscout ai-sfx
 - files: scripts/rw.py `bare_numbered_heads`, `heading_lines`; SKILL.md Distilling a book; tests

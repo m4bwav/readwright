@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.48.2"
+VERSION = "0.49.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3295,6 +3295,17 @@ ATTRIB_RE = re.compile(r"^\s*(\u2014|\u2013|--)\s*\S")
 IMAGE_MARKER = re.compile(r"\s*\[image omitted[^\]]*\]")
 
 
+def drop_short_paras(doc: Doc, least: int) -> int:
+    """Remove body paragraphs under `least` words: figure labels and music-notation debris in OCR text. Headings,
+    code and table paragraphs stay. Returns how many went."""
+    gone = 0
+    for s in doc.sections:
+        kept = [p for p in s.paras if p.kind != "p" or len(p.text.split()) >= least]
+        gone += len(s.paras) - len(kept)
+        s.paras = kept
+    return gone
+
+
 def drop_images(doc: Doc) -> int:
     """Remove `[image omitted: NAME]` markers; a paragraph holding nothing else goes. `[image: ALT]` stays, since it
     carries words. Returns how many markers went."""
@@ -4358,26 +4369,48 @@ def printed_selector(doc: Doc, spec: str) -> str:
     shift = doc.meta.get("page_shift", 0)
     inv = {v: k for k, v in sorted(labels.items(), reverse=True)}
 
-    def one(tok: str) -> str:
+    starts = []   # (PDF page, section number): a page holding sub-headings has several sections, so a page is not a section number
+    for i, s in enumerate(doc.sections, 1):
+        m = re.fullmatch(r"page(\d+)", s.sid or "")
+        if m:
+            starts.append((int(m.group(1)), i))
+
+    def sections_of(page: int, tok: str) -> tuple:
+        """First and last section for a PDF page; a page inside a longer section gives that section."""
+        if not starts:
+            return page, page
+        here = [i for p, i in starts if p == page]
+        if here:
+            return here[0], here[-1]
+        before = [i for p, i in starts if p < page]
+        if not before:
+            raise RWError(f"printed page {tok[1:]} falls before the first section; toc shows each page's (p. N)")
+        return before[-1], before[-1]
+
+    def one(tok: str) -> tuple:
         tok = tok.strip()
         if not tok.lower().startswith("p"):
-            return tok
+            return tok, tok
         if not tok[1:].isdigit():
             raise RWError(f"bad --section {spec!r}: printed pages are pN or pN-pM")
         v = int(tok[1:])
         if labels:
             if v not in inv:
                 raise RWError(f"no page carries the printed number {v}; toc shows each page's (p. N)")
-            return str(inv[v])
+            return sections_of(inv[v], tok)
         if shift:
-            return str(v - shift)
+            return sections_of(v - shift, tok)
         raise RWError("this document has no printed page numbers to go by; use section numbers")
     out = []
     for part in spec.split(","):
         a, sep, b = part.partition("-")
         if sep and a.strip().lower().startswith("p") and b.strip().isdigit():
             b = "p" + b.strip()
-        out.append(one(a) + (sep + one(b) if sep and b.strip() else sep))
+        first, last = one(a)
+        if sep:
+            out.append(f"{first}-{one(b)[1]}" if b.strip() else f"{first}-")
+        else:
+            out.append(str(first) if first == last else f"{first}-{last}")
     return ",".join(out)
 
 
@@ -5036,6 +5069,7 @@ def flags_used(a) -> str:
                                    (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                    (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
                                    (" --drop-images", getattr(a, "drop_images", False)),
+                                   (f" --min-para-words {getattr(a, 'min_para_words', '')}", getattr(a, "min_para_words", None)),
                                    (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None))) if on)
 
 
@@ -5078,6 +5112,9 @@ def cmd_read(a) -> int:
     if getattr(a, "drop_epigraphs", False):
         n = drop_epigraphs(doc)
         hints.append(f"--drop-epigraphs dropped {n} paragraph(s): quotation epigraphs and their attribution lines")
+    if getattr(a, "min_para_words", None):
+        n = drop_short_paras(doc, a.min_para_words)
+        hints.append(f"--min-para-words dropped {n} short paragraph(s); figure captions and list items can go too")
     if getattr(a, "drop_images", False):
         n = drop_images(doc)
         hints.append(f"--drop-images removed {n} image marker(s); `RW image` still writes a picture")
@@ -5114,6 +5151,7 @@ def cmd_read(a) -> int:
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                     (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
                                    (" --drop-images", getattr(a, "drop_images", False)),
+                                   (f" --min-para-words {getattr(a, 'min_para_words', '')}", getattr(a, "min_para_words", None)),
                                     (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None)),
                                     (" --compact", getattr(a, "compact", False)),
                                     (" --format md", a.format == "md"),
@@ -5733,6 +5771,7 @@ def main(argv=None) -> int:
     p.add_argument("--drop-repeated", action="store_true", help="drop short paragraphs that recur in 30%% or more of "
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")
     p.add_argument("--drop-images", action="store_true", help="remove [image omitted: NAME] marker lines (a book with many figures)")
+    p.add_argument("--min-para-words", type=int, metavar="N", help="drop body paragraphs under N words: figure labels and notation debris in OCR text")
     p.add_argument("--drop-epigraphs", action="store_true", help="drop quotations of 80 words or fewer followed by a "
                    "dash attribution line of 8 words or fewer (both paragraphs)")
     p.add_argument("--lang", choices=sorted(LANG_WORDS), help="on a multilingual edition keep the paragraphs whose common "

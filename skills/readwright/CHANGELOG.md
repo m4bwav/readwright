@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-6 · 2026-11-07 · Release 0.49.0: printed pages select all their sections; read --min-para-words
+- because: L-063 and user request (every book run adds to readwright)
+- files: scripts/rw.py (printed_selector, drop_short_paras), tests, SKILL.md (Distilling a book). A printed page was used as a section number, so `p264` read p. 71 of a book whose pages have sub-headings. Pages now resolve through section ids.
+
 ### C-20261107-5 · 2026-11-07 · Release 0.48.2: a photo credit closing a short caption no longer opens a section
 - because: user request (every book run adds to readwright); a Crowood EPUB's chapter 8 listed PHILIP CARTER and MANUEL HARLAN as sections, with body text filed under the photographers' names
 - files: scripts/rw.py (split_caps), SKILL.md (Distilling a book), tests

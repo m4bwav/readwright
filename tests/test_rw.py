@@ -3002,6 +3002,15 @@ class TestHeadings(Base):
         self.assertEqual(rw.numbered_headings(paras), [(3, 1), (4, 1), (5, 2), (6, 1), (7, 1)])
         self.assertEqual(rw.numbered_headings([rw.Para("p", "1.1 Lone heading")]), [])
 
+    def test_caps_headings_in_a_flat_pdf(self):   # L-068 `caps-headings`
+        body = "Words of the book run on here for a while and keep going so the paragraph is long enough to count as body text."
+        paras = [rw.Para("p", x) for x in ("THE REAL AND THE RENDERED", "THE UNITY ILLUSION", body, "NASA", body,
+                                            "QUESTIONS OF SOUND REPRODUCTION", body, "RED", "GREEN BLUE", "MATERIALIZING SOUND INDICES (MSIs)", body)]
+        self.assertEqual(rw.caps_headings(paras), [(1, 1), (5, 1), (9, 1)])
+        self.assertEqual(rw.caps_headings(paras[:5]), [])   # one heading alone is not trusted
+        caps_list = [rw.Para("p", x) for x in ("ONE TWO", "THREE FOUR", "FIVE SIX", "SEVEN EIGHT", "Short.")]
+        self.assertEqual(rw.caps_headings(caps_list), [])
+
     def test_ruled_headings_and_caps_names(self):   # L-064 `caps-list-acronym`
         paras = [rw.Para("p", x) for x in ("chapter 1", "." * 40, "Some opening words.", "1. THE APPEAL", "." * 40,
                                             "A. For Musicians", "Body words here.")]

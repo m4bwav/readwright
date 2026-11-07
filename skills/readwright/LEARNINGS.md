@@ -130,3 +130,6 @@ split_caps took small-caps credits at the end of captions as inline headings, so
 
 ### L-063 · 2026-11-07 · `page-is-not-section`: printed page numbers were turned into section numbers
 An OCR PDF of Introduction to Computer Music has several outline sections per page, so `--section p264` silently read printed p. 71. The selector now maps pages through `pageN` section ids. A wrong page with plausible text gives no error, so check the `printed N` in the header when citing.
+
+### L-064 · 2026-11-07 · `caps-list-acronym`: small-caps names opened sections, and ruled headings went unseen
+In an Oxford handbook, a list broken after DEC, IBM and glossary names such as CSIRAC became sections, while real headings over a rule of dots were missed by `read --headings`. A caps run ending in a comma, or one word also used inside sentences, is no longer a heading; `--headings` falls back to the rule of dots. A split two-line caps title still gives two sections.

@@ -2964,6 +2964,27 @@ class TestGlossaryTerms(Base):
 class TestHeadings(Base):
     """0.20.0: `read --headings` lists a chapter's subheadings with paragraph numbers for --at-para."""
 
+    def test_ruled_headings_and_caps_names(self):   # L-064 `caps-list-acronym`
+        paras = [rw.Para("p", x) for x in ("chapter 1", "." * 40, "Some opening words.", "1. THE APPEAL", "." * 40,
+                                            "A. For Musicians", "Body words here.")]
+        self.assertEqual(rw.ruled_headings(paras), [(0, 1), (3, 1), (5, 2)])
+        self.assertEqual(rw.ruled_headings([rw.Para("p", "A. Not a heading"), rw.Para("p", "Body.")]), [])
+        filler = "Words of the book run on here for a while."
+        s = rw.Section("Big", [rw.Para("p", x) for x in (
+            f"{filler} We used FORTRAN daily, and FORTRAN again later.",
+            f"{filler} DEC, IBM, Hewlett-Packard made them.",
+            f"FORTRAN Formula Translation. {filler}",
+            f"{filler} EARLY MACHINES Then came more.",
+            f"{filler} LATER MACHINES Then came more.",
+            f"{filler} NEWER SYSTEMS Then came more.",
+            f"{filler} OTHER SYSTEMS Then came more.",
+            f"{filler} FINAL THOUGHTS Then came more.",
+            f"{filler} LAST WORDS Then came more.")], 1, "x")
+        titles = [p.title for p in (rw.split_caps(s) or [])]
+        self.assertIn("EARLY MACHINES", titles)
+        self.assertNotIn("FORTRAN", titles)
+        self.assertFalse([t for t in titles if "IBM" in t])
+
     def test_read_headings(self):
         p = self.f("tut.epub")
         make_epub_pages(p, {

@@ -67,6 +67,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+An edited handbook: read the editor's introduction first, since it says which chapter covers what, then only those chapters' openings and any passage on method. Each chapter has its own authors, so cite the chapter and judge it alone.
+
 A how-to from a neighbouring trade (theatre sound read for game effects): skip the people and the venue hardware, read the chapters on making the material, and grep the job's words across the rest. Text like `mu?ed` can be in the publisher's file; check the source before blaming the reader.
 
 A long history survey: skip the instrument chapters. Grep the method words, read the chapters on those, the conclusion, and any passage where the author judges a claim. Dates in such books can differ from other sources by a year, so check one before repeating it.

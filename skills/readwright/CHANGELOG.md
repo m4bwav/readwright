@@ -4,9 +4,13 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
-### C-20261107-2 · 2026-11-07 · Release 0.48.0: OCR heads glued to a page's first words leave PDF text, letter-spaced ones too
+### C-20261107-3 · 2026-11-07 · Release 0.48.0: OCR heads glued to a page's first words leave PDF text, letter-spaced ones too
 - because: user request (every book run adds to readwright); a 2004 OCR scan set a letter-spaced head and page number before the body, in greps and toc titles
 - files: scripts/rw.py (strip_colon_heads), SKILL.md (Distilling a book), tests
+
+### C-20261107-2 · 2026-11-07 · Release 0.47.4: a printed contents page stays one section; tip for reference books
+- because: L-061 `contents-page-survivors`
+- files: scripts/rw.py (contents_page, refine), SKILL.md (Distilling a book), tests
 
 ### C-20261107-1 · 2026-11-07 · Release 0.47.3: side-margin page numbers leave PDF running text
 - because: L-060 `margin-folio-in-text`

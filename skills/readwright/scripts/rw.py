@@ -3673,6 +3673,16 @@ def contents_entry(s: Section, j: int, cuts: list) -> bool:
     return len(near) >= 2 and all(len(p.text.split()) <= 12 for p in near)
 
 
+def contents_page(s: Section, cuts: list) -> bool:
+    """True when an untitled block is a printed contents page and none of its lines opens a chapter (L-061
+    `contents-page-survivors`): nearly every line is short, and it names itself or `contents_entry` already
+    rejected several lines. The entries that repeat nothing ('Introduction', the last 'Chapter 9') survive that test."""
+    if len(s.paras) < 12 or sum(len(p.text.split()) <= 12 for p in s.paras) < 0.9 * len(s.paras):
+        return False
+    named = any(re.fullmatch(r"(table of )?contents", p.text.strip(), re.I) for p in s.paras[:3])
+    return named or len(cuts) >= 3
+
+
 def refine(doc: Doc) -> Doc:
     """Split a section of more than BIG_SECTION words at the headings or CHAPTER-style lines inside it. Converters
     often lose the outline: calibre's FB2 writes chapter titles as plain paragraphs, and its PDB round trip keeps
@@ -3684,7 +3694,8 @@ def refine(doc: Doc) -> Doc:
         if s.words() > BIG_SECTION or untitled_:
             cuts = [j for j, p in enumerate(s.paras) if (j > 0 or untitled_) and p.kind in ("h", "p")
                     and len(p.text) <= 80 and (p.kind == "h" or heading_line(p.text))]
-            cuts = [j for j in cuts if not contents_entry(s, j, cuts)]
+            kept = [j for j in cuts if not contents_entry(s, j, cuts)]
+            cuts = [] if untitled_ and contents_page(s, [j for j in cuts if j not in kept]) else kept
         if len(cuts) < (1 if untitled_ else 2):
             parts = split_caps(s) if s.words() > BIG_SECTION else None
             out.extend(parts or [s])

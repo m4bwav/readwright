@@ -2,6 +2,18 @@
 
 Retired or promoted entries from [LEARNINGS.md](LEARNINGS.md), each with a reason.
 
+## Consolidation 2026-11-07 (C-20261107-12)
+
+Active entries were 26 of 25. The entry below is unchanged except for its last line.
+
+### L-008 · 2026-09-29 · A tool installed after the shell started is not on the shell's PATH
+- Trigger: after `winget install` of pandoc, poppler, calibre and LibreOffice, `Get-Command` found none in the running shells. winget's poppler is a portable zip, LibreOffice's MSI adds nothing to PATH, `pip install --user markitdown` lands off PATH. The first CI run failed because hiding LibreOffice by trimming PATH hid nothing: on Linux soffice, antiword, mutool and pdftotext all live in `/usr/bin`.
+- Hypothesis: a process inherits PATH at start; installers only update the registry.
+- Rule: `find_tool` searches PATH, the registry PATH and the install folders (listed in references/formats.md). In tests, hide a tool with `RW_HIDE_TOOLS`, never by trimming PATH.
+- Evidence: T-20260929-3, C-20260929-4, confirmed 2026-09-29
+- Scope: skill; env:windows
+- Status: promoted to references/formats.md (tool search: install folders, registry PATH, RW_HIDE_TOOLS) and `find_tool` with TestToolDiscovery, C-20261107-12
+
 ## Consolidation 2026-11-05 (C-20261105-7)
 
 Each entry below is unchanged except for its last line. `promoted` names where the rule is now read; `retired` names the entry it merged into. A rule that is also code has its test named in the entry or in tests/test_rw.py by ID.

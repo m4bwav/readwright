@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.47.1"
+VERSION = "0.47.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5466,6 +5466,9 @@ def cmd_grep(a) -> int:
             else:
                 print("  " + (t if len(t) <= a.width // 2 else t[:a.width // 2] + " ..."))
     shown = min(len(hits), a.max)
+    if hits:   # offset is the match, usually mid-paragraph; --at-para opens the paragraph (L-grep-offset-is-the-match)
+        i0, j0, _ = hits[0]
+        print(f"[readwright: a hit's offset is the match itself; to read from the start of its paragraph use read --section {i0} --at-para {j0 + 1}]")
     if not hits and not a.ignore_case:   # "value key" missed "Value keying" (L-019)
         rxi = re.compile(pat, re.I)
         n_i = sum(len(rxi.findall(p.text)) for i in idx for p in doc.sections[i - 1].paras)

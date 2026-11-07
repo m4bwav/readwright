@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.49.2"
+VERSION = "0.50.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5126,6 +5126,22 @@ def ruled_headings(paras) -> list:
     return out if seen else []
 
 
+DECIMAL_HEAD = re.compile(r"^(\d{1,2})((?:\.\d{1,2}){1,2}) +[A-Z][^|]*$")
+DECIMAL_HEAD_MIN = 5   # fewer than this are likely stray figures or list items
+
+
+def numbered_headings(paras: list) -> list:
+    """(index, level) for short 'N.M Title' or 'N.M.K Title' lines in a PDF with no heading marks, level by depth
+    (L-066 `numbered-headings`). A title ending in a period is a sentence, and a line of numbers is a table."""
+    out = []
+    for k, p in enumerate(paras):
+        text = clean(p.text)
+        m = DECIMAL_HEAD.match(text)
+        if m and len(text) <= 90 and not text.endswith((".", ",", ";", ":")):
+            out.append((k, m.group(2).count(".")))
+    return out if len(out) >= DECIMAL_HEAD_MIN else []
+
+
 def heading_lines(doc: Doc, idx: list) -> list:
     """`read --headings`: each heading paragraph of the selected sections, indented by level, with its paragraph
     number (for --at-para) and the words up to the next heading."""
@@ -5141,6 +5157,13 @@ def heading_lines(doc: Doc, idx: list) -> list:
                 w = sum(len(p.text.split()) for p in s.paras[k + 1:end] if not RULE_LINE.match(clean(p.text)))
                 out.append(f"{'  ' * lv}{clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
             if ruled:
+                continue
+            numbered = numbered_headings(s.paras)
+            for n, (k, lv) in enumerate(numbered):
+                end = numbered[n + 1][0] if n + 1 < len(numbered) else len(s.paras)
+                w = sum(len(p.text.split()) for p in s.paras[k + 1:end])
+                out.append(f"{'  ' * lv}{clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
+            if numbered:
                 continue
             out.append("  (no headings under the title in this section; a PDF without structure has none: try toc --group, "
                        "or grep for the words you want)")

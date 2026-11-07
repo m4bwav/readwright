@@ -2985,6 +2985,13 @@ class TestGlossaryTerms(Base):
 class TestHeadings(Base):
     """0.20.0: `read --headings` lists a chapter's subheadings with paragraph numbers for --at-para."""
 
+    def test_numbered_headings_in_a_flat_pdf(self):   # L-066 `numbered-headings`
+        heads = ["1.1 Introduction", "1.2 Sound generation", "1.2.1 Frequency", "2.1 Loudness", "5.2 Annoyance"]
+        noise = ["1.4 | 1.2 | 1 | 0.8", "3.5 Hz is the value we measured here.", "Body words."]
+        paras = [rw.Para("p", x) for x in noise + heads]
+        self.assertEqual(rw.numbered_headings(paras), [(3, 1), (4, 1), (5, 2), (6, 1), (7, 1)])
+        self.assertEqual(rw.numbered_headings([rw.Para("p", "1.1 Lone heading")]), [])
+
     def test_ruled_headings_and_caps_names(self):   # L-064 `caps-list-acronym`
         paras = [rw.Para("p", x) for x in ("chapter 1", "." * 40, "Some opening words.", "1. THE APPEAL", "." * 40,
                                             "A. For Musicians", "Body words here.")]

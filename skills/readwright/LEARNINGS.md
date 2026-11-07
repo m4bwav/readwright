@@ -136,3 +136,6 @@ In an Oxford handbook, a list broken after DEC, IBM and glossary names such as C
 
 ### L-065 · 2026-11-07 · `code-in-classed-divs`: --skip-code dropped nothing on Springer EPUBs
 Springer sets listings as div.ProgramCode with one div per line and no pre, so a third of Sound Analysis and Synthesis with R stayed in and ate the character cap. A div or p whose class names code now becomes one pre block, lines and no-break-space indents kept. When a skip flag leaves code in, look at the EPUB markup first.
+
+### L-066 · 2026-11-07 · `numbered-headings`: --headings saw nothing in a flat numbered PDF
+The Effects of Sound on People keeps 96% of its text in one section, with headings only as plain `5.2 Annoyance` lines, so `read --headings` reported none and the reader wrote the section to a file and grepped it. Five or more short numbered lines now count as headings; lines of figures and sentences do not.

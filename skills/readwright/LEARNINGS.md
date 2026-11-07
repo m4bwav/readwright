@@ -121,3 +121,6 @@ Reading The Argument Culture, a batch ended at the title of section 135 with no 
 
 ### L-060 · 2026-11-07 · `margin-folio-in-text`: a side-margin page number lands inside sentences
 Refining Sound sets folios at mid-page height in the margin, so pdftotext read "close together in 65 frequency". The number is removed only when one shift holds on a quarter of the pages, twice the runner-up, and the page has one plain occurrence. Of 40 other PDFs 5 qualified; sampled removals were real folios except line references and contents leaders, which are now blocked. The sample was small, so an odd number could still go.
+
+### L-061 · 2026-11-07 · `contents-page-survivors`: lines of a contents page that repeat nothing opened false sections
+Power Tools for Synthesizer Programming has a contents file with no heading. `contents_entry` rejected Chapter 1 to 8 because a later cut shared the word, but Introduction, Chapter 9 and Appendix survived, giving three false sections at the front. A short-line block that names itself contents, or lost three or more cuts, now keeps none.

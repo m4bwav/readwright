@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-062 · 2026-11-06 · `viewport-attribute-order`: fixed-layout detection needed name before content
+Murch, Suddenly Something Clicked, writes `<meta content="width=818, height=1065" name="viewport"/>`. The pattern wanted name first, so every printed line, folio, running head and margin quote came out as its own paragraph, with page furniture mixed into the sentences and line-end hyphens kept. A book that reads as one line per paragraph points here. Separately, `--offset` past the end printed nothing and exited 0; it now refuses.
+
 ### L-061 · 2026-11-06 · `outline-named-dests`: LaTeX outlines lost most of their entries
 `mutool show` prints `#nameddest=section.7.2` instead of a page for hyperref PDFs, and the parser only took page numbers. Müller's 287 outline entries came out as 132 sections, with section 7.2 inside "7.1.2.2 Fingerprint Matching" and no warning. An earlier reader had to interpolate page numbers. `pdfinfo -dests` gives the pages. 10 of the first 40 PDFs in the book folder have such entries. When a toc shows one huge leaf, compare its entry count with the PDF's outline.
 

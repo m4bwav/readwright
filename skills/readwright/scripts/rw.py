@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.47.0"
+VERSION = "0.47.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -764,7 +764,7 @@ def epub_drm(z: zipfile.ZipFile) -> str | None:
     return "; ".join(kinds) if kinds else None
 
 
-FIXED_VIEWPORT = re.compile(r"""<meta[^>]+name=["']viewport["'][^>]*width=\s*\d+[^>]*height=\s*\d+""", re.I)
+FIXED_VIEWPORT = re.compile(r"""<meta(?=[^>]+name=["']viewport["'])[^>]*width=\s*\d+[^>]*height=\s*\d+""", re.I)
 FIXED_SENTENCE_END = re.compile(r"""[.?!:]["'\u201d\u2019)]*$""")
 
 
@@ -5110,6 +5110,8 @@ def cmd_read(a) -> int:
         print("\n".join(toc_lines(doc, 300)))
         return EXIT_REFUSED
     start = a.offset or 0
+    if start and start >= len(text):
+        raise RWError(f"--offset {start} is past the end: the selection has {len(text)} characters")
     if a.at_para:
         if not a.section:
             raise RWError("--at-para needs --section N")

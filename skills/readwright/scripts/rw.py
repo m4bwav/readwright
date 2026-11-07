@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.51.1"
+VERSION = "0.52.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5169,10 +5169,37 @@ def caps_headings(paras: list) -> list:
     return out if len(out) >= CAPS_HEAD_MIN else []
 
 
+BARE_NUM_HEAD = re.compile(r"^(\d{1,2}) +[A-Z][^.|]{2,70}$")
+BARE_NUM_MIN = 3   # a run 1, 2, 3 at least: fewer are footnote markers or list items
+
+
+def bare_numbered_heads(doc: "Doc", idx: list) -> set:
+    """(section, para) of '1 Variable Tempo' style heads across the selected sections, kept only as a run counting up
+    from 1 (Collins, Game Sound ch. 8: one PDF page per section, so a per-section count never reaches a threshold;
+    L-069 `bare-numbered-heads`)."""
+    cands = []
+    for i in idx:
+        for k, p in enumerate(doc.sections[i - 1].paras):
+            text = clean(p.text)
+            m = BARE_NUM_HEAD.match(text)
+            if m and len(text.split()) <= 10 and not text.endswith((",", ";", ":")):
+                cands.append((int(m.group(1)), i, k))
+    best, run = [], []
+    for n, i, k in cands:
+        if n == 1:
+            run = [(i, k)]
+        elif run and n == len(run) + 1:
+            run.append((i, k))
+        if len(run) > len(best):
+            best = list(run)
+    return set(best) if len(best) >= BARE_NUM_MIN else set()
+
+
 def heading_lines(doc: Doc, idx: list) -> list:
     """`read --headings`: each heading paragraph of the selected sections, indented by level, with its paragraph
     number (for --at-para) and the words up to the next heading."""
     out = []
+    bare = bare_numbered_heads(doc, idx)
     for i in idx:
         s = doc.sections[i - 1]
         out.append(f"[{i}] {s.title} ({fmt_n(s.words())} words)")
@@ -5198,6 +5225,13 @@ def heading_lines(doc: Doc, idx: list) -> list:
                 w = sum(len(p.text.split()) for p in s.paras[k + 1:end])
                 out.append(f"{'  ' * lv}{clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
             if caps:
+                continue
+            mine = sorted(k for j, k in bare if j == i)
+            for n, k in enumerate(mine):
+                end = mine[n + 1] if n + 1 < len(mine) else len(s.paras)
+                w = sum(len(p.text.split()) for p in s.paras[k + 1:end])
+                out.append(f"  {clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
+            if mine:
                 continue
             out.append("  (no headings under the title in this section; a PDF without structure has none: try toc --group, "
                        "or grep for the words you want)")

@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-14 · 2026-11-07 · `read --headings` finds bare-numbered heads across page sections (0.52.0)
+- because: L-069; Collins, Game Sound read for everscout ai-sfx
+- files: scripts/rw.py `bare_numbered_heads`, `heading_lines`; SKILL.md Distilling a book; tests
+'1 Variable Tempo' style heads count when they form a run 1, 2, 3 or longer across the selected sections; a tip says to pass a whole chapter range for page-per-section PDFs.
+
 ### C-20261107-13 · 2026-11-07 · PDF thousands commas rejoined; patch-diagram book tip (0.51.1)
 - because: Farnell, Designing Sound read for everscout ai-sfx printed "3, 097Hz" and "50, 000RPM"
 - files: scripts/rw.py `join_lines` (SPLIT_THOUSANDS), SKILL.md Distilling a book, tests

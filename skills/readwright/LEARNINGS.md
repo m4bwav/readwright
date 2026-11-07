@@ -92,14 +92,6 @@ Murch, Suddenly Something Clicked, writes `<meta content="width=818, height=1065
 - Scope: skill
 - Status: active · helpful 1 · harmful 0 · last_confirmed 2026-09-29
 
-### L-008 · 2026-09-29 · A tool installed after the shell started is not on the shell's PATH
-- Trigger: after `winget install` of pandoc, poppler, calibre and LibreOffice, `Get-Command` found none in the running shells. winget's poppler is a portable zip, LibreOffice's MSI adds nothing to PATH, `pip install --user markitdown` lands off PATH. The first CI run failed because hiding LibreOffice by trimming PATH hid nothing: on Linux soffice, antiword, mutool and pdftotext all live in `/usr/bin`.
-- Hypothesis: a process inherits PATH at start; installers only update the registry.
-- Rule: `find_tool` searches PATH, the registry PATH and the install folders (listed in references/formats.md). In tests, hide a tool with `RW_HIDE_TOOLS`, never by trimming PATH.
-- Evidence: T-20260929-3, C-20260929-4, confirmed 2026-09-29
-- Scope: skill; env:windows
-- Status: active · helpful 1 · harmful 0 · last_confirmed 2026-09-29
-
 ### L-010 · 2026-09-29 · On EPUB, a strong model without the skill does about as well
 - Trigger: action-2 with `--ablation with-without`, 3 runs per arm: without the skill the model wrote a zipfile-and-regex extractor and answered correctly, 12.9k to 13.1k tokens of tool output and $0.29 to $0.31; with it, 12.1k to 12.2k and $0.29 to $0.30. A first guess that the no-skill arm answered from memory was wrong: the saved trace showed the extraction.
 - Hypothesis: EPUB is a zip of HTML, which a capable model parses on the fly; the skill's margin is elsewhere (converter formats, refusing a whole-book dump, chapter numbers mapped to sections, no new code per book).
@@ -119,13 +111,13 @@ Quietly Powerful (one-file EPUB) split its endnotes at headings named Chapter 1,
 ### L-059 · 2026-11-06 · A cap could end on a bare section title
 Reading The Argument Culture, a batch ended at the title of section 135 with no body, which looked like an empty section until the footer was read. A cut now backs up to before such a header.
 
-### L-060 · 2026-11-07 · `margin-folio-in-text`: a side-margin page number lands inside sentences
+### L-069 · 2026-11-07 · `margin-folio-in-text`: a side-margin page number lands inside sentences
 Refining Sound sets folios at mid-page height in the margin, so pdftotext read "close together in 65 frequency". The number is removed only when one shift holds on a quarter of the pages, twice the runner-up, and the page has one plain occurrence. Of 40 other PDFs 5 qualified; sampled removals were real folios except line references and contents leaders, which are now blocked. The sample was small, so an odd number could still go.
 
-### L-061 · 2026-11-07 · `contents-page-survivors`: lines of a contents page that repeat nothing opened false sections
+### L-070 · 2026-11-07 · `contents-page-survivors`: lines of a contents page that repeat nothing opened false sections
 Power Tools for Synthesizer Programming has a contents file with no heading. `contents_entry` rejected Chapter 1 to 8 because a later cut shared the word, but Introduction, Chapter 9 and Appendix survived, giving three false sections at the front. A short-line block that names itself contents, or lost three or more cuts, now keeps none.
 
-### L-062 · 2026-11-07 · `caption-credit-heading`: a photographer's name closing a caption opened a section
+### L-071 · 2026-11-07 · `caption-credit-heading`: a photographer's name closing a caption opened a section
 split_caps took small-caps credits at the end of captions as inline headings, so body text sat under the photographer's name in a Crowood EPUB. A caps run closing a paragraph of 150 words or fewer now stays in the caption; OCR page paragraphs run longer.
 
 ### L-063 · 2026-11-07 · `page-is-not-section`: printed page numbers were turned into section numbers

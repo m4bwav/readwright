@@ -1709,7 +1709,7 @@ class TestCommands(Base):
         self.assertIn("fresh shell", full)
 
     def test_untitled_contents_page_stays_one_section(self):
-        # L-061: 'Introduction' and the last 'Chapter 9' repeat no later line, so they used to open false sections
+        # L-070: 'Introduction' and the last 'Chapter 9' repeat no later line, so they used to open false sections
         lines = ["Table of Contents", "Title Page", "Introduction"] + [f"Chapter {n} - Topic {n}" for n in range(1, 10)] \
             + ["Appendix: Track Listing", "Index"]
         doc = rw.Doc("x", "txt", {}, [rw.Section("(untitled: Table of Contents)", [rw.Para("p", t) for t in lines], 1, "c")])

@@ -3671,7 +3671,7 @@ def split_caps(s: Section, pages: int = 0) -> list | None:
                 if b - a > CAPS_RUN_MAX:
                     continue
                 if a and not after and b - a <= 4 and len(w) <= CREDIT_PARA_WORDS:
-                    continue   # the end of a short caption: a photo credit, not a heading (L-062 `caption-credit-heading`)
+                    continue   # the end of a short caption: a photo credit, not a heading (L-071 `caption-credit-heading`)
                 if w[b - 1][-1:] == ",":
                     continue   # a list running on: 'DEC, IBM, Hewlett-Packard' (L-064 `caps-list-acronym`)
                 if one and acronym[w[a].strip(".,:;")] >= CAPS_ACRONYM_USES:
@@ -3750,7 +3750,7 @@ def contents_entry(s: Section, j: int, cuts: list) -> bool:
 
 
 def contents_page(s: Section, cuts: list) -> bool:
-    """True when an untitled block is a printed contents page and none of its lines opens a chapter (L-061
+    """True when an untitled block is a printed contents page and none of its lines opens a chapter (L-070
     `contents-page-survivors`): nearly every line is short, and it names itself or `contents_entry` already
     rejected several lines. The entries that repeat nothing ('Introduction', the last 'Chapter 9') survive that test."""
     if len(s.paras) < 12 or sum(len(p.text.split()) <= 12 for p in s.paras) < 0.9 * len(s.paras):

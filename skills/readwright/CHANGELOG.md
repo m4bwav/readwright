@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-12 · 2026-11-07 · Learnings consolidation: duplicate IDs fixed, L-008 promoted
+- because: audit flag consolidate:26>25
+- files: LEARNINGS.md, LEARNINGS-ARCHIVE.md, CHANGELOG.md, scripts/rw.py (comments), ../../tests/test_rw.py (comment)
+- L-060, L-061 and L-062 had each been given twice, on 11-06 and 11-07. The 11-07 entries are now L-069 `margin-folio-in-text`, L-070 `contents-page-survivors` and L-071 `caption-credit-heading`, with their citations. L-008 moved to the archive: its rule is in references/formats.md and `find_tool`. 25 active. Next free L-072.
+
 ### C-20261107-11 · 2026-11-07 · Release 0.51.0: read --headings lists whole-caps headings in a flat PDF
 - because: L-068 and user request (every book run adds to readwright)
 - files: scripts/rw.py (caps_headings, heading_lines), tests, SKILL.md (Distilling a book), LEARNINGS.md. Chion, Audio-Vision (Columbia PDF) marks its subheadings only by capitals, so `read --headings` said none; it now lists them when a section has at least three, each followed by a body paragraph. Also a tip: distil from an earlier read by rechecking its cited passages with grep.
@@ -42,11 +47,11 @@ A caps run of up to four words that closes a paragraph of 150 words or fewer is 
 - files: scripts/rw.py (strip_colon_heads), SKILL.md (Distilling a book), tests
 
 ### C-20261107-2 · 2026-11-07 · Release 0.47.4: a printed contents page stays one section; tip for reference books
-- because: L-061 `contents-page-survivors`
+- because: L-070 `contents-page-survivors`
 - files: scripts/rw.py (contents_page, refine), SKILL.md (Distilling a book), tests
 
 ### C-20261107-1 · 2026-11-07 · Release 0.47.3: side-margin page numbers leave PDF running text
-- because: L-060 `margin-folio-in-text`
+- because: L-069 `margin-folio-in-text`
 - files: scripts/rw.py (margin_folio_shift, strip_margin_folio), SKILL.md (Distilling a book), tests
 
 ### C-20261106-10 · 2026-11-06 · Release 0.47.2: grep says how to read a hit from its paragraph's start; tip for interview books

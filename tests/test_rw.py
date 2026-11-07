@@ -2337,6 +2337,29 @@ class TestRealWorldShapes(Base):
         self.assertEqual(doc.sections[1].paras[0].text, "and return the top k")
         self.assertEqual(doc.sections[2].paras[0].text, "1Preface stays")
 
+    def test_strip_glued_heads_rejoins_the_split_sentence(self):
+        P = rw.Para
+        head = "Chapter 5 # Equalization"
+        paras = [P("h", "5.1 Filters", 2)]
+        for n in range(5):
+            paras += [P("p", f"Page {n} text."), P("p", head)]
+        paras += [P("p", "The filter can be"), P("p", head + " patched between the two."),
+                  P("p", head + " Capital text stays as written."), P("p", "Chapter 5 was short and clear, as noted.")]
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("5.1 Filters", paras, 1, "s1")])
+        self.assertEqual(rw.strip_glued_heads(doc), 1)
+        texts = [p.text for p in doc.sections[0].paras]
+        self.assertIn("The filter can be patched between the two.", texts)
+        self.assertIn(head + " Capital text stays as written.", texts)
+        self.assertIn("Chapter 5 was short and clear, as noted.", texts)
+
+    def test_strip_glued_heads_keeps_a_new_paragraph_after_a_full_stop(self):
+        P = rw.Para
+        head = "Running Head Here"
+        paras = [P("h", "One", 2)] + [P("p", head) for _ in range(5)] + [P("p", "Done."), P("p", head + " and then more.")]
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("One", paras, 1, "s1")])
+        self.assertEqual(rw.strip_glued_heads(doc), 1)
+        self.assertEqual(doc.sections[0].paras[-1].text, "and then more.")
+
     def test_drop_repeated_credit_lines(self):
         P = rw.Para
         secs = []

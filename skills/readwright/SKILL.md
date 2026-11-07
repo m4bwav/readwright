@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.46.3"
+  version: "0.47.0"
 ---
 
 # readwright
@@ -66,6 +66,8 @@ For work that needs many passes over a long book (every scene with a character, 
 Quote briefly. For a copyrighted book, summarise and quote a sentence or two at a time, never whole pages or chapters, even when the user owns the copy. Cite where each point came from (section number and title) so the user can check it. When a conversion note was printed (calibre, LibreOffice, pdftotext), mention that the text came through a converter if the wording matters.
 
 ## Distilling a book
+
+Craft book from a neighbouring field (music mixing read for sound effects): take the reason behind each setting and mark its numbers as untested in your field.
 
 Project-based tutorial: run `read --headings` on a chapter first, and read the opening, rules and warnings; the numbers sit between screen-by-screen steps, so `--from` a heading saves most of the chapter. Check the arithmetic in its worked examples.
 

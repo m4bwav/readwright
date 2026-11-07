@@ -923,6 +923,20 @@ class TestFormats(Base):
 
 
 
+class TestColonHeads(unittest.TestCase):
+    def test_spaced_and_left_hand_heads_go(self):
+        pages = [f"T h e B a c k g r o u n d to 1 9 4 5 : {n} wire that ran on {n}" for n in range(11, 16)]
+        pages += ["1 6 : The B a c k g r o u n d to 1945 thesis faced a test", "Plain page: 3 of the rest"]
+        out = rw.strip_colon_heads(pages)
+        self.assertEqual(out[0], "wire that ran on 11")
+        self.assertEqual(out[5], "thesis faced a test")
+        self.assertEqual(out[6], pages[6])
+
+    def test_few_repeats_stay(self):
+        pages = [f"Table of results : {n} was the score" for n in range(4)]
+        self.assertEqual(rw.strip_colon_heads(pages), pages)
+
+
 class TestFixedLayout(unittest.TestCase):
     def test_lines_and_italic_runs_rejoin(self):
         lines = ["PREFACE", "The article covered the design of", "2001: A Space Odyssey,", "posted on my site. It went",

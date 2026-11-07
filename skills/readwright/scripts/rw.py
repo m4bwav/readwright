@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.46.2"
+VERSION = "0.46.3"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5024,7 +5024,7 @@ def cmd_read(a) -> int:
         parts = []
         for i in idx:
             body = shape(compose(doc, [i], a.format, a.max_words, flags))
-            m = from_re.search(body)
+            m = from_re.search(body, body.find("\n") + 1 if body.startswith("=== [") else 0)   # never match the header line, which holds the title
             if m:
                 end = until_re.search(body, m.end()) if until_re else None
                 if until_re and not end:

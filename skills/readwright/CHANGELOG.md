@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-7 · 2026-11-06 · Release 0.46.3: `read --from` no longer matches the header line
+- because: user request (fix what a book run reports)
+- files: scripts/rw.py read, SKILL.md Distilling a book, tests
+`--from` searched the printed header too, so a word in the chapter title cut into the header and returned the chapter from its start. Added a tip for project-based tutorials.
+
 ### C-20261106-6 · 2026-11-06 · Release 0.46.2: distilling tip for polemics that build a taxonomy
 - because: user request (every book run adds to readwright)
 - files: SKILL.md (Distilling a book)

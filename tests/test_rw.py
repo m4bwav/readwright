@@ -1318,6 +1318,16 @@ class TestCommands(Base):
             code, got, _ = cli("grep", t, "Brannoch", "--json", "--max", "1", "--format", fmt)
             self.assertEqual(json.loads(got)["hits"][0]["offset"], int(m.group(2)))
 
+    def test_read_from_skips_the_header_line(self):   # --from on a word in the chapter title cut into the header, 2026-11-06
+        import tempfile
+        t = os.path.join(tempfile.mkdtemp(), "b.md")
+        with open(t, "w", encoding="utf-8") as f:
+            f.write("# Plan and design documents\n\nOpening words.\n\nThe design documents come later.\n")
+        code, got, _ = cli("read", t, "--title", "Plan", "--from", "design documents")
+        self.assertEqual(code, 0)
+        self.assertNotIn("| id ", got)
+        self.assertIn("come later", got)
+
     def test_read_from_regex(self):
         t = self.big_text()
         code, got, _ = cli("read", t, "--section", "7", "--from", "Brannoch", "--max-chars", "200")

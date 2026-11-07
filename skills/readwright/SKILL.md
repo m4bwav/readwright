@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.46.2"
+  version: "0.46.3"
 ---
 
 # readwright
@@ -66,6 +66,8 @@ For work that needs many passes over a long book (every scene with a character, 
 Quote briefly. For a copyrighted book, summarise and quote a sentence or two at a time, never whole pages or chapters, even when the user owns the copy. Cite where each point came from (section number and title) so the user can check it. When a conversion note was printed (calibre, LibreOffice, pdftotext), mention that the text came through a converter if the wording matters.
 
 ## Distilling a book
+
+Project-based tutorial: run `read --headings` on a chapter first, and read the opening, rules and warnings; the numbers sit between screen-by-screen steps, so `--from` a heading saves most of the chapter. Check the arithmetic in its worked examples.
 
 - A polemic that builds a taxonomy: read the prologue and the opening of each chapter (`RW read FILE -s 8-16 --each-chars 2500`), since each names its move there and a later chapter may recap the list. Its numbers are often the author's own chosen samples, and its anecdotes single cases, so use it to name patterns, then search for studies of whether they happen and how often. Look for what complicates the claim as well as what supports it.
 - A textbook with end-of-chapter summaries: read those first with `RW read FILE --title 'SUMMARY TITLE' --until 'boilerplate heading' --compact`, then only the sections they send you to. One 445-page PDF's 19 summaries, about 500 words each, covered the argument of its 182k words, once `--until` dropped the exercise list and web links closing each one (0.46.0).

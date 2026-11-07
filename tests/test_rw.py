@@ -3256,5 +3256,21 @@ class CacheWriteTests(unittest.TestCase):
             self.assertFalse(tmp.exists())
 
 
+class ViewportOrderTests(unittest.TestCase):
+    def test_pattern_takes_either_attribute_order(self):
+        self.assertTrue(rw.FIXED_VIEWPORT.search('<meta content="width=818, height=1065" name="viewport"/>'))
+        self.assertTrue(rw.FIXED_VIEWPORT.search('<meta name="viewport" content="width=818, height=1065"/>'))
+        self.assertFalse(rw.FIXED_VIEWPORT.search('<meta content="width=818, height=1065" name="other"/>'))
+
+    def test_offset_past_end_refuses(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "a.txt"
+            f.write_text("Short text.", encoding="utf-8")
+            r = subprocess.run([sys.executable, str(SCRIPT), "read", str(f), "--offset", "9999"],
+                               capture_output=True, text=True)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("past the end", r.stdout + r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

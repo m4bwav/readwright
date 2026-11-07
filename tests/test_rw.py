@@ -426,6 +426,18 @@ class TestEpub(Base):
         self.assertIn("date: 2001", out)
         self.assertIn("Gulls — and ledgers", out)
 
+    def test_chapter_mini_contents_collapse_to_one_line(self):   # Roads, MIT Press EPUB 2026-11-07
+        body = "".join(f"<p class='ctoc'><a href='#s{k}'><b>Head {k}</b></a></p>" for k in range(4))
+        body += "".join(f"<h2 id='s{k}'>Head {k}</h2><p>Text {k} with a <a href='#s0'>link</a>.</p>" for k in range(4))
+        h = rw.html_paras("<h1>31 Pitch</h1>" + body)
+        texts = [p.text for p in h.paras]
+        self.assertEqual(texts[1], "[chapter contents: 4 headings; list them with read --headings]")
+        self.assertEqual(texts.count("Head 2"), 1)
+        self.assertEqual(texts[h.ids["s2"]], "Head 2")
+        # two lone links are not a contents run, and links later in the body stay
+        h = rw.html_paras("<h1>T</h1><p><a href='#a'>A</a></p><p><a href='#b'>B</a></p><p id='a'>x</p>")
+        self.assertEqual([p.text for p in h.paras], ["T", "A", "B", "x"])
+
     def test_list_in_table_cell_keeps_items_apart(self):
         h = rw.html_paras("<table><tr><td><ol><li>High-yield bonds</li><li>REITs</li><li>Index funds</li></ol></td><td>x</td></tr></table>")
         self.assertEqual(h.paras[-1].text, "High-yield bonds; REITs; Index funds\tx")
@@ -1521,6 +1533,7 @@ class TestCommands(Base):
         self.assertTrue(m, out)
         end = int(m.group(1).replace(",", ""))
         self.assertLess(end, limit)
+        self.assertIn("short of --max-chars", out)
         self.assertTrue(body[:end].endswith(("\n", " ")), repr(body[end - 20:end]))
         _, rest, _ = cli("read", t, "--section", "2", "--offset", str(end), "--quiet")
         self.assertEqual(body[:end] + rest.split("[readwright:")[0], body)

@@ -120,6 +120,9 @@ Power Tools for Synthesizer Programming has a contents file with no heading. `co
 ### L-071 · 2026-11-07 · `caption-credit-heading`: a photographer's name closing a caption opened a section
 split_caps took small-caps credits at the end of captions as inline headings, so body text sat under the photographer's name in a Crowood EPUB. A caps run closing a paragraph of 150 words or fewer now stays in the caption; OCR page paragraphs run longer.
 
+### L-072 · 2026-11-07 · `chapter-mini-contents`: a chapter's own contents printed every heading twice
+MIT Press EPUBs (Roads, The Computer Music Tutorial) open each chapter with paragraphs that are each one link to a heading further down the file. Read printed them as bare lines before the body, which reader agents took for empty paragraphs. A run of three or more such blocks at the start or after a heading is now one `[chapter contents: N headings]` line; `--headings` still lists them.
+
 ### L-063 · 2026-11-07 · `page-is-not-section`: printed page numbers were turned into section numbers
 An OCR PDF of Introduction to Computer Music has several outline sections per page, so `--section p264` silently read printed p. 71. The selector now maps pages through `pageN` section ids. A wrong page with plausible text gives no error, so check the `printed N` in the header when citing.
 

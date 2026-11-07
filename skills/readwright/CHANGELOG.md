@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-8 · 2026-11-06 · Release 0.47.0: `--drop-repeated` removes running heads glued to page text
+- because: user request (fix what a book run reports)
+- files: scripts/rw.py strip_glued_heads, SKILL.md Distilling a book, tests
+In Case's Sound FX the head stayed in sentences split across pages, as in "EQ can be / Chapter 5 Equalization patched between". The head goes and the sentence is joined, when the same head also stands alone five times or more. Tested on synthetic text and that book. Added a tip: for craft books aimed at a neighbouring field, read for the reason behind each setting and carry over the reason, not the number.
+
 ### C-20261106-7 · 2026-11-06 · Release 0.46.3: `read --from` no longer matches the header line
 - because: user request (fix what a book run reports)
 - files: scripts/rw.py read, SKILL.md Distilling a book, tests

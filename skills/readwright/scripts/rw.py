@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.46.3"
+VERSION = "0.47.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3120,6 +3120,38 @@ def fix_chapter_openers(doc: Doc) -> int:
     return fixed
 
 
+def strip_glued_heads(doc: Doc, least: int = 5, max_words: int = 8) -> int:
+    """Remove a running head glued to the first line of a PDF page ("Chapter 5 X Equalization patched between..."),
+    and join the sentence it split back onto the paragraph before. A head is a short paragraph that also stands alone
+    `least` times or more; it counts as glued only when lower-case text follows it. Returns how many went."""
+    count = {}
+    for s in doc.sections:
+        for p in s.paras[1:]:
+            if p.kind != "h" and len(p.text.split()) <= max_words:
+                count[p.text.strip()] = count.get(p.text.strip(), 0) + 1
+    heads = sorted((t for t, c in count.items() if c >= least and len(t.split()) >= 2), key=len, reverse=True)
+    if not heads:
+        return 0
+    gone = 0
+    for s in doc.sections:
+        keep = s.paras[:1]
+        for p in s.paras[1:]:
+            head = next((h for h in heads if p.kind != "h" and p.text.startswith(h + " ")
+                         and p.text[len(h) + 1:1 + len(h) + 1].islower()), None)
+            if head is None:
+                keep.append(p)
+                continue
+            gone += 1
+            p.text = p.text[len(head) + 1:]
+            prev = keep[-1] if len(keep) > 1 else None
+            if prev is not None and prev.kind == "p" and prev.text.rstrip()[-1:] not in ".?!:;\"\u201d":
+                prev.text = prev.text.rstrip() + " " + p.text
+            else:
+                keep.append(p)
+        s.paras = keep
+    return gone
+
+
 def drop_repeated(doc: Doc, share: float = 0.3, least: int = 5) -> int:
     """Drop short paragraphs that recur, verbatim or with the same last four words, in at least `share` of the
     sections that have text (and at least `least` sections), or a line of at most eight words repeated verbatim ten
@@ -4917,8 +4949,10 @@ def cmd_read(a) -> int:
         n = cut_rows(doc, a.max_row_words)
         hints.append(f"--max-row-words cut {n} long table row(s) across the book; read without it to see them whole")
     if getattr(a, "drop_repeated", False):
+        glued = strip_glued_heads(doc)
         n = drop_repeated(doc)
-        hints.append(f"--drop-repeated dropped {n} short paragraph(s) that recur across the book (credit lines, notices)")
+        hints.append(f"--drop-repeated dropped {n} short paragraph(s) that recur across the book (credit lines, notices)"
+                     + (f" and {glued} running head(s) glued to page text" if glued else ""))
     if getattr(a, "drop_epigraphs", False):
         n = drop_epigraphs(doc)
         hints.append(f"--drop-epigraphs dropped {n} paragraph(s): quotation epigraphs and their attribution lines")

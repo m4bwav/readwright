@@ -772,6 +772,15 @@ class TestFormats(Base):
         self.assertEqual(rw.loose_typography("(?-i:x)"), "(?-i:x)", "inline flags stay")
         self.assertTrue(re.search(rw.loose_typography(re.escape("a-b")), "a‐b"))
 
+    def test_grep_names_the_paragraph_read(self):
+        p = self.f("t.md")
+        p.write_text("# One\n\nFirst para.\n\nA long lead then the needle here.\n", encoding="utf-8")
+        _, out, _ = cli("grep", p, "needle")
+        para = re.search(r"para (\d+)/", out).group(1)
+        self.assertIn(f"--at-para {para}", out)
+        _, read, _ = cli("read", p, "--section", "1", "--at-para", para)
+        self.assertIn("A long lead", read)
+
     def test_grep_smart_case(self):   # L-038: an all-lower-case pattern matches any case
         p = self.f("t.md")
         p.write_text("# One\n\nThe Consumer Price Index rose.\n", encoding="utf-8")

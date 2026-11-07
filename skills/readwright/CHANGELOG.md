@@ -4,6 +4,12 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261106-10 · 2026-11-06 · Release 0.47.2: grep says how to read a hit from its paragraph's start; tip for interview books
+- because: user request (every book run adds to readwright)
+- files: scripts/rw.py (grep), SKILL.md (Distilling a book), tests
+
+A hit's offset is the match, so `read --offset` opened mid-sentence; grep now names `--at-para`.
+
 ### C-20261106-9 · 2026-11-06 · Release 0.47.1: fixed-layout EPUBs found with the viewport attributes in either order; `--offset` past the end is an error
 - because: user request (fix what a book run reports); L-062
 - files: scripts/rw.py FIXED_VIEWPORT, cmd_read, tests

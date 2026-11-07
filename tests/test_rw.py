@@ -755,6 +755,23 @@ class TestFormats(Base):
         doc.meta = {"page_shift": 2}
         self.assertEqual(rw.printed_selector(doc, "p12"), "10")
 
+    def test_printed_pages_with_sub_headings_map_to_all_their_sections(self):
+        # An outline with sub-headings gives a page several sections, so section number and page differ.
+        doc = rw.Doc("x.pdf", "pdf")
+        doc.sections = [rw.Section(f"s{i}", [], 1, sid) for i, sid in enumerate(
+            ["page1", "page2", "page2", "page3", "page3", "page3", "page6"], 1)]
+        doc.meta = {"page_shift": -1}   # printed N is on PDF page N + 1
+        self.assertEqual(rw.printed_selector(doc, "p1"), "2-3")
+        self.assertEqual(rw.printed_selector(doc, "p1-p2"), "2-6")
+        self.assertEqual(rw.printed_selector(doc, "p4"), "6", "inside a longer section: that section")
+        self.assertEqual(rw.select(doc, "p1,p5", None), [2, 3, 7])
+
+    def test_min_para_words_drops_short_body_paragraphs_only(self):
+        doc = rw.Doc("x", "txt")
+        doc.sections = [rw.Section("s", [rw.Para("h", "Hi"), rw.Para("p", "x y"), rw.Para("p", "one two three four")])]
+        self.assertEqual(rw.drop_short_paras(doc, 3), 1)
+        self.assertEqual([q.text for q in doc.sections[0].paras], ["Hi", "one two three four"])
+
     def test_grep_without_i_names_case_hits(self):
         p = self.f("t.md")
         p.write_text("# One\n\nValue keying sets the mood.\n", encoding="utf-8")

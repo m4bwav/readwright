@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.53.0"
+VERSION = "0.54.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3126,13 +3126,14 @@ def place_on_pages(starts, page_paras) -> list:
             group.append(starts[k])
             k += 1
         paras = page_paras[pg - 1]
+        runin = len(group) > 1
         for _, t, _ in group:   # the first pass may split a run-in heading; the second reads stable indices
-            heading_at(paras, t, 0, None)
+            heading_at(paras, t, 0, None, runin)
         found, used = [], set()
         for g, (_, t, _) in enumerate(group):
-            j = heading_at(paras, t, 0, None)
+            j = heading_at(paras, t, 0, None, runin)
             if j is not None and j in used:   # one line carries one heading: look further on
-                j = heading_at(paras, t, j + 1, None)
+                j = heading_at(paras, t, j + 1, None, runin)
             if j is not None:
                 used.add(j)
             found.append((j, g))
@@ -3413,9 +3414,11 @@ def drop_epigraphs(doc: Doc) -> int:
     return gone
 
 
-def heading_at(paras, title, lo=0, missing=-1) -> int:
+def heading_at(paras, title, lo=0, missing=-1, runin=False) -> int:
     """Index of the paragraph on a page that carries an outline title (from lo on); lo when none matches.
-    A numbered title run into a paragraph ("... checklist. 10.2.1 Signs of Life To know ...") splits that paragraph in place."""
+    A numbered title run into a paragraph ("... checklist. 10.2.1 Signs of Life To know ...") splits that paragraph in place.
+    runin (several entries share the page): an unnumbered title of two or more words, in its exact case right after a
+    sentence end ("... received. Mark Mangini (supervising ..."), splits too (L-073 `same-page-runin-titles`)."""
     def norm(x):
         return " ".join(re.findall(r"[a-z0-9]+", x.lower()))
     t = norm(re.sub(r"^\s*(chapter\s+)?[\divxlc]+(\.\d+)*\.?\s+", "", title, flags=re.I)) or norm(title)
@@ -3434,6 +3437,16 @@ def heading_at(paras, title, lo=0, missing=-1) -> int:
             return j
     if re.match(r"\s*\d+(\.\d+)+\s", title):  # only a numbered title is safe to find inside running text
         rx = re.compile(r"\s+".join(re.escape(w) for w in title.split()), re.I)  # headings are often in capitals
+        for j in range(lo, len(paras)):
+            m = rx.search(paras[j].text)
+            if m and m.start() > 0:
+                p = paras[j]
+                paras[j:j + 1] = [Para(p.kind, p.text[:m.start()].rstrip(), p.level), Para(p.kind, p.text[m.start():], p.level)]
+                return j + 1
+            if m:
+                return j
+    elif runin and len(title.split()) >= 2:
+        rx = re.compile(r"(?:^|(?<=[.!?:;\u201d\")]\s))" + r"\s+".join(re.escape(w) for w in title.split()) + r"\b")
         for j in range(lo, len(paras)):
             m = rx.search(paras[j].text)
             if m and m.start() > 0:

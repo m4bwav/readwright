@@ -132,6 +132,9 @@ Springer sets listings as div.ProgramCode with one div per line and no pre, so a
 ### L-066 · 2026-11-07 · `numbered-headings`: --headings saw nothing in a flat numbered PDF
 The Effects of Sound on People keeps 96% of its text in one section, with headings only as plain `5.2 Annoyance` lines, so `read --headings` reported none and the reader wrote the section to a file and grepped it. Five or more short numbered lines now count as headings; lines of figures and sentences do not.
 
+### L-069 · 2026-11-07 · `bare-numbered-heads`: list heads without a dot, one page per section
+Collins, Game Sound (MIT Press PDF, no outline) comes out as one section per page, and ch. 8 sets its ten approaches as `1 Variable Tempo` with no dot. Every heading rule counted per section, so a page with one or two heads never passed a threshold and `read --headings` said none. Fixed in 0.52.0: bare-number heads count across the whole selection when they run 1, 2, 3 or longer. Checked on ch. 8: all ten found, nothing else.
+
 ### L-068 · 2026-11-07 · `caps-headings`: subheadings set only in capitals
 Chion, Audio-Vision (Columbia University Press PDF) has no heading marks, numbers or rules; its subheadings are whole lines in capitals (THE UNITY ILLUSION, MATERIALIZING SOUND INDICES (MSIs)). `read --headings` said the chapter had none, so the reader fell back to grep. Fixed in 0.51.0: at least three whole-caps lines of two to ten words, each followed by a paragraph of 20 or more words, count as headings; a short gloss in brackets at the end is allowed. The minimum and the body check keep caps lists and acronyms out (L-064). Checked on ch. 1, 5 and 9 of the book, every line a real heading.
 

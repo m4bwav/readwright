@@ -3006,6 +3006,16 @@ class TestHeadings(Base):
         self.assertEqual(rw.numbered_headings(paras), [(3, 1), (4, 1), (5, 2), (6, 1), (7, 1)])
         self.assertEqual(rw.numbered_headings([rw.Para("p", "1.1 Lone heading")]), [])
 
+    def test_bare_numbered_heads_across_page_sections(self):   # L-069 `bare-numbered-heads`
+        doc = rw.Doc("x.pdf", "pdf", {}, [
+            rw.Section("page 1", [rw.Para("p", "Intro words."), rw.Para("p", "1 Variable Tempo"), rw.Para("p", "Body.")]),
+            rw.Section("page 2", [rw.Para("p", "2 Variable Pitch"), rw.Para("p", "Body."), rw.Para("p", "3 Variable Rhythm")]),
+            rw.Section("page 3", [rw.Para("p", "7 Stray number line"), rw.Para("p", "4 Variable Volume")])])
+        self.assertEqual(rw.bare_numbered_heads(doc, [1, 2, 3]), {(1, 1), (2, 0), (2, 2), (3, 1)})
+        self.assertEqual(rw.bare_numbered_heads(doc, [1]), set())   # one head alone is not a run
+        lines = rw.heading_lines(doc, [1, 2, 3])
+        self.assertIn("  2 Variable Pitch  (para 1, 1 words)", lines)
+
     def test_caps_headings_in_a_flat_pdf(self):   # L-068 `caps-headings`
         body = "Words of the book run on here for a while and keep going so the paragraph is long enough to count as body text."
         paras = [rw.Para("p", x) for x in ("THE REAL AND THE RENDERED", "THE UNITY ILLUSION", body, "NASA", body,

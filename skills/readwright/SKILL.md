@@ -67,6 +67,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+A long history survey: skip the instrument chapters. Grep the method words, read the chapters on those, the conclusion, and any passage where the author judges a claim. Dates in such books can differ from other sources by a year, so check one before repeating it.
+
 Reference books organised by device or parameter: grep your own subject's words first (`\bwind\b`, not `wind`, which also hits Windows); the few passages naming it show which sections to read. Then check any worked number yourself: a stated limit or distance can be off even when the rest is sound.
 
 Synthesizer or software textbooks with worked patches: the settings belong to the bundled product, so read each patch's opening paragraphs for the reasoning and skip the slider steps. `--from` and `--until` can cut them.

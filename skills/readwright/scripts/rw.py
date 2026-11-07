@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.47.4"
+VERSION = "0.48.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1885,6 +1885,44 @@ def running_head_keys(pages, titles=()) -> set:
     return keys
 
 
+COLON_HEAD_AFTER = re.compile(r"\s*([^\W\d][^:\n]{2,110}?) ?: ?\d(?: ?\d){0,3}(?=\s|$)")
+COLON_HEAD_BEFORE = re.compile(r"\s*\d(?: ?\d){0,3} ?: ?([^\W\d][^:\n]{2,110})")
+COLON_HEAD_LEAST = 5
+
+
+def colon_head_key(title: str) -> str:
+    return re.sub(r"[\W\d_]", "", title).casefold()
+
+
+def strip_colon_heads(pages: list) -> list:
+    """OCR that glues a head to the page's first words, sometimes letter-spaced: "T h e B a c k g r o u n d to 1 9 4 5 : 13
+    wire that". The left-hand form, "10 : The Background to 1945 body", has no end mark, so its length comes from the
+    right-hand form: a key seen at least COLON_HEAD_LEAST times with the number after it. Spacing and digits are ignored
+    in the key; a left-hand head is cut where the words so far spell that key, and the rest of the page stays."""
+    ends, count = {}, collections.Counter()
+    for n, p in enumerate(pages):
+        m = COLON_HEAD_AFTER.match(p)
+        if m:
+            k = colon_head_key(m.group(1))
+            count[k] += COLON_HEAD_LEAST if re.search(r"(?:\b\w ){3}", m.group(1)) else 1   # letter-spaced: one is proof
+            ends[n] = (k, m.end())
+    keys = {k for k, c in count.items() if len(k) >= 6 and c >= COLON_HEAD_LEAST}
+    out = []
+    for n, p in enumerate(pages):
+        cut = ends[n][1] if n in ends and ends[n][0] in keys else 0
+        m = COLON_HEAD_BEFORE.match(p) if not cut else None
+        if m:
+            spelled = ""
+            for w in re.finditer(r"\S+", p[m.start(1):m.start(1) + 170]):
+                spelled += colon_head_key(w.group())
+                if spelled in keys:
+                    cut = m.start(1) + w.end()
+                if not any(k.startswith(spelled) for k in keys):
+                    break
+        out.append(p[cut:].lstrip() if cut else p)
+    return out
+
+
 def strip_running_heads(page: str, keys=frozenset()) -> str:
     """Drop a running header or footer that carries the page number ("4 | Chapter 1: Title", "Section Title | 5")
     when it is the first or last non-blank line of a page. Frequency-based furniture misses these: the number and
@@ -2804,6 +2842,7 @@ def load_pdf(path) -> Doc:
     pages = [strip_folio_heads(p, n, shifts, beside, first_copy, on_page.get(n + 1, ())) for n, p in enumerate(pages)]
     head_keys = running_head_keys(pages, [t for t, _, _ in outline])
     pages = [strip_glued_folio(strip_running_heads(p, head_keys), n, shifts) for n, p in enumerate(pages)]
+    pages = strip_colon_heads(pages)
     margin = margin_folio_shift(pages)
     pages = [strip_margin_folio(p, n, margin) for n, p in enumerate(pages)]
     if not oc.exists() and CODE_HINT.search(text):   # a cheap gate before a second pdftotext run

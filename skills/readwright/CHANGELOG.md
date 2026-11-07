@@ -5,7 +5,7 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 Entry shape: `### C-20261107-15 · 2026-11-07 · A chapter's own mini-contents collapse to one line (0.53.0)
 - because: L-072; Roads, The Computer Music Tutorial read for everscout ai-music
 - files: scripts/rw.py `collapse_local_contents`, `HTMLText`; SKILL.md Distilling a book; tests
-Runs of three or more same-file link paragraphs at a chapter's start become one marker line, with fragment ids remapped; a tip for broad references read before for another subject.
+Runs of three or more same-file link paragraphs at a chapter's start become one marker line, with fragment ids remapped; a tip for broad references read before for another subject. The cut footer now says when it stopped short of `--max-chars` at a break.
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 

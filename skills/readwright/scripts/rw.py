@@ -5475,7 +5475,9 @@ def cmd_read(a) -> int:
             sys.stdout.write("\n")
         rest = (f"show the rest with --offset {start} --max-chars {len(text) - start}" if start
                 else f"show it all with --max-chars {len(text)}")
-        print(f"[readwright: shown chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(len(text))}; continue with "
+        # say why fewer chars than asked came back: a reader took the short cut for a bug (Roads, 2026-11-07)
+        short = f" (cut at a break, {fmt_n(limit - len(piece))} short of --max-chars)" if len(piece) < limit else ""
+        print(f"[readwright: shown chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(len(text))}{short}; continue with "
               f"--offset {end}, {rest}, or write it all with --out FILE]")
     if added and not a.with_next:
         hints.append(f"the title matched a short section, so the section after it was added ({', '.join(map(str, added))}): "

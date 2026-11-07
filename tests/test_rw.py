@@ -1533,6 +1533,7 @@ class TestCommands(Base):
         self.assertTrue(m, out)
         end = int(m.group(1).replace(",", ""))
         self.assertLess(end, limit)
+        self.assertIn("short of --max-chars", out)
         self.assertTrue(body[:end].endswith(("\n", " ")), repr(body[end - 20:end]))
         _, rest, _ = cli("read", t, "--section", "2", "--offset", str(end), "--quiet")
         self.assertEqual(body[:end] + rest.split("[readwright:")[0], body)

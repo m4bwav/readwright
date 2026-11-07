@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-10 · 2026-11-07 · Release 0.50.1: a picture's second copy is not called a formula
+- because: L-067 and user request (every book run adds to readwright)
+- files: scripts/rw.py (HTMLText), tests, SKILL.md (Distilling a book), LEARNINGS.md. A block holding one ornament twice, EPUB and Kindle variants, printed `[formula: image]` at each chapter head of a Random House EPUB. A picture directly after an image marker now adds nothing. Also a tip: check a cited study's limits.
+
 ### C-20261107-9 · 2026-11-07 · Release 0.50.0: read --headings lists numbered headings in a flat PDF
 - because: L-066 and user request (every book run adds to readwright)
 - files: scripts/rw.py (numbered_headings, heading_lines), tests, SKILL.md (Distilling a book), LEARNINGS.md. A Wiley PDF held 96% of its text in one section whose headings were plain `5.2 Annoyance` lines; `read --headings` said it had none. It now lists them with paragraph numbers.

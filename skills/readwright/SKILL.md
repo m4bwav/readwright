@@ -67,6 +67,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+Reference books organised by device or parameter: grep your own subject's words first (`\bwind\b`, not `wind`, which also hits Windows); the few passages naming it show which sections to read. Then check any worked number yourself: a stated limit or distance can be off even when the rest is sound.
+
 Synthesizer or software textbooks with worked patches: the settings belong to the bundled product, so read each patch's opening paragraphs for the reasoning and skip the slider steps. `--from` and `--until` can cut them.
 
 Interview-led journalism: the methods sit inside the quotes and most of each chapter describes albums or works. Grep the craft words, read those hits with `--at-para`, and cite each method as that person's report.

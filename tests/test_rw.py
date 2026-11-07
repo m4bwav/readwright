@@ -1655,6 +1655,13 @@ class TestCommands(Base):
         _, full, _ = cli("read", dst, "--section", "2")
         self.assertIn("fresh shell", full)
 
+    def test_untitled_contents_page_stays_one_section(self):
+        # L-061: 'Introduction' and the last 'Chapter 9' repeat no later line, so they used to open false sections
+        lines = ["Table of Contents", "Title Page", "Introduction"] + [f"Chapter {n} - Topic {n}" for n in range(1, 10)] \
+            + ["Appendix: Track Listing", "Index"]
+        doc = rw.Doc("x", "txt", {}, [rw.Section("(untitled: Table of Contents)", [rw.Para("p", t) for t in lines], 1, "c")])
+        self.assertEqual(len(rw.refine(doc).sections), 1)
+
     def test_epub_section_splits_at_oneline_contents(self):
         # L-039: one spine file, no headings, an outline with one entry; the contents page has one line a chapter
         # ('1 BRASS LANTERNS') and each chapter opens with a paragraph holding just its number, then the title

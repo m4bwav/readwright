@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.54.0"
+VERSION = "0.55.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5383,6 +5383,9 @@ def cmd_read(a) -> int:
         if no_until:
             shown = ",".join(map(str, no_until[:10])) + (",..." if len(no_until) > 10 else "")
             hints.append(f"--until {a.until_re!r}: no match in {len(no_until)} section(s) ({shown}), printed whole")
+    lead = leadin_hint(doc, idx)
+    if lead:
+        hints.append(lead)
     if getattr(a, "out_dir", None):   # one file per section: a reader agent opens only the ones it needs
         os.makedirs(a.out_dir, exist_ok=True)
         ext = "md" if a.format == "md" else "txt"
@@ -5396,7 +5399,7 @@ def cmd_read(a) -> int:
             print(f"{path}  {fmt_n(len(body))} chars (~{fmt_n(len(body) // 4)} tokens)")
         print(f"wrote {len(idx)} section file(s), {fmt_n(total)} chars (~{fmt_n(total // 4)} tokens) to {a.out_dir}")
         note_until()
-        shown = [h for h in hints if h.startswith(("--lang", "--until"))]
+        shown = [h for h in hints if h.startswith(("--lang", "--until", "section "))]
         if shown and not getattr(a, "quiet", False):
             print("[readwright: " + "; ".join(shown) + "]")
         return 0
@@ -5504,6 +5507,29 @@ def cmd_read(a) -> int:
     if hints and not getattr(a, "quiet", False):   # one combined line at the end, however many sections were read
         print("[readwright: " + "; ".join(hints) + "]")
     return 0
+
+
+def leadin_hint(doc: Doc, idx: list) -> str:
+    """Name the sections a selection's lead-in points to: an encyclopedia entry that ends 'Here is a list of
+    techniques:' keeps its list in the subsections after it, so a reader took the list for lost text
+    (The Sound Effects Bible ch. 18, 2026-11-07)."""
+    found = []
+    for i in idx:
+        s = doc.sections[i - 1]
+        last = next((p.text.strip() for p in reversed(s.paras) if p.text.strip()), "")
+        if not last.endswith(":") or len(last.split()) < 3 or i >= len(doc.sections) or i + 1 in idx:
+            continue
+        j = i
+        while j < len(doc.sections) and doc.sections[j].level > s.level:   # the subsections under this one
+            j += 1
+        end = max(j, i + 1)
+        found.append(f"{i + 1}" if end == i + 1 else f"{i + 1}-{end}")
+        if len(found) >= 5:
+            break
+    if not found:
+        return ""
+    return ("section ends on a lead-in (a colon) whose list or entries follow in the next sections: read "
+            + ", ".join(found) + " with --section")
 
 
 TITLE_PAGE_WORDS = 60   # a selection this short is a title page or an epigraph, so the next section is the text

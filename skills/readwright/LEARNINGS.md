@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-074 · 2026-11-07 · `lead-in-colon`: an entry's list sat in the sections after it
+The Sound Effects Bible ch. 18 is an encyclopedia: each entry ends "Here is a list of techniques and tricks:" and the list items are the next outline entries, one level down. Read by selected section numbers, every entry seemed to end mid-sentence, and the reader first suspected lost lists. Fix: `read` adds a hint naming the sections a selection's closing colon points to (0.55.0). Rule: before calling text lost, read the section after the one that stops on a colon.
+
 ### L-062 · 2026-11-06 · `viewport-attribute-order`: fixed-layout detection needed name before content
 Murch, Suddenly Something Clicked, writes `<meta content="width=818, height=1065" name="viewport"/>`. The pattern wanted name first, so every printed line, folio, running head and margin quote came out as its own paragraph, with page furniture mixed into the sentences and line-end hyphens kept. A book that reads as one line per paragraph points here. Separately, `--offset` past the end printed nothing and exited 0; it now refuses.
 

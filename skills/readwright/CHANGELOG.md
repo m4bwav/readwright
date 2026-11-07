@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-7 · 2026-11-07 · Release 0.49.1: read --headings finds ruled headings; caps lists and acronyms open no section
+- because: L-064 and user request (every book run adds to readwright)
+- files: scripts/rw.py (heading_lines, ruled_headings, split_caps), tests, SKILL.md (Distilling a book). Oxford Handbook of Computer Music had long chapters with no headings listed, and DEC, IBM, CSIRAC and FORTRAN as false sections.
+
 ### C-20261107-6 · 2026-11-07 · Release 0.49.0: printed pages select all their sections; read --min-para-words
 - because: L-063 and user request (every book run adds to readwright)
 - files: scripts/rw.py (printed_selector, drop_short_paras), tests, SKILL.md (Distilling a book). A printed page was used as a section number, so `p264` read p. 71 of a book whose pages have sub-headings. Pages now resolve through section ids.

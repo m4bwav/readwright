@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.49.0"
+VERSION = "0.49.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3555,6 +3555,7 @@ def zip_members(path) -> list:
 BIG_SECTION = CHUNK_WORDS * 4
 
 
+CAPS_ACRONYM_USES = 2     # a one-word caps run seen this often inside sentences is a name
 CAPS_RUN_MAX = 8          # a longer all-caps stretch is a caps paragraph (credits, a shouted line), not a heading
 CREDIT_PARA_WORDS = 150   # a caps run closing a paragraph this short is a credit; OCR page paragraphs run longer
 CAPS_SPLIT_MIN = 3        # fewer headings than this and a big section is left whole
@@ -3619,6 +3620,7 @@ def split_caps(s: Section, pages: int = 0) -> list | None:
     heads = {k for k in freq if not any(len(q) > len(k) and count[q] >= 0.7 * count[k] and q[:len(k)] == k
                                         for q in freq)
              and not any(count[k] < 0.7 * count[k[:j]] for j in range(1, len(k)))}   # a head plus a topic
+    acronym = collections.Counter(x.strip(".,:;()") for w in words for x in w[1:-1])
     hits = collections.defaultdict(list)     # head -> paragraph indexes
     plan = []                                 # per paragraph: [(a, b, kind, key)], kind 'rh' or 'topic'
     for i, (w, rs) in enumerate(zip(words, runs)):
@@ -3640,6 +3642,10 @@ def split_caps(s: Section, pages: int = 0) -> list | None:
                     continue
                 if a and not after and b - a <= 4 and len(w) <= CREDIT_PARA_WORDS:
                     continue   # the end of a short caption: a photo credit, not a heading (L-062 `caption-credit-heading`)
+                if w[b - 1][-1:] == ",":
+                    continue   # a list running on: 'DEC, IBM, Hewlett-Packard' (L-064 `caps-list-acronym`)
+                if one and acronym[w[a].strip(".,:;")] >= CAPS_ACRONYM_USES:
+                    continue   # also used mid-sentence: a name (FORTRAN, ILLIAC), not a heading
                 if (not before or lead or before[-1:] in SENTENCE_END + ")\u2019") \
                         and (not after or after[:1].isupper() or after[:1] in "\"\u201c'(") \
                         and (not one or re.fullmatch(r"[A-Z]{6,}", w[a].strip(".,:;"))):
@@ -5073,6 +5079,25 @@ def flags_used(a) -> str:
                                    (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None))) if on)
 
 
+RULE_LINE = re.compile(r"^[.\u2026_\u2013\u2014=-]{20,}$")
+LETTER_HEAD = re.compile(r"^[A-Z]\. [A-Z][^.!?]{0,70}$")
+
+
+def ruled_headings(paras) -> list:
+    """(index, level) for headings a PDF marks only by layout: a short line over a rule of dots, level 1, or a short
+    'A. Title' line, level 2, once a ruled heading has appeared (L-064 `caps-list-acronym`)."""
+    out, seen = [], False
+    for k, p in enumerate(paras):
+        text = clean(p.text)
+        nxt = clean(paras[k + 1].text) if k + 1 < len(paras) else ""
+        if len(text) <= 90 and RULE_LINE.match(nxt) and not RULE_LINE.match(text):
+            out.append((k, 1))
+            seen = True
+        elif seen and LETTER_HEAD.match(text):
+            out.append((k, 2))
+    return out if seen else []
+
+
 def heading_lines(doc: Doc, idx: list) -> list:
     """`read --headings`: each heading paragraph of the selected sections, indented by level, with its paragraph
     number (for --at-para) and the words up to the next heading."""
@@ -5082,6 +5107,13 @@ def heading_lines(doc: Doc, idx: list) -> list:
         out.append(f"[{i}] {s.title} ({fmt_n(s.words())} words)")
         hs = [k for k, p in enumerate(s.paras) if p.kind == "h" and clean(p.text).lower() != clean(s.title).lower()]
         if not hs:
+            ruled = [(k, lv) for k, lv in ruled_headings(s.paras) if k]
+            for n, (k, lv) in enumerate(ruled):
+                end = ruled[n + 1][0] if n + 1 < len(ruled) else len(s.paras)
+                w = sum(len(p.text.split()) for p in s.paras[k + 1:end] if not RULE_LINE.match(clean(p.text)))
+                out.append(f"{'  ' * lv}{clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
+            if ruled:
+                continue
             out.append("  (no headings under the title in this section; a PDF without structure has none: try toc --group, "
                        "or grep for the words you want)")
             continue

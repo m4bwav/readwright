@@ -4,6 +4,11 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-13 · 2026-11-07 · PDF thousands commas rejoined; patch-diagram book tip (0.51.1)
+- because: Farnell, Designing Sound read for everscout ai-sfx printed "3, 097Hz" and "50, 000RPM"
+- files: scripts/rw.py `join_lines` (SPLIT_THOUSANDS), SKILL.md Distilling a book, tests
+A comma and space before a group that starts with 0 or runs into a unit is one number; lists stay. Pd object names lost from the text layer are not recoverable from pdftotext; the tip says how to read around them.
+
 ### C-20261107-12 · 2026-11-07 · Learnings consolidation: duplicate IDs fixed, L-008 promoted
 - because: audit flag consolidate:26>25
 - files: LEARNINGS.md, LEARNINGS-ARCHIVE.md, CHANGELOG.md, scripts/rw.py (comments), ../../tests/test_rw.py (comment)

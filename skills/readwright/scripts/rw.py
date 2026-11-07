@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.50.0"
+VERSION = "0.50.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -554,6 +554,8 @@ class HTMLText(HTMLParser):
             m = re.match(r"eq[_.-]?(\d+(?:[_.-]\d+)*)$", a.get("id") or self.blockid or "", re.I)
             if m:
                 self.buf.append(f" [equation {re.sub(r'[_-]', '.', m.group(1))}: image] ")
+            elif not self.pre and re.search(r"\[image[^\]]*\]\s*$", "".join(self.buf)):   # a second copy of a picture
+                pass                                                                  # (EPUB and Kindle variants) is no formula
             elif not self.pre and clean("".join(self.buf)):   # a picture mid-sentence is an inline formula: "then ." loses it
                 self.buf.append(" [formula: image] ")
             elif not self.pre and self.kind != "h" and self.cells is None:   # a picture in its own block (a table or

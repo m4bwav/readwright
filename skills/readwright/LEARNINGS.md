@@ -139,3 +139,6 @@ Springer sets listings as div.ProgramCode with one div per line and no pre, so a
 
 ### L-066 · 2026-11-07 · `numbered-headings`: --headings saw nothing in a flat numbered PDF
 The Effects of Sound on People keeps 96% of its text in one section, with headings only as plain `5.2 Annoyance` lines, so `read --headings` reported none and the reader wrote the section to a file and grepped it. Five or more short numbered lines now count as headings; lines of figures and sentences do not.
+
+### L-067 · 2026-11-07 · `duplicate-picture-marker`: a repeated ornament read as a formula
+You're the Only One I Can Tell sets each chapter ornament as two img tags with one src, for EPUB and Kindle. The first got an image marker, and the marker made the block look like running text, so the second became `[formula: image]`. A false formula sends a reader looking for maths that is not there. Fixed in 0.50.1, with a test.

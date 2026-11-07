@@ -2766,6 +2766,16 @@ class TestFiveCs(Base):
         self.assertIn(f"Figure 9-1. {alt}", out)
         self.assertIn("Then [formula: image] holds", out)
 
+    def test_second_copy_of_a_picture_is_no_formula(self):   # Random House EPUB ornaments, 2026-11-07
+        p = self.f("orn.epub")
+        make_epub_pages(p, {"a.xhtml": "<h1>Intro</h1><div><img src='o.jpg' alt=''/><img src='o.jpg' alt=''/></div>"
+                            "<p>Then <img src='f.jpg' alt=''/> holds.</p>"},
+                        {"o.jpg": b"x", "f.jpg": b"x"})
+        code, out, _ = cli("read", p, "--section", "1", "--no-cache")
+        self.assertEqual(out.count("[image omitted: o.jpg]"), 1)
+        self.assertEqual(out.count("[formula: image]"), 1)
+        self.assertIn("Then [formula: image] holds", out)
+
     def test_equation_pictures_and_subscripts_are_marked(self):   # Manning IR EPUB, 2026-11-03
         p = self.f("ir.epub")
         make_epub_pages(p, {"a.xhtml": "<h1>BM25</h1><p>We improve on it by length:</p>"

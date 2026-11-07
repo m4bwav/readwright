@@ -1583,6 +1583,27 @@ class TestCommands(Base):
                 zo.writestr(info, ch2 if info.filename.endswith("ch2.xhtml") else zi.read(info))
         return dst
 
+    def test_skip_code_finds_code_set_in_classed_divs(self):
+        src, dst = self.f("plain.epub"), self.f("springer.epub")
+        make_epub(src)
+        ch2 = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"
+               "<h1 id='c2'>Chapter Two</h1><p>Prose before.</p><div class='Para'>Lead words.\n"
+               "<div class='ProgramCode'><div class='LineGroup'><div class='FixedLine'>\n   <span>res &lt;- tide(1,</span>\n</div>"
+               "<div class='FixedLine'><span>\u00a0\u00a0plot=TRUE)</span></div></div></div></div>"
+               "<div class='Para'>Prose after.</div>"
+               "<h1 id='c3'>Chapter Three</h1><p>The ledger.</p></body></html>")
+        with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, "w") as zout:
+            for i in zin.infolist():
+                zout.writestr(i, ch2.encode() if i.filename.endswith("ch2.xhtml") else zin.read(i.filename))
+        _, full, _ = cli("read", dst, "--section", "2")
+        self.assertIn("res <- tide(1,\n  plot=TRUE)", full)   # one listing, lines and indent intact
+        _, out, _ = cli("read", dst, "--section", "2", "--skip-code")
+        self.assertNotIn("tide", out)
+        self.assertIn("Prose before", out)
+        self.assertIn("Lead words", out)
+        self.assertIn("Prose after", out)
+        self.assertIn("in 1 code blocks", out)
+
     def test_skip_code_finds_pre_in_a_table_cell(self):
         e = self.table_epub()
         _, full, _ = cli("read", e, "--section", "2")

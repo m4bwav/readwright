@@ -81,6 +81,8 @@ Interview-led journalism: the methods sit inside the quotes and most of each cha
 
 Craft book from a neighbouring field (music mixing read for sound effects): take the reason behind each setting and mark its numbers as untested in your field.
 
+A methods book in a language you will not run (R read for its measures): add `--skip-code --drop-images`, then `read --headings`; take what each measure means and where it fails, and check any stated default against the package's own docs. Its list of figures sits in the frontmatter, so `grep` hits there first.
+
 Project-based tutorial: run `read --headings` on a chapter first, and read the opening, rules and warnings; the numbers sit between screen-by-screen steps, so `--from` a heading saves most of the chapter. Check the arithmetic in its worked examples.
 
 - A polemic that builds a taxonomy: read the prologue and the opening of each chapter (`RW read FILE -s 8-16 --each-chars 2500`), since each names its move there and a later chapter may recap the list. Its numbers are often the author's own chosen samples, and its anecdotes single cases, so use it to name patterns, then search for studies of whether they happen and how often. Look for what complicates the claim as well as what supports it.

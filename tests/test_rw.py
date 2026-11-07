@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 import unittest.mock
 import zipfile
@@ -3319,6 +3320,31 @@ class MarginFolioTests(unittest.TestCase):
     def test_two_occurrences_stay(self):
         s = "take 65 then 65 again"
         self.assertEqual(rw.strip_margin_folio(s, 60, 5), s)
+
+
+class SymbolFontAndGluedHeadTests(unittest.TestCase):
+    def test_symbol_font_operators(self):
+        self.assertEqual(rw.repair_symbol_font("3þ3þ2 and 12Â7"), "3+3+2 and 12×7")
+        self.assertEqual(rw.repair_symbol_font("Root (C) þ Third; Cþ denotes"), "Root (C) + Third; C+ denotes")
+
+    def test_icelandic_thorn_stays(self):
+        self.assertEqual(rw.repair_symbol_font("þetta er það"), "þetta er það")
+
+    def test_glued_head_leaves_title(self):
+        def para(t):
+            return types.SimpleNamespace(text=t)
+        doc = types.SimpleNamespace(sections=[
+            types.SimpleNamespace(title="The Mixolydian Mode (p. 237-237)", paras=[para("220 Some Book Title The Mixolydian Mode")]),
+            types.SimpleNamespace(title="Japanese Scales (p. 266)", paras=[para("Chapter 22 Exotic Scales 249 Japanese Scales")]),
+            types.SimpleNamespace(title="The Blues", paras=[para("He sang all night about The Blues")]),
+        ])
+        self.assertEqual(rw.fix_glued_section_heads(doc), 2)
+        self.assertEqual(doc.sections[0].paras[0].text, "The Mixolydian Mode")
+        self.assertEqual(doc.sections[2].paras[0].text, "He sang all night about The Blues")
+
+    def test_split_word_head_counts_as_known_title(self):
+        pages = [f"Chapter 14 Addi tive Rhythms {n}\nbody text {n}" for n in (169, 171)] + ["other page\nmore"] * 3
+        self.assertIn("chapter # addi tive rhythms #", rw.running_head_keys(pages, ["Chapter 14 Additive Rhythms"]))
 
 
 if __name__ == "__main__":

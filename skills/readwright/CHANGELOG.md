@@ -4,6 +4,10 @@ Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with
 
 Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-4 · 2026-11-07 · Release 0.48.1: PDF math-font plus and times repaired, running heads glued to a section title cut, `toc --hide`
+- because: user request (every book run adds to readwright); a Cengage PDF printed a thorn for plus, A-circumflex for times and "220 Book Title The Mixolydian Mode", and exercises and CD tracks filled much of its toc
+- files: scripts/rw.py (repair_symbol_font, fix_glued_section_heads, running_head_keys, toc), SKILL.md (Distilling a book), tests
+
 ### C-20261107-3 · 2026-11-07 · Release 0.48.0: OCR heads glued to a page's first words leave PDF text, letter-spaced ones too
 - because: user request (every book run adds to readwright); a 2004 OCR scan set a letter-spaced head and page number before the body, in greps and toc titles
 - files: scripts/rw.py (strip_colon_heads), SKILL.md (Distilling a book), tests

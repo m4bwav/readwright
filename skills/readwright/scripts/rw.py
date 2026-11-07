@@ -10,7 +10,7 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
-  toc   FILE [--limit N] [--ids] [--depth N] [--group] numbered sections with titles and word counts (ids on request)
+  toc   FILE [--limit N] [--ids] [--depth N] [--hide REGEX] [--group] numbered sections with titles and word counts (ids on request)
   read  FILE [--section N|N-M|N,M,P-Q] [--title REGEX] [--max-words N] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
                                     [--with-next]
   grep  FILE PATTERN [-C N] [-A N] [-i] [-F] [--max N] [--width N] [--count]
@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.48.0"
+VERSION = "0.48.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1864,7 +1864,7 @@ def running_head_keys(pages, titles=()) -> set:
             m = EDGE_NUMBER.fullmatch(line.strip())
             if m:
                 shifts[k][int(m.group(1) or m.group(2)) - n] += 1
-    known = {head_key(t) for t in titles}
+    known = {re.sub(r"\s", "", head_key(t)) for t in titles}   # "Addi tive": pdftotext may split a word of a head
     keys = set()
     for k, where in seen.items():
         n = len(where)
@@ -1877,7 +1877,7 @@ def running_head_keys(pages, titles=()) -> set:
             title = (m.group(1) or m.group(2)).strip()
             if CAPTION_LINE.match(title):
                 continue   # "122 Exhibit 4-3": a caption with the folio glued on; strip_glued_folio takes the number
-            if title.strip("# ") and (title in known or n >= 3 and (pages_cluster(where) or
+            if title.strip("# ") and (re.sub(r"\s", "", title) in known or n >= 3 and (pages_cluster(where) or
                                                   shifts[k].most_common(1)[0][1] * 2 > n)):
                 keys.add(k)
         elif n >= max(5, len(pages) // 5) and len(k.split()) >= 2 and (pages_cluster(where) or len(pages) >= 100):
@@ -1921,6 +1921,30 @@ def strip_colon_heads(pages: list) -> list:
                     break
         out.append(p[cut:].lstrip() if cut else p)
     return out
+
+
+SYMBOL_FONT_PLUS = re.compile(r"(?<=\d)þ(?=\d)|(?<=[\w)] )þ(?= [\w(])|(?<=[A-Za-z\d])þ(?=[\s.,;)]|$)", re.M)
+SYMBOL_FONT_TIMES = re.compile(r"(?<=\d)Â(?=\d)")
+
+
+def repair_symbol_font(page: str) -> str:
+    """A math font with no Unicode map extracts plus as thorn and times as A-circumflex ("3þ3", "12Â7"). Only between
+    digits, as a spaced operator, or closing a chord symbol: an Icelandic thorn opens a word and so stays."""
+    return SYMBOL_FONT_TIMES.sub("×", SYMBOL_FONT_PLUS.sub("+", page))
+
+
+def fix_glued_section_heads(doc: Doc) -> int:
+    """A running head on the line of the next section's title ("220 Book Title The Mixolydian Mode",
+    "Chapter 22 Exotic Scales 249 Japanese Scales"): keep the title. The head must carry a page number at one end."""
+    fixed = 0
+    for s in doc.sections:
+        title = re.sub(r"\s*\(p\. [^)]*\)$", "", s.title).strip()
+        if s.paras and title and s.paras[0].text.endswith(" " + title):
+            head = s.paras[0].text[:-len(title)].strip()
+            if re.fullmatch(r"\d{1,4} \D{3,90}|.{3,90}\D \d{1,4}", head) and len(head.split()) >= 2:
+                s.paras[0].text = title
+                fixed += 1
+    return fixed
 
 
 def strip_running_heads(page: str, keys=frozenset()) -> str:
@@ -2843,6 +2867,7 @@ def load_pdf(path) -> Doc:
     head_keys = running_head_keys(pages, [t for t, _, _ in outline])
     pages = [strip_glued_folio(strip_running_heads(p, head_keys), n, shifts) for n, p in enumerate(pages)]
     pages = strip_colon_heads(pages)
+    pages = [repair_symbol_font(p) for p in pages]
     margin = margin_folio_shift(pages)
     pages = [strip_margin_folio(p, n, margin) for n, p in enumerate(pages)]
     if not oc.exists() and CODE_HINT.search(text):   # a cheap gate before a second pdftotext run
@@ -2922,6 +2947,7 @@ def load_pdf(path) -> Doc:
             lab = f" (p. {labels[n]})" if n in labels else ""
             doc.sections.append(Section(f"page {n}{lab}" + (f": {first}" if first else ""), pp, 1, f"page{n}"))
     fix_chapter_openers(doc)
+    fix_glued_section_heads(doc)
     return doc
 
 
@@ -4970,7 +4996,7 @@ def cmd_toc(a) -> int:
             {"n": i, "title": s.title, "level": s.level, "id": s.sid, "words": s.words(), "start_word": offs[i - 1],
              "words_total": roll[i - 1],
              **({"in": ctx[i]} if i in ctx else {}), **({"chapter": chap[i][0]} if i in chap else {})}
-            for i, s in enumerate(doc.sections, 1) if not a.depth or s.level <= a.depth]}, ensure_ascii=False, indent=1))
+            for i, s in enumerate(doc.sections, 1) if (not a.depth or s.level <= a.depth) and not (a.hide and re.search(a.hide, s.title, re.I))]}, ensure_ascii=False, indent=1))
         return 0
     print(doc_head(doc))
     for n in doc.notes:
@@ -4982,7 +5008,11 @@ def cmd_toc(a) -> int:
         print("\n".join(lines))
         print("read a run: rw.py read FILE --section N-M")
         return 0
-    print("\n".join(toc_lines(doc, a.limit, a.ids, a.depth, a.code)))
+    lines = toc_lines(doc, a.limit, a.ids, a.depth, a.code)
+    if a.hide:
+        hide = re.compile(a.hide, re.I)
+        lines = [l for l in lines if not hide.search(l)]
+    print("\n".join(lines))
     if a.code and doc.fmt.startswith("pdf"):
         print("note: --code found nothing to count: a PDF has no structural code marker (EPUB, HTML and Markdown only)")
     groups = page_groups(doc)
@@ -5670,6 +5700,7 @@ def main(argv=None) -> int:
     common(p)
     p.add_argument("--limit", type=int, default=1000)
     p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
+    p.add_argument("--hide", metavar="REGEX", help="leave out sections whose title matches (Exercises, audio tracks); numbers stay the same")
     p.add_argument("--depth", type=int, default=None, help="only sections at indent depth N or less (1 = parts and chapters); word counts include the sections below")
     p.add_argument("--code", action="store_true", help="also show how many of each section's words are code blocks (EPUB, HTML, Markdown): pick prose sections before reading")
     p.add_argument("--group", action="store_true", help="PDF with no outline: fold pages that share a running head into page ranges (chapters)")

@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.52.0"
+VERSION = "0.53.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -473,6 +473,8 @@ class HTMLText(HTMLParser):
         self.cell_lead = ""             # cell text before the <pre> it holds
         self.links: list = []  # (href, text, depth) for nav documents
         self._a = None
+        self.local_link = None   # text of the last same-file link (href="#x") closed in this block
+        self.local_paras: set = set()   # blocks that are nothing but one same-file link
         self.depth = 0
         self.li_depth = 0
         self.sup = 0
@@ -503,6 +505,9 @@ class HTMLText(HTMLParser):
                 if kind == "p" and self.quote:
                     kind = "quote"
                 self.paras.append(Para(kind, t, self.li_depth if kind == "li" else self.level))
+                if self.local_link and self.local_link == t:
+                    self.local_paras.add(len(self.paras) - 1)
+        self.local_link = None
         self.kind, self.level = "p", 0
 
     def handle_starttag(self, tag, attrs):
@@ -622,6 +627,8 @@ class HTMLText(HTMLParser):
             self.noteref -= 1
         if tag == "a" and self._a is not None:
             self.links.append((self._a[0], clean("".join(self._a[1])), self._a[2]))
+            if self._a[0].startswith("#"):
+                self.local_link = self.links[-1][1]
             self._a = None
         if tag in ("td", "th") and self.cells is not None:
             self.cells.append(clean("".join(self.buf)))
@@ -686,7 +693,33 @@ def html_paras(text: str) -> HTMLText:
     p = HTMLText()
     p.feed(text)
     p.close()
+    collapse_local_contents(p)
     return p
+
+
+def collapse_local_contents(p: HTMLText, least: int = 3) -> None:
+    """A chapter's own mini-contents (MIT Press: a run of paragraphs that are each one link to a heading
+    further down the same file) printed every heading twice before the body (Roads, The Computer Music
+    Tutorial, 2026-11-07). A run of `least` or more such blocks at the start or right after a heading
+    becomes one marker line; ids are remapped so fragment links still land."""
+    keep, remap, i, n = [], {}, 0, len(p.paras)
+    while i < n:
+        j = i
+        while j < n and j in p.local_paras:
+            j += 1
+        if j - i >= least and (i == 0 or p.paras[i - 1].kind == "h"):
+            for k in range(i, j):
+                remap[k] = len(keep)
+            keep.append(Para("p", f"[chapter contents: {j - i} headings; list them with read --headings]"))
+            i = j
+            continue
+        remap[i] = len(keep)
+        keep.append(p.paras[i])
+        i += 1
+    if len(keep) == n:
+        return
+    p.ids = {k: remap.get(v, len(keep)) for k, v in p.ids.items()}
+    p.paras = keep
 
 
 def html_charset(data: bytes) -> str | None:

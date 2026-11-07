@@ -67,9 +67,10 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 
 ## Distilling a book
 
+- Building on an earlier read's notes: grep two or three of the passages they cite before reusing them, and read one chapter the notes skipped, so the new write-up adds something and carries no copied slip.
 - Look up a study the author cites for a strong claim, and record its limits. A popular book can drop them: one reported a sex difference without saying the paper found it only in part of its age range.
 
-A flat PDF section with numbered headings: `read --headings` lists them, then `--at-para` jumps to the one you want.
+A flat PDF section with numbered or whole-caps headings: `read --headings` lists them, then `--at-para` jumps to the one you want.
 
 An edited handbook: read the editor's introduction first, since it says which chapter covers what, then only those chapters' openings and any passage on method. Each chapter has its own authors, so cite the chapter and judge it alone.
 

@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.50.1"
+VERSION = "0.51.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5144,6 +5144,25 @@ def numbered_headings(paras: list) -> list:
     return out if len(out) >= DECIMAL_HEAD_MIN else []
 
 
+CAPS_HEAD = re.compile(r"^[A-Z0-9][A-Z0-9 ,'’&:;?!-]{4,69}$")
+CAPS_HEAD_MIN = 3        # fewer whole-caps lines in a section are likely a sign, an acronym or a shouted phrase
+CAPS_HEAD_BODY = 20      # words the next paragraph needs, so a caps list or table column is not read as headings
+
+
+def caps_headings(paras: list) -> list:
+    """(index, 1) for whole-caps lines of two to ten words followed by a body paragraph, in a PDF with no heading
+    marks (Chion, Audio-Vision ch. 5: THE UNITY ILLUSION). A trailing '(MSIs)' style gloss is allowed (L-068)."""
+    out = []
+    for k, p in enumerate(paras):
+        text = clean(p.text)
+        bare = re.sub(r"\s*\([^()]{1,12}\)$", "", text)
+        nxt = clean(paras[k + 1].text) if k + 1 < len(paras) else ""
+        if (CAPS_HEAD.match(bare) and 2 <= len(bare.split()) <= 10 and not bare.endswith((".", ","))
+                and len(nxt.split()) >= CAPS_HEAD_BODY and not nxt.isupper()):
+            out.append((k, 1))
+    return out if len(out) >= CAPS_HEAD_MIN else []
+
+
 def heading_lines(doc: Doc, idx: list) -> list:
     """`read --headings`: each heading paragraph of the selected sections, indented by level, with its paragraph
     number (for --at-para) and the words up to the next heading."""
@@ -5166,6 +5185,13 @@ def heading_lines(doc: Doc, idx: list) -> list:
                 w = sum(len(p.text.split()) for p in s.paras[k + 1:end])
                 out.append(f"{'  ' * lv}{clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
             if numbered:
+                continue
+            caps = [(k, lv) for k, lv in caps_headings(s.paras) if k]
+            for n, (k, lv) in enumerate(caps):
+                end = caps[n + 1][0] if n + 1 < len(caps) else len(s.paras)
+                w = sum(len(p.text.split()) for p in s.paras[k + 1:end])
+                out.append(f"{'  ' * lv}{clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
+            if caps:
                 continue
             out.append("  (no headings under the title in this section; a PDF without structure has none: try toc --group, "
                        "or grep for the words you want)")

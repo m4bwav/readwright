@@ -2815,6 +2815,16 @@ class TestFiveCs(Base):
         self.assertIn("TIDE TABLES", top)
         self.assertNotIn("SPLICE GRADES", top)
 
+    def test_caps_split_keeps_caption_credit_in_its_caption(self):
+        body = " ".join(["word"] * 300) + "."
+        paras = []
+        for h in ("FIRST TOPIC", "SECOND TOPIC", "THIRD TOPIC"):
+            paras += [rw.Para("p", h), rw.Para("p", body)]
+        paras.insert(2, rw.Para("p", "The stage at night. Lighting by someone. JANE PHOTOGRAPHER"))
+        titles = [x.title for x in rw.split_caps(rw.Section("x", paras))]
+        self.assertIn("FIRST TOPIC", " ".join(titles).upper())
+        self.assertNotIn("JANE PHOTOGRAPHER", " ".join(titles).upper())
+
     def test_caps_split_leaves_ordinary_text_alone(self):
         paras = [rw.Para("p", "Brannoch went to the NATO office and said OK. " + lorem(150)) for _ in range(40)]
         self.assertIsNone(rw.split_caps(rw.Section("x", paras)))

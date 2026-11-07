@@ -124,3 +124,6 @@ Refining Sound sets folios at mid-page height in the margin, so pdftotext read "
 
 ### L-061 · 2026-11-07 · `contents-page-survivors`: lines of a contents page that repeat nothing opened false sections
 Power Tools for Synthesizer Programming has a contents file with no heading. `contents_entry` rejected Chapter 1 to 8 because a later cut shared the word, but Introduction, Chapter 9 and Appendix survived, giving three false sections at the front. A short-line block that names itself contents, or lost three or more cuts, now keeps none.
+
+### L-062 · 2026-11-07 · `caption-credit-heading`: a photographer's name closing a caption opened a section
+split_caps took small-caps credits at the end of captions as inline headings, so body text sat under the photographer's name in a Crowood EPUB. A caps run closing a paragraph of 150 words or fewer now stays in the caption; OCR page paragraphs run longer.

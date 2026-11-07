@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.48.1"
+VERSION = "0.48.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3545,6 +3545,7 @@ BIG_SECTION = CHUNK_WORDS * 4
 
 
 CAPS_RUN_MAX = 8          # a longer all-caps stretch is a caps paragraph (credits, a shouted line), not a heading
+CREDIT_PARA_WORDS = 150   # a caps run closing a paragraph this short is a credit; OCR page paragraphs run longer
 CAPS_SPLIT_MIN = 3        # fewer headings than this and a big section is left whole
 
 
@@ -3626,6 +3627,8 @@ def split_caps(s: Section, pages: int = 0) -> list | None:
                 one = b - a == 1
                 if b - a > CAPS_RUN_MAX:
                     continue
+                if a and not after and b - a <= 4 and len(w) <= CREDIT_PARA_WORDS:
+                    continue   # the end of a short caption: a photo credit, not a heading (L-062 `caption-credit-heading`)
                 if (not before or lead or before[-1:] in SENTENCE_END + ")\u2019") \
                         and (not after or after[:1].isupper() or after[:1] in "\"\u201c'(") \
                         and (not one or re.fullmatch(r"[A-Z]{6,}", w[a].strip(".,:;"))):

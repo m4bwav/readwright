@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-20 · 2026-11-07 · Dingbat-font bullets read as list items, not the letter l (0.58.0)
+- because: L-077; Holman, Sound for Film and Television read for a book distillation
+- files: scripts/rw.py `pdf_dingbat_fonts`, `dingbat_bullets`, `load_pdf`; SKILL.md Distilling a book; tests
+A PDF that sets its bullets in an Advent Pi, Zapf Dingbats or Wingdings font no longer shows each item as "l Item"; a run of items on one line splits into one per line. A distilling tip for film and broadcast textbooks.
+
 ### C-20261107-19 · 2026-11-07 · Percent-encoded named destinations resolve; --at-para works with --compact and --out (0.57.0)
 - because: L-076; Pirkle, Designing Audio Effect Plugins in C++ read for a book distillation
 - files: scripts/rw.py `parse_outline`, `cmd_read`; SKILL.md Distilling a book; tests

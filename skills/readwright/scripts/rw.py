@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.57.0"
+VERSION = "0.58.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2923,6 +2923,8 @@ def load_pdf(path) -> Doc:
     math = pdf_math_fonts(path, tl)
     if math:
         doc.notes.append(math_note(math))
+    if pdf_dingbat_fonts(path, tl):
+        pages = [dingbat_bullets(p) for p in pages]
     outline = pdf_outline(path, tl["mutool"], tl["pdfinfo"]) if tl["mutool"] else []
     raw_pages = pages
     on_page = {}
@@ -3921,6 +3923,39 @@ def pdf_math_fonts(path: str, tl: dict) -> list:
         publish_cache(tmp, cp)
     names = [ln.split()[0] for ln in cp.read_bytes().decode("utf-8", "replace").splitlines()[2:] if ln.strip()]
     return sorted({re.sub(r"^[A-Z]{6}[+]", "", n) for n in names if MATH_FONT_RE.search(n)})
+
+
+DINGBAT_FONT_RE = re.compile(r"AdvPi\d|ZapfDingbats|Dingbats|Wingdings", re.I)
+
+
+def pdf_dingbat_fonts(path: str, tl: dict) -> list:
+    """Bullet fonts (Advent Pi, Zapf Dingbats, Wingdings) whose filled-circle bullet pdftotext reads as the letter
+    'l', from the same cached pdffonts list as pdf_math_fonts; [] when pdffonts is missing."""
+    if not tl.get("pdffonts"):
+        return []
+    cp = cache_path(path, "pdffonts", ".txt")
+    if not cp.exists():
+        r = run([tl["pdffonts"], path], 180)
+        tmp = tmp_cache(cp)
+        tmp.write_bytes(r.stdout)
+        publish_cache(tmp, cp)
+    names = [ln.split()[0] for ln in cp.read_bytes().decode("utf-8", "replace").splitlines()[2:] if ln.strip()]
+    return sorted({re.sub(r"^[A-Z]{6}[+]", "", n) for n in names if DINGBAT_FONT_RE.search(n)})
+
+
+def dingbat_bullets(text: str) -> str:
+    """'l Commercial libraries...' -> '- Commercial libraries...': a line opening with a lone 'l' and a capital is a
+    dingbat bullet; a run on one line ('l Dialog l Foley l Music') splits into one item per line (Holman, 2026-11-07)."""
+    out = []
+    for ln in text.split("\n"):
+        m = re.match(r"(\s*)l (?=[A-Z0-9\"“‘(])", ln)
+        if m:
+            body = ln[m.end():]
+            items = re.split(r" l (?=[A-Z0-9\"“‘(])", body)
+            out += [m.group(1) + "- " + it for it in items]
+        else:
+            out.append(ln)
+    return "\n".join(out)
 
 
 def math_note(fonts: list) -> str:

@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.57.0"
+  version: "0.58.0"
 ---
 
 # readwright
@@ -72,6 +72,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 - Look up a study the author cites for a strong claim, and record its limits. A popular book can drop them: one reported a sex difference without saying the paper found it only in part of its age range.
 
 A broad reference already read for another subject: check what the earlier notes aimed at your subject, then read the chapters on your own job they skipped (an evaluation appendix, the analysis chapters), split by kind across two reader agents.
+
+A film or broadcast textbook read again for a sound or editing subject: the earlier notes usually took the theory chapters; go for the editing and premix sections (track layout, stems, scene transitions), which hold the working rules. Read the chosen sections in one call, `read --section 248,250,251`, not one call each.
 
 A flat PDF section with numbered or whole-caps headings: `read --headings` lists them, then `--at-para` jumps to the one you want.
 

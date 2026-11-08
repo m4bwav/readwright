@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-077 · 2026-11-07 · `dingbat-bullet-l`: list bullets read as the letter l
+Trigger: reading Holman, Sound for Film and Television (3rd ed., Focal/Elsevier PDF), every bullet item began with a lone "l " and a list of premixes ran on one line as "l Dialog l Foley l Ambience". Cause: the bullet is the filled circle of an Advent Pi (AdvPi1) dingbat font, which pdftotext maps to the letter l. Fix (0.58.0): when pdffonts lists an AdvPi, Zapf Dingbats or Wingdings font, a line opening with a lone l and a capital becomes a "- " item, and a run on one line splits into one item per line. Also: several sections read in one call with `--section 248,250,251`, not a shell loop.
+
 ### L-076 · 2026-11-07 · `percent-encoded-nameddest`: an InDesign PDF lost 664 of 710 outline entries
 Trigger: reading Pirkle, Designing Audio Effect Plugins in C++ (2nd ed.), the toc held 46 entries, each chapter named after its last subsection ("1.8 Bibliography" for all of ch. 1). Cause: MuPDF writes named destinations percent-encoded (`Book.indd%3APage%201%3A3914`) while `pdfinfo -dests` prints them plain, so only the few entries linked by page number survived. Fix (0.57.0): look the name up decoded too. Same run: `--at-para` was refused with `--compact` and silently ignored with `--out` (the file started at the section top); both now start at the paragraph. Hypothesis: a PDF toc whose titles repeat one subsection word (Bibliography, Homework) chapter after chapter is a lost outline, not the book's structure; check `mutool show FILE outline | wc -l` against the toc.
 

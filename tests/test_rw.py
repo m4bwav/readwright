@@ -871,6 +871,16 @@ class TestFormats(Base):
         make_pdf(q)
         self.assertNotIn("math symbols", cli("info", q)[1])
 
+    def test_dingbat_bullets_become_list_items(self):   # L-077: Holman's AdvPi bullets read as 'l'
+        self.assertEqual(rw.dingbat_bullets("One breakdown:\nl Dialog l Foley l Music\nl Custom recordings. More"),
+                         "One breakdown:\n- Dialog\n- Foley\n- Music\n- Custom recordings. More")
+        self.assertEqual(rw.dingbat_bullets("l is a letter\nlater l Text"), "l is a letter\nlater l Text")
+        p = self.f("b.pdf")
+        make_pdf(p, ("l First item", "More text"))
+        p.write_bytes(p.read_bytes().replace(b"/Helvetica", b"/AdvPi1"))
+        if rw.tools().get("pdffonts"):
+            self.assertIn("- First item", cli("read", p, "--section", "1")[1])
+
     def test_rank_puts_the_dense_short_section_first(self):
         p = self.f("ir.md")
         p.write_text("# Long\n\n" + "Crawlers fetch pages. " * 200 + "One shingle here.\n\n"

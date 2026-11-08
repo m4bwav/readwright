@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-080 · 2026-11-07 · `letter-spaced-cells`: tracked-out table text split into letters
+Trigger: reading Zizza, Game Audio Fundamentals (Focal 2023 PDF) for everscout ai-sfx, the asset-list figure printed file names as `cp_sfx_penguin_ l a s e r_ 0 2 .w av`. Cause: pdftotext emits a space between widely tracked glyphs. Fix (0.65.0): `join_lines` joins runs of four or more one-character tokens that hold a lower-case letter and a `_` or `.` (or five letters), glues `word_ next` in file names and rejoins a split known extension (`.w av`). Prose lists like `a 1 b 2` and capital runs like `U S A` stay.
+
 ### L-079 · 2026-11-07 · `mobi-code-as-quote`: a Kindle book's code read as prose
 Trigger: reading Lanham, Game Audio Development With Unity 5.x (Packt MOBI, converted by calibre), `--skip-code` said it found no code blocks while C# lines sat inside numbered steps. Cause: calibre writes each listing as `<blockquote>` holding `<tt>` spans split by `<br/>`, not `<pre>`. Fix (0.60.0): a block wholly in monospace that is a blockquote or has line breaks becomes a code block; on this book 2 listings and their lead-ins left section 39. Hypothesis: most Packt and O'Reilly MOBI or AZW3 files convert this way; a book that sets one-line commands as monospace paragraphs without a blockquote still keeps them as prose.
 

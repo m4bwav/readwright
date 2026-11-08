@@ -3651,3 +3651,13 @@ class TestShortSectionHeads(unittest.TestCase):
         self.assertTrue(out[30].startswith("languages that provide"))
         self.assertTrue(out[31].startswith("would indicate"))
         self.assertTrue(out[32].startswith("Exceptions 7"))
+
+
+class LetterSpacedTest(unittest.TestCase):
+    def test_file_names_rejoined(self):
+        self.assertEqual(rw.join_letter_spaced("cp_sfx_penguin_ l a s e r_ 0 2 .w av"), "cp_sfx_penguin_laser_02.wav")
+        self.assertEqual(rw.join_letter_spaced("cp_sfx_penguin_ l a s e r_ 01.w av"), "cp_sfx_penguin_laser_01.wav")
+
+    def test_prose_kept(self):
+        for t in ["pick a b or c here", "options A B C D", "the U S A", "see a 1 b 2", "files .w and .x stay"]:
+            self.assertEqual(rw.join_letter_spaced(t), t)

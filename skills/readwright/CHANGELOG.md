@@ -2,6 +2,9 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-28 · 2026-11-07 · Letter-spaced table text rejoined (0.65.0)
+- because: L-080 `letter-spaced-cells`; the Zizza run read file names in a spreadsheet figure as single letters. Plus a distilling tip for broad introductory textbooks.
+
 ### C-20261107-27 · 2026-11-07 · Distilling tips move to references/distilling.md (0.64.0)
 - because: a hook flagged about 9.9k tokens loaded per use; the Distilling a book section was two thirds of SKILL.md (40.7k to 13.4k characters) and only distillation runs need it. Content moved whole, plus one tip from Samara's Typography Workbook run (dated chapters on a fast-moving medium: read for structure, mark as dated).
 - files: SKILL.md (pointer), references/distilling.md (new)

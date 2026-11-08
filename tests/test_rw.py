@@ -794,6 +794,18 @@ class TestFormats(Base):
         self.assertEqual(rw.drop_short_paras(doc, 3), 1)
         self.assertEqual([q.text for q in doc.sections[0].paras], ["Hi", "one two three four"])
 
+    def test_drop_captions_drops_figure_and_table_captions_only(self):
+        doc = rw.Doc("x", "txt")
+        doc.sections = [rw.Section("s", [
+            rw.Para("p", "Figure 3-1. Synth modules vary in size, but are about two to four inches wide."),
+            rw.Para("p", "Table 2.4: Resistor values"),
+            rw.Para("p", "Figure 3-8 shows the square wave of an LFO modulating a VCO."),
+            rw.Para("p", "Figures help."),
+            rw.Para("h", "Figure 9. A heading")])]
+        self.assertEqual(rw.drop_captions(doc), 2)
+        self.assertEqual([q.text for q in doc.sections[0].paras],
+                         ["Figure 3-8 shows the square wave of an LFO modulating a VCO.", "Figures help.", "Figure 9. A heading"])
+
     def test_grep_without_i_names_case_hits(self):
         p = self.f("t.md")
         p.write_text("# One\n\nValue keying sets the mood.\n", encoding="utf-8")

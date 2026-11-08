@@ -1258,6 +1258,12 @@ class TestCommands(Base):
         self.assertIn("word7", out)
         self.assertNotIn("word6", out)
         self.assertNotEqual(cli("read", t, "--chapter", "77")[0], 0)
+    def test_chapter_brings_unnumbered_subsections(self):
+        S = rw.Section
+        doc = rw.Doc("x.epub", "epub", sections=[S("20. Getting Untangled"), S("21. First, After"), S("Never", level=2),
+                                                 S("Summary", level=2), S("III. Theory"), S("22. Elements")])
+        self.assertEqual(rw.chapter_selector(doc, "21"), "2,3,4")
+        self.assertEqual(rw.chapter_selector(doc, "20"), "1")
 
     def test_info_json(self):
         p = self.f("book.epub")

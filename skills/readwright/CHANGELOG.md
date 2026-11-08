@@ -2,6 +2,9 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-34 · 2026-11-07 · --chapter N brings the chapter's unnumbered subsections (0.69.1)
+- because: L-085 `chapter-subsections`; Beck, Tidy First? (O'Reilly EPUB) splits ch. 21 into Never, Later, After, First and Summary; `read --chapter 16-21` printed only the 65-word chapter opener and skipped them (and ch. 17's Conclusion). Sections deeper than a matched chapter now come with it, up to the next section at its level. Test `test_chapter_brings_unnumbered_subsections`.
+
 ### C-20261107-33 · 2026-11-07 · Production-file outline names replaced by the chapter's own title (0.69.0)
 - because: L-084 `file-label-outline`; Bilbao, Numerical Sound Synthesis (Wiley 2009 PDF) has bookmarks named Unlock-ch1 ... Unlock-index, so `toc` showed no chapter titles and the agent had to read the front matter's contents page to plan. An outline entry named like a production file (ch01, Unlock-ch1, fmatter, app1, biblio, index) now takes the section's first short line, with the chapter number prefixed and an Appendix A line joined to the next; other titles are unchanged. Test `test_file_label_outline_titles`.
 

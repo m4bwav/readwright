@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.59.0"
+  version: "0.60.0"
 ---
 
 # readwright
@@ -168,6 +168,7 @@ Engineering book built around code (audio plugins, DSP in C++): most pages are f
 - Several copies of one book in the folder (early-access EPUBs beside a final PDF): `info` and `toc` each and read the final edition; an early-access contents page says not final and has a different chapter order. A PDF of Python listings: `--skip-code` drops them since 0.26.0, but program output printed as prose stays in.
 - A grep over many sections where one section (a code walkthrough, an MCP listing) takes every hit: add `--per-section 2` (0.27.0). EPUB formulas print as `[formula: image]`: tell reader agents to infer them from the prose, and a sentence that stops short (`with 75.`) is usually cut in the EPUB itself.
 - Note where the book is dated (library versions, prices, APIs that have since changed).
+- A Packt or similar tutorial (MOBI or EPUB, 2010s): read its introduction, the chapter on concepts and the performance or troubleshooting chapter, and skip the click-through steps; read them with `--skip-code --drop-images` (since 0.60.0 a converted Kindle book's monospace blockquotes count as code). Check every number against the current manual: such books date fast.
 - An encyclopedia or recipe book (entries ending "Here is a list:"): the list items are the next outline entries. Select an entry with its subsections (`--section 342-350`); since 0.55.0 `read` names them when you do not.
 - A PDF whose toc is one section per page (no outline): read the printed Contents page first (`read --section N` on it) for chapter start pages, then give `read --headings` the whole chapter range at once, not page by page: numbered lists that cross pages (`1 Variable Tempo` ... `10 ...`) only show as a run (0.52.0).
 - In EPUBs a note reference prints as `[40]` after the sentence (0.9.3). Brief reader agents that bracketed numbers are note markers, not figures; one agent read "$1.4 billion.40" as a different sum before the brackets.

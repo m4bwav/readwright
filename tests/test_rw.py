@@ -1285,7 +1285,7 @@ class TestCommands(Base):
         self.assertIn("\n\n", full)
         self.assertNotIn("\n\n", out)
         self.assertEqual(full.split(), out.split())
-        self.assertNotEqual(cli("read", t, "--section", "2", "--compact", "--at-para", "1")[0], 0)
+        self.assertEqual(cli("read", t, "--section", "2", "--compact", "--at-para", "1")[0], 0)
 
     def test_read_out_writes_utf8_lf(self):
         p = self.f("snow.fb2")
@@ -1479,6 +1479,21 @@ class TestCommands(Base):
         self.assertIn(f"chars {rw.fmt_n(int(para[1]))}-", got)
         self.assertEqual(cli("read", t, "--section", "7", "--at-para", "999")[0], 1)
         self.assertEqual(cli("read", t, "--title", "CHAPTER 7", "--at-para", "2")[0], 1)
+
+    def test_read_at_para_with_compact_and_out(self):
+        # --at-para was refused with --compact and ignored with --out (Pirkle run, 2026-11-07)
+        t = self.big_text()
+        _, out, _ = cli("grep", t, "Brannoch", "--max", "2")
+        para = re.findall(r"\| para (\d+)/\d+ \| offset (\d+)", out)[1][0]
+        code, got, _ = cli("read", t, "--section", "7", "--compact", "--at-para", para, "--max-chars", "8")
+        self.assertEqual(code, 0)
+        self.assertTrue(got.startswith("Brannoch"), got[:40])
+        dest = self.f("at-para.txt")
+        for extra in ([], ["--compact"]):
+            code, msg, _ = cli("read", t, "--section", "7", *extra, "--at-para", para, "--out", dest)
+            self.assertEqual(code, 0, msg)
+            with open(dest, encoding="utf-8") as fh:
+                self.assertTrue(fh.read().startswith("Brannoch"), extra)
 
     def cookbook(self):
         """Recipes split into sections with the same generic titles, as Packt-style cookbooks are."""
@@ -2162,6 +2177,14 @@ class TestRealWorldShapes(Base):
         self.assertEqual(dests, {"section.7.1": 405})
         self.assertEqual(rw.parse_outline(sample, dests), [("7 Retrieval", 389, 1), ("7.1 Matching", 405, 2)])
         self.assertEqual(rw.parse_outline(sample), [("7 Retrieval", 389, 1)])
+
+    def test_outline_percent_encoded_named_dests(self):
+        # InDesign PDFs: MuPDF percent-encodes the name, pdfinfo prints it plain; 664 of 710 entries were lost (Pirkle, L-076)
+        sample = ('+\t"Chapter 1: Introduction"\t#nameddest=15031-FM-Ch5.indd%3APage%201%3A3914\n'
+                  '|\t\t"1.2.1 Acquisition"\t#nameddest=15031-FM-Ch5.indd%3A1.2.1%E2%80%82Acquisition%3A3917\n')
+        dests = rw.parse_dests(' 50 [ FitH  666 ] "15031-FM-Ch5.indd:Page 1:3914"\n'
+                               ' 52 [ FitH  666 ] "15031-FM-Ch5.indd:1.2.1 Acquisition:3917"\n')
+        self.assertEqual(rw.parse_outline(sample, dests), [("Chapter 1: Introduction", 50, 1), ("1.2.1 Acquisition", 52, 2)])
 
     def test_outline_title_takes_spacing_from_the_page(self):   # L-015: "approachto" from a wrapped heading
         text = "Running head\n\nThe lighthouse keeper is a careful\nwatcher of ships\nbody text follows here.\n"

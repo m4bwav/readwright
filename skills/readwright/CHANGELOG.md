@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-19 · 2026-11-07 · Percent-encoded named destinations resolve; --at-para works with --compact and --out (0.57.0)
+- because: L-076; Pirkle, Designing Audio Effect Plugins in C++ read for a book distillation
+- files: scripts/rw.py `parse_outline`, `cmd_read`; SKILL.md Distilling a book; tests
+InDesign PDFs whose outline links by named destination now keep every entry (MuPDF percent-encodes the names, pdfinfo does not). `--at-para` maps grep's paragraph number onto `--compact` text instead of refusing, and `--out` now starts at the paragraph instead of the section top. A distilling tip for plugin and DSP engineering books.
+
 ### C-20261107-18 · 2026-11-07 · --max-words counts from --at-para or --offset; the giant-section note names --headings (0.56.0)
 - because: L-075; Russ, Sound Synthesis and Sampling read for a book distillation
 - files: scripts/rw.py `cmd_read`, `big_section_notes`; SKILL.md Distilling a book; tests

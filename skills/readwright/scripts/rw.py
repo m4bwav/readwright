@@ -10,7 +10,7 @@ scratch file for the agent's own search tools. A whole book never goes to stdout
 
 Commands
   info  FILE                        format, size, metadata, sections, words, ~tokens
-  toc   FILE [--limit N] [--ids] [--depth N] [--hide REGEX] [--group] numbered sections with titles and word counts (ids on request)
+  toc   FILE [--limit N] [--ids] [--depth N] [--hide REGEX] [--match REGEX] [--group] numbered sections with titles and word counts (ids on request)
   read  FILE [--section N|N-M|N,M,P-Q] [--title REGEX] [--max-words N] [--max-chars N] [--offset N] [--at-para P] [--out FILE] [--format txt|md]
                                     [--with-next]
   grep  FILE PATTERN [-C N] [-A N] [-i] [-F] [--max N] [--width N] [--count]
@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.66.0"
+VERSION = "0.67.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5314,7 +5314,8 @@ def cmd_toc(a) -> int:
             {"n": i, "title": s.title, "level": s.level, "id": s.sid, "words": s.words(), "start_word": offs[i - 1],
              "words_total": roll[i - 1],
              **({"in": ctx[i]} if i in ctx else {}), **({"chapter": chap[i][0]} if i in chap else {})}
-            for i, s in enumerate(doc.sections, 1) if (not a.depth or s.level <= a.depth) and not (a.hide and re.search(a.hide, s.title, re.I))]}, ensure_ascii=False, indent=1))
+            for i, s in enumerate(doc.sections, 1) if (not a.depth or s.level <= a.depth) and not (a.hide and re.search(a.hide, s.title, re.I))
+            and not (getattr(a, "match", None) and not re.search(a.match, s.title, re.I))]}, ensure_ascii=False, indent=1))
         return 0
     print(doc_head(doc))
     for n in doc.notes:
@@ -5338,6 +5339,13 @@ def cmd_toc(a) -> int:
     if a.hide:
         hide = re.compile(a.hide, re.I)
         lines = [l for l in lines if not hide.search(l)]
+    if getattr(a, "match", None):
+        keep = re.compile(a.match, re.I)
+        head = [l for l in lines if l.startswith("#")]
+        hits = [l for l in lines if not l.startswith("#") and keep.search(l.split("  (")[0])]
+        if not hits:
+            raise RWError(f"--match {a.match!r} matched no section title; try a shorter pattern or rw.py grep")
+        lines = head + hits + [f"{len(hits)} of {len(doc.sections)} sections match; numbers are the ones read --section takes"]
     print("\n".join(lines))
     if a.code and doc.fmt.startswith("pdf"):
         print("note: --code found nothing to count: a PDF has no structural code marker (EPUB, HTML and Markdown only)")
@@ -6245,6 +6253,7 @@ def main(argv=None) -> int:
     p.add_argument("--limit", type=int, default=1000)
     p.add_argument("--ids", action="store_true", help="also print each section's id (file#fragment, page, sheet)")
     p.add_argument("--hide", metavar="REGEX", help="leave out sections whose title matches (Exercises, audio tracks); numbers stay the same")
+    p.add_argument("--match", metavar="REGEX", help="keep only sections whose title matches, with the numbers read --section takes (instead of grep -n on a saved toc, whose line numbers are not section numbers)")
     p.add_argument("--depth", type=int, default=None, help="only sections at indent depth N or less (1 = parts and chapters); word counts include the sections below")
     p.add_argument("--code", action="store_true", help="also show how many of each section's words are code blocks (EPUB, HTML, Markdown): pick prose sections before reading")
     p.add_argument("--group", action="store_true", help="PDF with no outline: fold pages that share a running head into page ranges (chapters)")

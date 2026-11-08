@@ -1277,6 +1277,17 @@ class TestCommands(Base):
         self.assertNotIn("[text/ch2.xhtml#c3]", out)   # ids cost tokens; they are opt-in
         self.assertIn("[text/ch2.xhtml#c3]", cli("toc", p, "--ids")[1])
 
+    def test_toc_match_keeps_numbers(self):
+        p = self.f("book.epub")
+        make_epub(p)
+        code, out, _ = cli("toc", p, "--match", "three")
+        self.assertEqual(code, 0)
+        self.assertIn("   3.   Chapter Three", out)
+        self.assertNotIn("Chapter Two", out)
+        self.assertIn("1 of 3 sections match", out)
+        self.assertEqual([s["n"] for s in json.loads(cli("toc", p, "--json", "--match", "three")[1])["sections"]], [3])
+        self.assertNotEqual(cli("toc", p, "--match", "zzz")[0], 0)
+
     def test_read_refuses_large_without_selector(self):
         t = self.big_text()
         code, out, _ = cli("read", t)

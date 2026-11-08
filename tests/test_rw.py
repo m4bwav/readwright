@@ -981,7 +981,8 @@ class TestFormats(Base):
 
         with unittest.mock.patch.dict(os.environ, {"READWRIGHT_OCR_DIR": str(self.f("ocr"))}), \
                 unittest.mock.patch.object(rw, "ocr_engine", return_value="windows"), \
-                unittest.mock.patch.object(rw, "ocr_pages", side_effect=fake):
+                unittest.mock.patch.object(rw, "ocr_pages", side_effect=fake), \
+                unittest.mock.patch.object(rw, "load_pdf", return_value=types.SimpleNamespace(meta={"pages": 4}, sections=[])):
             self.assertEqual(cli("ocr", p, "--pages", "1-2")[0], rw.EXIT_OK)
             code, _, err = cli("ocr", p)
             self.assertEqual(code, rw.EXIT_OK)

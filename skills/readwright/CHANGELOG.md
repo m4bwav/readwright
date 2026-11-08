@@ -2,6 +2,10 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-37 · 2026-11-07 · ocr resumes after a --pages run (0.71.1)
+- because: L-088 `ocr-resume`; on Boulanger, The Csound Book (746-page scan) an `ocr --pages 1-24` to see the contents left a cache, and a later plain `ocr` said "already OCR'd: 746 pages" with 3,286 words. A plain run now OCRs the pages with no text; a `.blank` file beside the cache records pages a whole run left empty so they are not retried. Test test_ocr_resumes_after_a_pages_run.
+- files: scripts/rw.py (cmd_ocr, _page_runs), references/distilling.md
+
 ### C-20261107-36 · 2026-11-07 · read --drop-captions (0.71.0)
 - because: L-087 `long-captions`; Make: Analog Synthesizers prints a long caption under every figure. `drop_captions` removes body paragraphs that start like a caption; test test_drop_captions_drops_figure_and_table_captions_only.
 - files: scripts/rw.py (drop_captions, read and flags_used), references/distilling.md

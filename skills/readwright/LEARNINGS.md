@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-088 · 2026-11-07 · `ocr-resume`: a partial OCR looked finished
+Trigger: everscout ai-music run on Boulanger, The Csound Book (MIT 2000, 746-page scan). `rw.py ocr FILE --pages 1-24` first, to read the contents cheaply; then `rw.py ocr FILE` answered "already OCR'd" because the cache file existed, and the book read as 3k words. Fix (0.71.1): a plain run OCRs pages still empty and remembers the ones that stay empty. OCR on Windows ran at about 9 pages a second here, so OCR the whole scan up front rather than sampling.
+
 ### L-087 · 2026-11-07 · `long-captions`: figure captions as long as body paragraphs
 Trigger: everscout downtempo run on Wilson, Make: Analog Synthesizers (Maker Media 2013 EPUB): ch. 3 carries a caption under every figure (Figure 3-1. ... up to 60 words), so a 16-section read was a fifth captions, and --min-para-words could not drop them without dropping real paragraphs; the reader piped the output through grep -v. Fix (0.71.0): `read --drop-captions` drops body paragraphs that start Figure/Fig./Table/Plate/Exhibit/Listing, a number and a stop or colon; prose that names a figure (Figure 3-8 shows) stays.
 

@@ -4547,6 +4547,26 @@ def cmd_page(a) -> int:
     return EXIT_OK
 
 
+def _page_runs(nums: list[int]) -> list[tuple[int, int]]:
+    runs: list[tuple[int, int]] = []
+    for n in nums:
+        if runs and runs[-1][1] == n - 1:
+            runs[-1] = (runs[-1][0], n)
+        else:
+            runs.append((n, n))
+    return runs
+
+
+def _ocr_blanks_tried(cache: Path, blank: list[int]) -> bool:
+    """True when a whole-book run already tried these pages and they stayed empty (plates, blank versos)."""
+    side = cache.with_suffix(".blank")
+    return side.exists() and side.read_text(encoding="utf-8").split() == [str(b) for b in blank]
+
+
+def _ocr_blanks_mark(cache: Path, blank: list[int]) -> None:
+    cache.with_suffix(".blank").write_text(" ".join(str(b) for b in blank), encoding="utf-8")
+
+
 def cmd_ocr(a) -> int:
     fmt = detect(a.file)
     images = epub_page_images(a.file) if fmt == "epub" else None
@@ -4570,25 +4590,31 @@ def cmd_ocr(a) -> int:
         pages = []
     pages += [""] * (total - len(pages))
     done = cache.exists() and not a.force
+    runs = [(1, total)]
     if done and not a.pages:
-        print(f"already OCR'd: {fmt_n(total)} pages in {cache} (--force redoes it)")
-        return EXIT_OK
-    first, last = 1, total
+        # L-088 `ocr-resume`: a cache left by an earlier --pages run has pages with no text; OCR those
+        blank = [i + 1 for i, t in enumerate(pages) if not t.strip()]
+        if not blank or _ocr_blanks_tried(cache, blank):
+            print(f"already OCR'd: {fmt_n(total)} pages in {cache} (--force redoes it)")
+            return EXIT_OK
+        runs = _page_runs(blank)
+        print(f"ocr: resuming, {fmt_n(len(blank))} of {fmt_n(total)} pages have no text yet", file=sys.stderr)
     if a.pages:
         m = re.fullmatch(r"(\d+)(?:-(\d+))?", a.pages)
         if not m:
             raise RWError("--pages takes N or N-M")
-        first, last = int(m.group(1)), int(m.group(2) or m.group(1))
-        last = min(last, total)
+        runs = [(int(m.group(1)), min(int(m.group(2) or m.group(1)), total))]
     batch = max(1, a.batch)
-    for lo in range(first, last + 1, batch):
-        hi = min(last, lo + batch - 1)
+    todo = [(lo, min(last, lo + batch - 1)) for first, last in runs for lo in range(first, last + 1, batch)]
+    for lo, hi in todo:
         pages[lo - 1:hi] = ocr_pages(a.file, lo, hi, a.dpi, engine, images)
         cache.parent.mkdir(parents=True, exist_ok=True)
         tmp = tmp_cache(cache)
         tmp.write_bytes("\f".join(pages).encode("utf-8"))
         publish_cache(tmp, cache)
         print(f"ocr: pages {lo}-{hi} of {total}", file=sys.stderr, flush=True)
+    if not a.pages:
+        _ocr_blanks_mark(cache, [i + 1 for i, t in enumerate(pages) if not t.strip()])
     words = sum(len(p.split()) for p in pages)
     print(f"ocr ({engine}): {fmt_n(total)} pages, {fmt_n(words)} words, kept in {cache}. info, toc, read and grep "
           f"on the {fmt.upper()} now use this text; OCR misreads letters, so check a quote against a page image.")

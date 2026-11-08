@@ -970,6 +970,26 @@ class TestFormats(Base):
             self.assertIn("Hello", rw.ocr_cache(str(q)).read_text(encoding="utf-8"))
             self.assertIn("already OCR'd", cli("ocr", q)[1])
 
+    def test_ocr_resumes_after_a_pages_run(self):   # L-088 `ocr-resume`
+        p = self.f("part.pdf")
+        make_pdf(p, pages=("", "", "", ""))
+        calls = []
+
+        def fake(path, lo, hi, dpi, engine, images):
+            calls.append((lo, hi))
+            return [f"page {i}" for i in range(lo, hi + 1)]
+
+        with unittest.mock.patch.dict(os.environ, {"READWRIGHT_OCR_DIR": str(self.f("ocr"))}), \
+                unittest.mock.patch.object(rw, "ocr_engine", return_value="windows"), \
+                unittest.mock.patch.object(rw, "ocr_pages", side_effect=fake):
+            self.assertEqual(cli("ocr", p, "--pages", "1-2")[0], rw.EXIT_OK)
+            code, _, err = cli("ocr", p)
+            self.assertEqual(code, rw.EXIT_OK)
+            self.assertIn("resuming", err)
+            self.assertEqual(calls[-1], (3, 4))
+            self.assertIn("page 4", rw.ocr_cache(str(p)).read_text(encoding="utf-8"))
+            self.assertIn("already OCR'd", cli("ocr", p)[1])
+
     def test_image_only_epub_says_so(self):
         p = self.f("pictures.epub")
         page = ("<?xml version='1.0' encoding='utf-8'?><html xmlns='http://www.w3.org/1999/xhtml'><body>"

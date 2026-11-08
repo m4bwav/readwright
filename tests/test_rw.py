@@ -2078,6 +2078,22 @@ class TestTocChapters(Base):
         self.assertTrue(any("4-6. Testimonial Injustice  (150 w)" in l for l in rw.group_lines(doc)))
         self.assertEqual(rw.page_groups(rw.Doc("x.epub", "epub", sections=[rw.Section("Chapter 1")])), [])
 
+    def test_group_splits_at_chapter_opening_pages(self):   # Pezze and Young: one running head swallowed ch. 4-24
+        def pg(n, head, paras=None):
+            ps = [rw.Para("p", t) for t in (paras or [lorem(50)])]
+            return rw.Section(f"page {n}: {head}", ps, 1, f"page{n}")
+        secs = [pg(1, "Front"), pg(2, "Contents")]
+        n = 3
+        for c, name in ((1, "Nutshell"), (2, "A Framework"), (3, "Basic Principles"), (4, "Activities")):
+            secs.append(pg(n, f"Chapter {c}", [f"Chapter {c}", name, lorem(50)]))
+            secs += [pg(n + 1, "Test and Analysis Activities"), pg(n + 2, "Test and Analysis Activities")]
+            n += 3
+        doc = rw.Doc("x.pdf", "pdf", sections=secs)
+        lines = rw.group_lines(doc)
+        self.assertTrue(any("1-2. (front matter)" in l for l in lines), lines)
+        self.assertTrue(any("6-8. 2 A Framework" in l for l in lines), lines)
+        self.assertTrue(any("12-14. 4 Activities" in l for l in lines), lines)
+
     def test_page_join_moves_only_the_run_on_sentence(self):   # L-033 `page-join-empties-page`
         P = rw.Para
         pages = [[P("p", "We showed it to people and")], [P("p", "they sent us feedback. Then " + lorem(30))]]

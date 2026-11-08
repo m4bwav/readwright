@@ -2,7 +2,10 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
-Entry shape: `### C-20261107-15 · 2026-11-07 · A chapter's own mini-contents collapse to one line (0.53.0)
+Entry shape: `### C-20261107-20 · 2026-11-07 · `toc --group` splits at chapter opening pages (0.62.0)
+- because: Pezze and Young, Software Testing and Analysis, read for everscout multi-agent-grind: one running head folded pages 61-564 (ch. 4-24) into one group. `group_lines` now prefers `chapter_runs` (bare `Chapter N` page tops) and titles each from the line after it; skill tip for process textbooks.
+
+### C-20261107-15 · 2026-11-07 · A chapter's own mini-contents collapse to one line (0.53.0)
 - because: L-072; Roads, The Computer Music Tutorial read for everscout ai-music
 - files: scripts/rw.py `collapse_local_contents`, `HTMLText`; SKILL.md Distilling a book; tests
 Runs of three or more same-file link paragraphs at a chapter's start become one marker line, with fragment ids remapped; a tip for broad references read before for another subject. The cut footer now says when it stopped short of `--max-chars` at a break.

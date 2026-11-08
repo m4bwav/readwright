@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.61.0"
+VERSION = "0.62.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4986,11 +4986,25 @@ def chapter_runs(doc: Doc) -> list:
     return out
 
 
+def chapter_opening_title(sec) -> str:
+    """The title on a chapter's opening page when the page starts with a bare "Chapter N" line: the next short paragraph."""
+    ps = [x.text.strip() for x in sec.paras if x.text.strip()]
+    for k, t in enumerate(ps[:3]):
+        if CHAPTER_HEAD.fullmatch(t) and not CHAPTER_HEAD.fullmatch(t).group(2) and k + 1 < len(ps) and len(ps[k + 1].split()) <= 12:
+            return ps[k + 1]
+    return ""
+
+
 def group_lines(doc: Doc) -> list:
     out = []
     groups = page_groups(doc)
     if len(groups) * 3 >= len(doc.sections):   # no running heads to fold by: try the printed contents
         groups = contents_groups(doc) or leader_groups(doc) or groups
+    runs = chapter_runs(doc) if groups else []
+    if runs:   # chapter opening pages beat running heads, which folded 500 pages into one "chapter" (Pezze and Young: ch. 4-24)
+        groups = ([(1, runs[0][0] - 1, "(front matter)", sum(doc.sections[j].words() for j in range(runs[0][0] - 1)))]
+                  if runs[0][0] > 1 else [])
+        groups += [(f, l, f"{num} {t or chapter_opening_title(doc.sections[f - 1])}".strip(), w) for f, l, num, t, w in runs]
     for f, l, h, w in groups:
         rng = f"{f}-{l}" if l > f else str(f)
         out.append(f"{rng:>9}. {h or '(no text)'}  ({fmt_n(w)} w)")

@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-084 · 2026-11-07 · `file-label-outline`: bookmarks named after production files
+Trigger: everscout ai-sfx run on Bilbao, Numerical Sound Synthesis (Wiley 2009 PDF): every bookmark was a typesetter file name (Unlock-fmatter, Unlock-ch1 ... Unlock-biblio, Unlock-index), so `toc` and `lit ingest` printed no chapter titles. Fix (0.69.0): `label_title` swaps such a name for the section's first short line (number prefixed for chN; Chapter N and Appendix A lines joined to the next; Index, Bibliography and the like keep only that word). A front-matter label whose first line is prose stays as it was.
+
 ### L-083 · 2026-11-07 · `two-line-heads`: layout heads wrapped onto two lines; Symbol-font signs
 Trigger: open item from L-082 (Continuous Delivery heads cut at the line end) and the everscout ai-sfx run on Francis, The Audio Effects Workshop (Cengage 2011 PDF), whose text read À24.0 dB and þ2 dB. Cause: layout_head_titles took the next non-blank line as body, so a wrapped second line (under eight words) cut or dropped the head; pdftotext maps the Symbol font minus and plus to À and þ. Fix (0.68.0): a short Title Case second line (lowercase start allowed) with body after it is joined; À and þ before a digit become - and + when a book has three or more.
 

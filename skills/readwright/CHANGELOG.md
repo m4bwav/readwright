@@ -2,6 +2,9 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-33 · 2026-11-07 · Production-file outline names replaced by the chapter's own title (0.69.0)
+- because: L-084 `file-label-outline`; Bilbao, Numerical Sound Synthesis (Wiley 2009 PDF) has bookmarks named Unlock-ch1 ... Unlock-index, so `toc` showed no chapter titles and the agent had to read the front matter's contents page to plan. An outline entry named like a production file (ch01, Unlock-ch1, fmatter, app1, biblio, index) now takes the section's first short line, with the chapter number prefixed and an Appendix A line joined to the next; other titles are unchanged. Test `test_file_label_outline_titles`.
+
 ### C-20261107-32 · 2026-11-07 · Two-line layout heads joined; Symbol-font signs (0.68.0)
 - because: L-083 `two-line-heads`; `read --headings` listed a head that wraps onto a second line cut at the line end (open since 0.67.1). A short Title Case line right under a layout head, with body text after it, is now joined to it. Also: The Audio Effects Workshop (Cengage 2011 PDF) printed minus and plus as À and þ before digits (À24.0 dB) from a Symbol-encoded font; with three or more in a book they map back to - and +. Tests for both; distilling tip for hands-on workshop books.
 

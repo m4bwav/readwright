@@ -2243,6 +2243,17 @@ class TestRealWorldShapes(Base):
         self.assertEqual(rw.heading_at(prose, "Actions"), 0)  # an unnumbered title is never found inside prose
         self.assertEqual(len(prose), 1)
 
+    def test_file_label_outline_titles(self):   # L-084: Bilbao, Numerical Sound Synthesis (Wiley 2009) bookmarks read Unlock-ch1
+        P = rw.Para
+        self.assertEqual(rw.label_title("Unlock-ch1", [P("p", "Sound synthesis and physical modeling"), P("p", "Before entering into the book.")]),
+                         "1 Sound synthesis and physical modeling")
+        self.assertEqual(rw.label_title("Unlock-app1", [P("p", "Appendix A"), P("p", "Matlab code examples"), P("p", "Body.")]),
+                         "Appendix A Matlab code examples")
+        self.assertEqual(rw.label_title("Unlock-index", [P("p", "Index theta-schemes, 151, 172")]), "Index")
+        self.assertEqual(rw.label_title("ch03.pdf", [P("p", "Chapter 3"), P("p", "The oscillator")]), "Chapter 3 The oscillator")
+        self.assertEqual(rw.label_title("Unlock-fmatter", [P("p", "A long opening sentence that is body text, not a title at all.")]), "Unlock-fmatter")
+        self.assertEqual(rw.label_title("The oscillator", [P("p", "Other")]), "The oscillator")   # real titles stay
+
     def test_outline_title_unescapes_quotes(self):   # L-015: MuPDF prints \" inside a quoted title
         sample = '|\t\t"What is a \\"good\\" lamp? A\\\\B"\t#page=3&view=FitH,1\n'
         self.assertEqual(rw.parse_outline(sample), [('What is a "good" lamp? A\\B', 3, 2)])

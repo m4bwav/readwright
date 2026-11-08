@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.68.0"
+VERSION = "0.69.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3125,6 +3125,7 @@ def load_pdf(path) -> Doc:
             end = starts[k + 1][0] - 1 if k + 1 < len(starts) else len(pages)
             end = max(end, pg)
             stop = cuts[k + 1] if k + 1 < len(starts) else len(flat)
+            t = label_title(t, flat[cuts[k]:stop])
             doc.sections.append(Section(f"{t} (p. {pg}-{end}{printed_span(pg, end, shift, labels)})",
                                         flat[cuts[k]:stop], d, f"page{pg}"))
     else:
@@ -3135,6 +3136,36 @@ def load_pdf(path) -> Doc:
     fix_chapter_openers(doc)
     fix_glued_section_heads(doc)
     return doc
+
+LABEL_TITLE_RE = re.compile(r"^(?:[A-Za-z]+[-_.])?(?P<kind>f?matter|bmatter|front|back|ch|chap|chapter|app|appx|appendix|biblio|bib|"
+                            r"index|idx|toc|part|pt|pref|preface|intro)[-_.]?(?P<num>\d{0,3})(?:\.\w{2,4})?$", re.I)
+
+
+def label_title(title: str, paras: list) -> str:
+    """An outline entry named like a production file ('Unlock-ch1', 'ch01', 'fmatter', 'biblio') takes its title
+    from the section's own first short paragraph ('1 Sound synthesis and physical modeling'); a 'Chapter N' or
+    'Appendix A' line takes the next short line too. Any other title comes back unchanged (L-084 `file-label-outline`)."""
+    m = LABEL_TITLE_RE.match(title.strip())
+    if not m:
+        return title
+    lines = []
+    for q in paras[:3]:
+        t = " ".join(q.text.split())
+        w = re.match(r"(Index|Bibliography|References|Contents|Preface|Foreword|Glossary|Notes)\b", t)
+        if w and not lines:
+            return w.group(1)
+        if not t or len(t) > 90 or t.endswith((".", ",", ";")) or q.kind in ("pre", "row", "li"):
+            break
+        lines.append(t)
+        if not re.fullmatch(r"(?:Chapter|Appendix|Part)\s+\S{1,4}", t, re.I):
+            break
+    if not lines:
+        return title
+    new = " ".join(lines[:2])
+    num = m.group("num")
+    if num and m.group("kind").lower() in ("ch", "chap", "chapter") and not re.match(r"(?:\d|Chapter\b)", new, re.I):
+        new = f"{int(num)} {new}"
+    return new
 
 
 RUN_HEAD_RE = re.compile(r"﻿?\s*Chapter\s+(\d{1,3})\s*[■|:\-–—]\s*(\S.{0,120})$", re.I)

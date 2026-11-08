@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-085 · 2026-11-07 · `chapter-subsections`: --chapter dropped a chapter's unnumbered subsections
+Tidy First? (O'Reilly EPUB) nests Never, Later, After, First, Summary under 21. First, After, Later, Never; --chapter matched only titles starting with the number, so the reader got a 65-word opener and had to fetch five sections by position. A matched chapter now takes the deeper sections that follow it.
+
 ### L-084 · 2026-11-07 · `file-label-outline`: bookmarks named after production files
 Trigger: everscout ai-sfx run on Bilbao, Numerical Sound Synthesis (Wiley 2009 PDF): every bookmark was a typesetter file name (Unlock-fmatter, Unlock-ch1 ... Unlock-biblio, Unlock-index), so `toc` and `lit ingest` printed no chapter titles. Fix (0.69.0): `label_title` swaps such a name for the section's first short line (number prefixed for chN; Chapter N and Appendix A lines joined to the next; Index, Bibliography and the like keep only that word). A front-matter label whose first line is prose stays as it was.
 

@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.69.0"
+VERSION = "0.69.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4694,6 +4694,11 @@ def chapter_selector(doc: Doc, spec: str) -> str:
         m = re.match(r"\s*(?:chapter\s+)?(\d+)\b", s.title, re.I)
         if m and int(m.group(1)) in wanted:
             hits.append(i)
+            # the chapter's unnumbered subsections ("Never", "Summary" under "21. First, After...") come with it
+            for j in range(i, len(doc.sections)):
+                if doc.sections[j].level <= s.level:
+                    break
+                hits.append(j + 1)
     if not hits:
         raise RWError(f"no section title starts with chapter number {spec}; run toc to see the titles")
     return ",".join(str(i) for i in hits)

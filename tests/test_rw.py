@@ -821,6 +821,16 @@ class TestFormats(Base):
         _, read, _ = cli("read", p, "--section", "1", "--at-para", para)
         self.assertIn("A long lead", read)
 
+    def test_grep_and_headings_quiet(self):   # Dooley read for multi-agent-grind: grep refused -q
+        p = self.f("t.md")
+        p.write_text("# One\n\n## Sub\n\nA needle here.\n", encoding="utf-8")
+        code, out, _ = cli("grep", p, "needle", "-q")
+        self.assertEqual(code, 0)
+        self.assertNotIn("[readwright:", out)
+        self.assertIn("1 matches", out)
+        _, out, _ = cli("read", p, "--section", "1", "--headings", "-q")
+        self.assertNotIn("jump to one", out)
+
     def test_grep_smart_case(self):   # L-038: an all-lower-case pattern matches any case
         p = self.f("t.md")
         p.write_text("# One\n\nThe Consumer Price Index rose.\n", encoding="utf-8")

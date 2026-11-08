@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.60.0"
+VERSION = "0.61.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5440,7 +5440,8 @@ def cmd_read(a) -> int:
             added.append(i + 1)
     if getattr(a, "headings", False):
         print("\n".join(heading_lines(doc, idx)))
-        print(f"jump to one: rw.py read FILE --section N --at-para P{flags_used(a)}")
+        if not getattr(a, "quiet", False):
+            print(f"jump to one: rw.py read FILE --section N --at-para P{flags_used(a)}")
         return 0
     if a.max_words is not None and a.max_words < 1:
         raise RWError("--max-words must be 1 or more")
@@ -5971,7 +5972,7 @@ def cmd_grep(a) -> int:
             else:
                 print("  " + (t if len(t) <= a.width // 2 else t[:a.width // 2] + " ..."))
     shown = min(len(hits), a.max)
-    if hits:   # offset is the match, usually mid-paragraph; --at-para opens the paragraph (L-grep-offset-is-the-match)
+    if hits and not a.quiet:   # offset is the match, usually mid-paragraph; --at-para opens the paragraph (L-grep-offset-is-the-match)
         i0, j0, _ = hits[0]
         print(f"[readwright: a hit's offset is the match itself; to read from the start of its paragraph use read --section {i0} --at-para {j0 + 1}]")
     if not hits and not a.ignore_case:   # "value key" missed "Value keying" (L-019)
@@ -6128,6 +6129,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("grep", help="regex search with section and paragraph context")
     common(p)
     p.add_argument("pattern")
+    p.add_argument("--quiet", "-q", action="store_true", help="no [readwright: ...] advice line (the match count stays)")
     p.add_argument("-C", "--context", type=int, default=0, help="paragraphs of context")
     p.add_argument("-A", "--after", type=int, default=0, help="paragraphs after each hit, shown up to --width "
                    "(the code block after the prose that names it)")

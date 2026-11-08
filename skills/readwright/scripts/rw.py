@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.62.0"
+VERSION = "0.63.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1946,20 +1946,67 @@ def edge_lines(page: str) -> list:
     return sorted({idx[0], idx[-1]}) if idx else []
 
 
+def folio_lead(shifts, pages: int):
+    """The book's folio shift (printed number minus position) from the numbers at page edges, or None when too few."""
+    total = collections.Counter()
+    for c in shifts.values():
+        total.update(c)
+    top = total.most_common(1)
+    return top[0][0] if top and top[0][1] >= max(20, pages // 10) else None
+
+
+def edge_folio_lead(pages):
+    shifts = collections.defaultdict(collections.Counter)
+    for n, p in enumerate(pages):
+        lines = p.split("\n")
+        for i in edge_lines(p):
+            m = EDGE_NUMBER.fullmatch(lines[i].strip())
+            if m:
+                shifts[0][int(m.group(1) or m.group(2)) - n] += 1
+    return folio_lead(shifts, len(pages))
+
+
+GLUED_RIGHT_HEAD = re.compile(r"\s*([A-Z][^\n.?!:;,]{2,80}?) (\d{1,4}) (?=[a-z])")
+
+
+def strip_glued_folio_heads(pages, lead, keys=frozenset()) -> list:
+    """A running head glued to the page's first words on one line, with the page's own folio: "Exceptions 309 languages
+    that provide" (title then number, lower-case text after) or "366 Program Analysis would indicate" (number then a
+    head running_head_keys proved). The number must be the page's own (`lead`), so a sentence keeps its figures."""
+    if lead is None:
+        return pages
+    lefts = sorted((k[2:] for k in keys if k.startswith("# ")), key=len, reverse=True)
+    out = []
+    for n, p in enumerate(pages):
+        want = str(n + lead)
+        m = GLUED_RIGHT_HEAD.match(p)
+        if m and m.group(2) == want and len(m.group(1).split()) <= 8:
+            p = p[m.end():]
+        elif p.lstrip().startswith(want + " "):
+            body = p.lstrip()[len(want) + 1:]
+            t = next((t for t in lefts if body.casefold().startswith(t + " ")), None)
+            if t:
+                p = body[len(t) + 1:]
+        out.append(p)
+    return out
+
+
 def running_head_keys(pages, titles=()) -> set:
     """Pipe-less running heads ("42  Chapter 3: Standard Practices", "Chunking Text 85", a bare repeated book title,
     a bare page number): keys (digits as #, case folded) of page-edge lines that repeat at the edges of several pages,
     or whose text beside the number is a chapter or section title from the outline. A line ending in . ? ! : , ; is
     prose and never a head; a bare title must open or close a fifth of the pages."""
-    seen, shifts = collections.defaultdict(list), collections.defaultdict(collections.Counter)
+    seen, shifts, orig = collections.defaultdict(list), collections.defaultdict(collections.Counter), {}
     for n, p in enumerate(pages):
         lines = p.split("\n")
         for k, line in {head_key(lines[i]): lines[i] for i in edge_lines(p)}.items():
             seen[k].append(n)
+            orig.setdefault(k, line.strip())
             m = EDGE_NUMBER.fullmatch(line.strip())
             if m:
                 shifts[k][int(m.group(1) or m.group(2)) - n] += 1
     known = {re.sub(r"\s", "", head_key(t)) for t in titles}   # "Addi tive": pdftotext may split a word of a head
+    lead = folio_lead(shifts, len(pages))
     keys = set()
     for k, where in seen.items():
         n = len(where)
@@ -1975,6 +2022,9 @@ def running_head_keys(pages, titles=()) -> set:
             if title.strip("# ") and (re.sub(r"\s", "", title) in known or n >= 3 and (pages_cluster(where) or
                                                   shifts[k].most_common(1)[0][1] * 2 > n)):
                 keys.add(k)
+            elif lead is not None and shifts[k][lead] == n and n <= 2 and len(title.split()) <= 8 \
+                    and re.sub(r"^\d+\s+|\s+\d+$", "", orig[k])[:1].isupper():
+                keys.add(k)   # a short section's head, one or two copies, each with the page's own folio (Pezze and Young: "Capture and Replay 337")
         elif n >= max(5, len(pages) // 5) and len(k.split()) >= 2 and (pages_cluster(where) or len(pages) >= 100):
             keys.add(k)
     return keys
@@ -2962,7 +3012,9 @@ def load_pdf(path) -> Doc:
     first_copy = first_near_edge(pages, beside)
     pages = [strip_folio_heads(p, n, shifts, beside, first_copy, on_page.get(n + 1, ())) for n, p in enumerate(pages)]
     head_keys = running_head_keys(pages, [t for t, _, _ in outline])
+    lead = edge_folio_lead(pages)
     pages = [strip_glued_folio(strip_running_heads(p, head_keys), n, shifts) for n, p in enumerate(pages)]
+    pages = strip_glued_folio_heads(pages, lead, head_keys)
     pages = strip_colon_heads(pages)
     pages = [repair_symbol_font(p) for p in pages]
     margin = margin_folio_shift(pages)

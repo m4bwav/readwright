@@ -3613,3 +3613,41 @@ class SymbolFontAndGluedHeadTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
+
+
+class TestShortSectionHeads(unittest.TestCase):
+    """Pezze and Young: a short section's running head shows on one or two pages only, so no repeat count proves it;
+    the page's own folio does. Glued to the first words it must go too."""
+
+    def book(self):
+        pages = []
+        for n in range(60):
+            folio = n + 10
+            head = (f"{folio} Program Analysis" if n % 2 else f"Section Title {n // 4} {folio}")
+            pages.append(f"{head}\nbody text of page {n} goes on here.\nmore words\n")
+        return pages
+
+    def test_one_copy_head_with_own_folio_goes(self):
+        pages = self.book()
+        pages[30] = "Capture and Replay 40\nsystems provide quantifiers.\nmore words\n"
+        keys = rw.running_head_keys(pages)
+        self.assertIn("capture and replay #", keys)
+        self.assertNotIn("Capture", rw.strip_running_heads(pages[30], keys))
+
+    def test_wrong_folio_stays(self):
+        pages = self.book()
+        pages[30] = "Capture and Replay 99\nsystems provide quantifiers.\nmore words\n"
+        self.assertNotIn("capture and replay #", rw.running_head_keys(pages))
+
+    def test_glued_heads(self):
+        pages = self.book()
+        keys = rw.running_head_keys(pages)
+        lead = rw.edge_folio_lead(pages)
+        self.assertEqual(lead, 10)
+        pages[30] = "Exceptions 40 languages that provide handlers\nmore\n"
+        pages[31] = "41 Program Analysis would indicate the absence\nmore\n"
+        pages[32] = "Exceptions 7 languages stay\nmore\n"
+        out = rw.strip_glued_folio_heads(pages, lead, keys)
+        self.assertTrue(out[30].startswith("languages that provide"))
+        self.assertTrue(out[31].startswith("would indicate"))
+        self.assertTrue(out[32].startswith("Exceptions 7"))

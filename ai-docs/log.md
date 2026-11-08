@@ -117,3 +117,7 @@ Short chapter heads, glued caption folios, spread real headings and converter ca
 ## [2026-11-06] update | 0.46.0: read --until
 
 Added for chapter summaries that end in exercises and web links. A pull-quote fragment filter was measured and rejected (L-060).
+
+## [2026-11-07] fix | 0.63.0: one-copy and glued running heads
+
+Pezze and Young page titles carried short-section heads ("Capture and Replay 337 ..."). Heads with the page's own folio now go even with one copy, and heads glued to the first words go. Test TestShortSectionHeads.

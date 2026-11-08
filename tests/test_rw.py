@@ -3185,6 +3185,19 @@ class TestHeadings(Base):
         self.assertIn("Time-Box Fixing before Reverting", titles)
         self.assertNotIn("this sentence is lowercase prose", titles)
 
+    def test_layout_heads_join_two_lines(self):   # L-083 `two-line-heads`
+        body = "words of the body run on across the printed line for a while longer here"
+        page = "\n".join(["", "Keep the Build Green and Fix It", "in Ten Minutes or Revert", body, "", "Short Head", body])
+        titles = rw.layout_head_titles([page])
+        self.assertIn("Keep the Build Green and Fix It in Ten Minutes or Revert", titles)
+        self.assertNotIn("Keep the Build Green and Fix It", titles)
+        self.assertIn("Short Head", titles)
+
+    def test_symbol_font_signs(self):   # L-083
+        self.assertEqual(rw.fix_symbol_signs("at \u00c024.0 dB, \u00c06 dB and \u00fe2 dB"), "at -24.0 dB, -6 dB and +2 dB")
+        self.assertEqual(rw.fix_symbol_signs("\u00c02 once"), "\u00c02 once")
+        self.assertEqual(rw.fix_symbol_signs("V\u00c01 \u00c02 \u00c03 \u00c04"), "V\u00c01 -2 -3 -4")
+
     def test_run_in_heads_from_the_layout_text(self):   # L-081 `run-in-pdf-heads`
         body = "words of the body run on across the printed line for a while longer here"
         page = "\n".join(["Chapter 8", "", "Sound Design", "", "The Importance of Sound", body, body, "progression.", "",

@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.67.1"
+VERSION = "0.68.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -110,6 +110,19 @@ class Doc:
 
 LIGATURES = str.maketrans({"\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl",
                            "\ufb05": "st", "\ufb06": "st"})
+
+
+SYMBOL_MINUS = re.compile(r"(?<![^\W\d_])\u00c0(?=\d)")   # Symbol-font minus read as À: 'À24.0 dB' (L-083)
+SYMBOL_PLUS = re.compile(r"(?<![^\W\d_])\u00fe(?=\d)")    # and plus read as þ: 'þ2 dB'
+SYMBOL_SIGN_MIN = 3   # fewer and the À or þ may be real text
+
+
+def fix_symbol_signs(text: str) -> str:
+    """Minus and plus signs from a Symbol-encoded PDF font come out of pdftotext as À and þ before a digit (Francis,
+    The Audio Effects Workshop: 'À24.0 dB'). Map them back when the book has at least SYMBOL_SIGN_MIN of them."""
+    if len(SYMBOL_MINUS.findall(text)) + len(SYMBOL_PLUS.findall(text)) < SYMBOL_SIGN_MIN:
+        return text
+    return SYMBOL_PLUS.sub("+", SYMBOL_MINUS.sub("-", text))
 
 
 FIGURE_LINK = re.compile(r"(?:[\w ,-]{0,30}:\s*)?\[(?:formula: image|image omitted[^\]]*)\]\s*https?://\S+$")
@@ -3003,6 +3016,7 @@ def load_pdf(path) -> Doc:
         text = oc.read_bytes().decode("utf-8", "replace")
         doc.notes.append(f"text from OCR (`rw.py ocr`, kept in {oc}); expect misread letters")
     text = text.translate(LIGATURES)   # "Diﬃcult": a search for "difficult" must find it
+    text = fix_symbol_signs(text)
     pages = text.split("\f")
     if pages and not pages[-1].strip():
         pages.pop()
@@ -5454,10 +5468,16 @@ def bare_numbered_heads(doc: "Doc", idx: list) -> set:
 
 
 LAYOUT_HEAD = re.compile(r"^[A-Z0-9][^|]{2,69}[A-Za-z0-9?)]$")
+LAYOUT_HEAD_TAIL = re.compile(r"^[A-Za-z0-9][^|]{1,69}[A-Za-z0-9?)]$")   # a wrapped head's second line may start lowercase
 TITLE_MINOR = {"before", "after", "from", "with", "into", "onto", "over", "upon", "than", "that", "when", "while", "about", "without",
                "through", "under", "until", "your", "their", "this", "these", "those"}   # lowercase in Title Case heads (L-082)
 LAYOUT_HEAD_MIN = 3   # fewer layout-found heads in a section are likely stray short lines
 RUN_IN_NEXT = re.compile(r" [A-Z0-9\"'“‘(]")   # a run-in head is followed by a new sentence: 'Foley is' is prose
+
+
+def title_case(words: list) -> bool:
+    """Every word over three letters starts with a capital or digit, or is a minor word (L-082)."""
+    return not any(len(w) > 3 and not (w[0].isupper() or w[0].isdigit()) and w.lower() not in TITLE_MINOR for w in words)
 
 
 def layout_head_titles(pages: list) -> set:
@@ -5475,8 +5495,16 @@ def layout_head_titles(pages: list) -> set:
             words = text.split()
             if not (1 <= len(words) <= 10 and LAYOUT_HEAD.match(text)) or ". " in text or re.match(r"(?i)chapter\s+\d", text):
                 continue
-            if any(len(w) > 3 and not (w[0].isupper() or w[0].isdigit()) and w.lower() not in TITLE_MINOR for w in words):
+            if not title_case(words):
                 continue
+            nxt = lines[j + 1].strip() if j + 1 < len(lines) else ""
+            more = nxt.split()
+            if (nxt and len(more) <= 6 and len(words) + len(more) <= 14 and LAYOUT_HEAD_TAIL.match(nxt) and title_case(more)
+                    and len(lines[j + 1]) - len(lines[j + 1].lstrip()) < 8 and ". " not in nxt):
+                body = next((x.strip() for x in lines[j + 2:j + 4] if x.strip()), "")
+                if len(body.split()) >= 8:   # a head wrapped onto a second line: join it (L-083 `two-line-heads`)
+                    out.add(clean(text + " " + nxt))
+                    continue
             body = next((x.strip() for x in lines[j + 1:j + 3] if x.strip()), "")
             if len(body.split()) >= 8:
                 out.add(clean(text))

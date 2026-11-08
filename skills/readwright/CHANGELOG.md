@@ -2,6 +2,9 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-32 · 2026-11-07 · Two-line layout heads joined; Symbol-font signs (0.68.0)
+- because: L-083 `two-line-heads`; `read --headings` listed a head that wraps onto a second line cut at the line end (open since 0.67.1). A short Title Case line right under a layout head, with body text after it, is now joined to it. Also: The Audio Effects Workshop (Cengage 2011 PDF) printed minus and plus as À and þ before digits (À24.0 dB) from a Symbol-encoded font; with three or more in a book they map back to - and +. Tests for both; distilling tip for hands-on workshop books.
+
 ### C-20261107-31 · 2026-11-07 · Title Case heads with minor words (0.67.1)
 - because: L-082 `minor-word-heads`; `read --headings` on Continuous Delivery ch. 3 Essential Practices missed Wait for Commit Tests to Pass before Moving On and Time-Box Fixing before Reverting, because any lowercase word over three letters rejected a layout head. Common minor words (before, from, with, your...) are now allowed, with a test; distilling tip for practices books whose rules are headings.
 

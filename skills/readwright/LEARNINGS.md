@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-083 · 2026-11-07 · `two-line-heads`: layout heads wrapped onto two lines; Symbol-font signs
+Trigger: open item from L-082 (Continuous Delivery heads cut at the line end) and the everscout ai-sfx run on Francis, The Audio Effects Workshop (Cengage 2011 PDF), whose text read À24.0 dB and þ2 dB. Cause: layout_head_titles took the next non-blank line as body, so a wrapped second line (under eight words) cut or dropped the head; pdftotext maps the Symbol font minus and plus to À and þ. Fix (0.68.0): a short Title Case second line (lowercase start allowed) with body after it is joined; À and þ before a digit become - and + when a book has three or more.
+
 ### L-082 · 2026-11-07 · `minor-word-heads`: Title Case heads with lowercase minor words
 Trigger: everscout multi-agent-grind run on Humble and Farley, Continuous Delivery (2010 PDF): `read --section 28 --headings` listed 5 of 9 rule headings. Cause: layout_head_titles rejected any lowercase word longer than three letters, and Title Case keeps before, from, with, your lowercase. Fix: a TITLE_MINOR set of such words passes; long two-line heads still list cut at the line end.
 

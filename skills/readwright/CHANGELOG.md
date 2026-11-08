@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-23 · 2026-11-07 · grep takes -q; read --headings -q drops its jump hint (0.61.0)
+- because: Dooley, Software Development, Design and Coding, read for everscout multi-agent-grind; `grep -q` was refused while `read -q` worked
+- files: scripts/rw.py grep parser, `cmd_grep`, headings listing; SKILL.md Distilling a book; tests
+`grep --quiet` hides the advice line and keeps the match count; `read --headings -q` no longer prints the jump hint. SKILL tip: in a general textbook read for one beat, list each candidate chapter's headings first and read from the heading's paragraph.
+
 ### C-20261107-22 · 2026-11-07 · Monospace blockquotes from converted Kindle books read as code (0.60.0)
 - because: L-079; Lanham, Game Audio Development With Unity 5.x (MOBI) read for everscout ai-sfx
 - files: scripts/rw.py `HTMLText` (`MONO_TAGS`); SKILL.md Distilling a book; tests

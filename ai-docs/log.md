@@ -121,3 +121,7 @@ Added for chapter summaries that end in exercises and web links. A pull-quote fr
 ## [2026-11-07] fix | 0.63.0: one-copy and glued running heads
 
 Pezze and Young page titles carried short-section heads ("Capture and Replay 337 ..."). Heads with the page's own folio now go even with one copy, and heads glued to the first words go. Test TestShortSectionHeads.
+
+## [2026-11-07] trim | 0.64.0: distilling tips on demand
+
+SKILL.md loaded ~9.9k tokens per use; the Distilling a book section moved whole to `skills/readwright/references/distilling.md` (SKILL.md 40.7k to 13.4k characters), with a pointer left in SKILL.md. Added one tip from the Samara Typography Workbook run (everscout T-20261107-26). Future distilling tips go in that file.

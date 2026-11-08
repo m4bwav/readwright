@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.63.0"
+VERSION = "0.64.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024

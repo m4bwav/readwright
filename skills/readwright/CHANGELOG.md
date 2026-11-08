@@ -2,7 +2,12 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
-Entry shape: `### C-20261107-20 · 2026-11-07 · `toc --group` splits at chapter opening pages (0.62.0)
+### C-20261107-24 · 2026-11-07 · One-copy running heads and glued heads leave PDF page titles (0.63.0)
+- because: user request (Mark: fix readwright bugs in-session); Pezze and Young, Software Testing and Analysis: page titles read "Capture and Replay 337 systems provide..." because a short section's head shows on one or two pages only.
+- files: scripts/rw.py `running_head_keys`, `folio_lead`, `edge_folio_lead`, `strip_glued_folio_heads`, `pdf` pipeline; tests `TestShortSectionHeads`
+A numbered edge head with one or two copies goes when each copy carries the page's own folio (the book-wide shift). A head glued to the page's first words on one line goes when its number is the page's own: "Title 309 lower-case text", or "366 Head" for a head already proven.
+
+### C-20261107-20 · 2026-11-07 · `toc --group` splits at chapter opening pages (0.62.0)
 - because: Pezze and Young, Software Testing and Analysis, read for everscout multi-agent-grind: one running head folded pages 61-564 (ch. 4-24) into one group. `group_lines` now prefers `chapter_runs` (bare `Chapter N` page tops) and titles each from the line after it; skill tip for process textbooks.
 
 ### C-20261107-15 · 2026-11-07 · A chapter's own mini-contents collapse to one line (0.53.0)
@@ -10,7 +15,7 @@ Entry shape: `### C-20261107-20 · 2026-11-07 · `toc --group` splits at chapter
 - files: scripts/rw.py `collapse_local_contents`, `HTMLText`; SKILL.md Distilling a book; tests
 Runs of three or more same-file link paragraphs at a chapter's start become one marker line, with fragment ids remapped; a tip for broad references read before for another subject. The cut footer now says when it stopped short of `--max-chars` at a break.
 
-### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
+Entry shape: `### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
 ### C-20261107-23 · 2026-11-07 · grep takes -q; read --headings -q drops its jump hint (0.61.0)
 - because: Dooley, Software Development, Design and Coding, read for everscout multi-agent-grind; `grep -q` was refused while `read -q` worked

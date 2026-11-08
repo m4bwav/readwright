@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.47.1"
+  version: "0.56.0"
 ---
 
 # readwright
@@ -74,6 +74,8 @@ Quote briefly. For a copyrighted book, summarise and quote a sentence or two at 
 A broad reference already read for another subject: check what the earlier notes aimed at your subject, then read the chapters on your own job they skipped (an evaluation appendix, the analysis chapters), split by kind across two reader agents.
 
 A flat PDF section with numbered or whole-caps headings: `read --headings` lists them, then `--at-para` jumps to the one you want.
+
+A PDF whose bookmarks stop at the parts (toc warns one section holds a large share of the text): `read --section N --headings` on each big section gives the real chapter map, with paragraph numbers for `--at-para`.
 
 An edited handbook: read the editor's introduction first, since it says which chapter covers what, then only those chapters' openings and any passage on method. Each chapter has its own authors, so cite the chapter and judge it alone.
 

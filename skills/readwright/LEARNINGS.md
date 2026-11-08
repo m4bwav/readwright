@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-087 · 2026-11-07 · `long-captions`: figure captions as long as body paragraphs
+Trigger: everscout downtempo run on Wilson, Make: Analog Synthesizers (Maker Media 2013 EPUB): ch. 3 carries a caption under every figure (Figure 3-1. ... up to 60 words), so a 16-section read was a fifth captions, and --min-para-words could not drop them without dropping real paragraphs; the reader piped the output through grep -v. Fix (0.71.0): `read --drop-captions` drops body paragraphs that start Figure/Fig./Table/Plate/Exhibit/Listing, a number and a stop or colon; prose that names a figure (Figure 3-8 shows) stays.
+
 ### L-086 · 2026-11-07 · `overprinted-blurb`: a back-cover blurb on every page
 A 2002 Addison-Wesley PDF rip (Beck, Test-Driven Development: By Example) carries the book's blurb and a credits block as a hidden layer on every one of its 218 pages. pdftotext interleaves it with the page's own sentences, sometimes mid-sentence, so paragraphs ran half blurb; `--drop-repeated` only dropped short whole paragraphs. 8-word runs that recur on 30% or more of the pages are now cut out of paragraphs too (31,066 words gone; 79k to 48k words). Where the two layers overlap glyph by glyph the text is letter-interleaved salad that no text pass can undo; read around it or OCR the page.
 

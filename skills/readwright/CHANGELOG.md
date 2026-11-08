@@ -2,6 +2,10 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-36 · 2026-11-07 · read --drop-captions (0.71.0)
+- because: L-087 `long-captions`; Make: Analog Synthesizers prints a long caption under every figure. `drop_captions` removes body paragraphs that start like a caption; test test_drop_captions_drops_figure_and_table_captions_only.
+- files: scripts/rw.py (drop_captions, read and flags_used), references/distilling.md
+
 ### C-20261107-35 · 2026-11-07 · --drop-repeated cuts 8-word runs that recur on many pages (0.70.0)
 - because: L-086 `overprinted-blurb`; Beck, Test-Driven Development: By Example (PDF rip) printed its back-cover blurb inside every page's text, mid-paragraph. `drop_repeated_runs` removes runs of 8 or more words recurring in 30% of sections from body paragraphs; the hint reports the words cut. Test `test_drop_repeated_runs_cuts_an_overprinted_blurb`.
 

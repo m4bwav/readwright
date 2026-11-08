@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.70.0"
+VERSION = "0.71.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3571,6 +3571,21 @@ def drop_short_paras(doc: Doc, least: int) -> int:
     return gone
 
 
+CAPTION_START = re.compile(r"^(?:Figure|Fig\.|Table|Plate|Exhibit|Listing)\s+[A-Z]?\d+(?:[.\-–]\d+)*[.:]\s")
+
+
+def drop_captions(doc: Doc) -> int:
+    """Remove body paragraphs that start like a caption (`Figure 3-1. ...`, `Table 2.4: ...`): figure and table
+    captions, which can run long and so survive --min-para-words. Prose that names a figure (`Figure 3-8 shows`)
+    stays: a caption has a stop or colon after the number. Returns how many went."""
+    gone = 0
+    for s in doc.sections:
+        kept = [p for p in s.paras if p.kind != "p" or not CAPTION_START.match(p.text.strip())]
+        gone += len(s.paras) - len(kept)
+        s.paras = kept
+    return gone
+
+
 def drop_images(doc: Doc) -> int:
     """Remove `[image omitted: NAME]` markers; a paragraph holding nothing else goes. `[image: ALT]` stays, since it
     carries words. Returns how many markers went."""
@@ -5466,6 +5481,7 @@ def flags_used(a) -> str:
                                    (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                    (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
                                    (" --drop-images", getattr(a, "drop_images", False)),
+                                   (" --drop-captions", getattr(a, "drop_captions", False)),
                                    (f" --min-para-words {getattr(a, 'min_para_words', '')}", getattr(a, "min_para_words", None)),
                                    (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None))) if on)
 
@@ -5700,6 +5716,9 @@ def cmd_read(a) -> int:
     if getattr(a, "min_para_words", None):
         n = drop_short_paras(doc, a.min_para_words)
         hints.append(f"--min-para-words dropped {n} short paragraph(s); figure captions and list items can go too")
+    if getattr(a, "drop_captions", False):
+        n = drop_captions(doc)
+        hints.append(f"--drop-captions dropped {n} figure or table caption(s)")
     if getattr(a, "drop_images", False):
         n = drop_images(doc)
         hints.append(f"--drop-images removed {n} image marker(s); `RW image` still writes a picture")
@@ -5737,6 +5756,7 @@ def cmd_read(a) -> int:
                                     (" --drop-repeated", getattr(a, "drop_repeated", False)),
                                     (" --drop-epigraphs", getattr(a, "drop_epigraphs", False)),
                                    (" --drop-images", getattr(a, "drop_images", False)),
+                                   (" --drop-captions", getattr(a, "drop_captions", False)),
                                    (f" --min-para-words {getattr(a, 'min_para_words', '')}", getattr(a, "min_para_words", None)),
                                     (f" --lang {getattr(a, 'lang', '')}", getattr(a, "lang", None)),
                                     (" --compact", getattr(a, "compact", False)),
@@ -6399,6 +6419,7 @@ def main(argv=None) -> int:
     p.add_argument("--max-row-words", type=int, metavar="N", help="read only: cut table rows over N words and mark the cut (books that set chat replies or samples in tables)")
     p.add_argument("--drop-repeated", action="store_true", help="drop short paragraphs that recur in 30%% or more of "
                    "sections, verbatim or with the same last four words (image credits, copyright notices)")
+    p.add_argument("--drop-captions", action="store_true", help="drop paragraphs that start like a caption (Figure 3-1. or Table 2.4:): long figure captions --min-para-words keeps")
     p.add_argument("--drop-images", action="store_true", help="remove [image omitted: NAME] marker lines (a book with many figures)")
     p.add_argument("--min-para-words", type=int, metavar="N", help="drop body paragraphs under N words: figure labels and notation debris in OCR text")
     p.add_argument("--drop-epigraphs", action="store_true", help="drop quotations of 80 words or fewer followed by a "

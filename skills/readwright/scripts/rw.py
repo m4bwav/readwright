@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.67.0"
+VERSION = "0.67.1"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5454,6 +5454,8 @@ def bare_numbered_heads(doc: "Doc", idx: list) -> set:
 
 
 LAYOUT_HEAD = re.compile(r"^[A-Z0-9][^|]{2,69}[A-Za-z0-9?)]$")
+TITLE_MINOR = {"before", "after", "from", "with", "into", "onto", "over", "upon", "than", "that", "when", "while", "about", "without",
+               "through", "under", "until", "your", "their", "this", "these", "those"}   # lowercase in Title Case heads (L-082)
 LAYOUT_HEAD_MIN = 3   # fewer layout-found heads in a section are likely stray short lines
 RUN_IN_NEXT = re.compile(r" [A-Z0-9\"'“‘(]")   # a run-in head is followed by a new sentence: 'Foley is' is prose
 
@@ -5473,7 +5475,7 @@ def layout_head_titles(pages: list) -> set:
             words = text.split()
             if not (1 <= len(words) <= 10 and LAYOUT_HEAD.match(text)) or ". " in text or re.match(r"(?i)chapter\s+\d", text):
                 continue
-            if any(len(w) > 3 and not (w[0].isupper() or w[0].isdigit()) for w in words):
+            if any(len(w) > 3 and not (w[0].isupper() or w[0].isdigit()) and w.lower() not in TITLE_MINOR for w in words):
                 continue
             body = next((x.strip() for x in lines[j + 1:j + 3] if x.strip()), "")
             if len(body.split()) >= 8:

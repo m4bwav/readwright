@@ -2,6 +2,9 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-31 · 2026-11-07 · Title Case heads with minor words (0.67.1)
+- because: L-082 `minor-word-heads`; `read --headings` on Continuous Delivery ch. 3 Essential Practices missed Wait for Commit Tests to Pass before Moving On and Time-Box Fixing before Reverting, because any lowercase word over three letters rejected a layout head. Common minor words (before, from, with, your...) are now allowed, with a test; distilling tip for practices books whose rules are headings.
+
 ### C-20261107-30 · 2026-11-07 · toc --match (0.67.0)
 - because: reading Software Engineering at Google (540 sections), `grep -n` on the saved toc.txt gave line numbers one off from section numbers and the first `read --section` landed on the wrong subsection. `toc --match REGEX` keeps only matching titles with their real numbers (text and --json), with a test; distilling tip for big practitioner books.
 

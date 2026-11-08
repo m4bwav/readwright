@@ -3176,6 +3176,15 @@ class TestHeadings(Base):
         self.assertEqual(rw.numbered_headings(paras), [(3, 1), (4, 1), (5, 2), (6, 1), (7, 1)])
         self.assertEqual(rw.numbered_headings([rw.Para("p", "1.1 Lone heading")]), [])
 
+    def test_layout_heads_allow_minor_words(self):   # L-082 `minor-word-heads`
+        body = "words of the body run on across the printed line for a while longer here"
+        page = "\n".join(["", "Wait for Commit Tests to Pass before Moving On", body, "", "Time-Box Fixing before Reverting", body,
+                          "", "this sentence is lowercase prose", body])
+        titles = rw.layout_head_titles([page])
+        self.assertIn("Wait for Commit Tests to Pass before Moving On", titles)
+        self.assertIn("Time-Box Fixing before Reverting", titles)
+        self.assertNotIn("this sentence is lowercase prose", titles)
+
     def test_run_in_heads_from_the_layout_text(self):   # L-081 `run-in-pdf-heads`
         body = "words of the body run on across the printed line for a while longer here"
         page = "\n".join(["Chapter 8", "", "Sound Design", "", "The Importance of Sound", body, body, "progression.", "",

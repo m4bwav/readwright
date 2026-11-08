@@ -3287,7 +3287,7 @@ class TestHeadings(Base):
         self.assertEqual(rw.head_of(paras[1].text, titles), "The Importance of Sound")
         self.assertEqual(rw.layout_headings(paras[:2], titles), [])   # one head is below the minimum
 
-    def test_bare_numbered_heads_across_page_sections(self):   # L-069 `bare-numbered-heads`
+    def test_bare_numbered_heads_across_page_sections(self):   # L-089 `bare-numbered-heads`
         doc = rw.Doc("x.pdf", "pdf", {}, [
             rw.Section("page 1", [rw.Para("p", "Intro words."), rw.Para("p", "1 Variable Tempo"), rw.Para("p", "Body.")]),
             rw.Section("page 2", [rw.Para("p", "2 Variable Pitch"), rw.Para("p", "Body."), rw.Para("p", "3 Variable Rhythm")]),

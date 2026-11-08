@@ -2,6 +2,10 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261108-1 · 2026-11-08 · learnings consolidation
+- because: active LEARNINGS were 43 of 25. L-069 had been given twice: the 11-07 `bare-numbered-heads` entry is now L-089, with its citations in rw.py, test_rw.py and this file. L-072 and L-073 put back in order. Promoted L-057 to L-059, L-061 to L-073 and L-089 (rules already code with tests) into references/formats.md, Heading and furniture rules; L-052 merged into L-053. 25 active. Next free L-090.
+- files: LEARNINGS.md, LEARNINGS-ARCHIVE.md, references/formats.md, scripts/rw.py (comment), tests/test_rw.py (comment)
+
 ### C-20261107-37 · 2026-11-07 · ocr resumes after a --pages run (0.71.1)
 - because: L-088 `ocr-resume`; on Boulanger, The Csound Book (746-page scan) an `ocr --pages 1-24` to see the contents left a cache, and a later plain `ocr` said "already OCR'd: 746 pages" with 3,286 words. A plain run now OCRs the pages with no text; a `.blank` file beside the cache records pages a whole run left empty so they are not retried. Test test_ocr_resumes_after_a_pages_run.
 - files: scripts/rw.py (cmd_ocr, _page_runs), references/distilling.md
@@ -94,7 +98,7 @@ When a selected section's last paragraph ends with a colon and the following sec
 Unnumbered titles of two or more words split running text only when several entries share the page and the title follows a sentence end in its exact case; a tip on `(0 w)` toc rows and on citing practitioner tolerances.
 
 ### C-20261107-14 · 2026-11-07 · `read --headings` finds bare-numbered heads across page sections (0.52.0)
-- because: L-069; Collins, Game Sound read for everscout ai-sfx
+- because: L-089 `bare-numbered-heads`; Collins, Game Sound read for everscout ai-sfx
 - files: scripts/rw.py `bare_numbered_heads`, `heading_lines`; SKILL.md Distilling a book; tests
 '1 Variable Tempo' style heads count when they form a run 1, 2, 3 or longer across the selected sections; a tip says to pass a whole chapter range for page-per-section PDFs.
 

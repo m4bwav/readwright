@@ -2,6 +2,89 @@
 
 Retired or promoted entries from [LEARNINGS.md](LEARNINGS.md), each with a reason.
 
+## Consolidation 2026-11-08 (C-20261108-1)
+
+Active entries were 43 of 25. Each entry below is unchanged except for its last line. The second L-069 (`bare-numbered-heads`) was renumbered L-089.
+
+### L-062 · 2026-11-06 · `viewport-attribute-order`: fixed-layout detection needed name before content
+Murch, Suddenly Something Clicked, writes `<meta content="width=818, height=1065" name="viewport"/>`. The pattern wanted name first, so every printed line, folio, running head and margin quote came out as its own paragraph, with page furniture mixed into the sentences and line-end hyphens kept. A book that reads as one line per paragraph points here. Separately, `--offset` past the end printed nothing and exited 0; it now refuses.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-061 · 2026-11-06 · `outline-named-dests`: LaTeX outlines lost most of their entries
+`mutool show` prints `#nameddest=section.7.2` instead of a page for hyperref PDFs, and the parser only took page numbers. Müller's 287 outline entries came out as 132 sections, with section 7.2 inside "7.1.2.2 Fingerprint Matching" and no warning. An earlier reader had to interpolate page numbers. `pdfinfo -dests` gives the pages. 10 of the first 40 PDFs in the book folder have such entries. When a toc shows one huge leaf, compare its entry count with the PDF's outline.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-052 · 2026-11-05 · `alternating-folio-heads`: two heads by a folio pass every share test
+- Trigger: a textbook sets `368` over the part name on even pages and the chapter over `369` on odd ones. No text reaches a fifth of the pages, each head changes by chapter, and only the bare number was on the edge line, so about 100 heads opened false sections.
+- Hypothesis: what proves a head is the number beside it matching the page's own shift, not how often the text recurs.
+- Rule: count recurrence beside such a number, on exact text: with digits folded, `Exhibit 9-3` beside a folio looks like a head. pdftotext can read a sidebar before the head, so the drop reaches four lines in.
+- Evidence: `toc` 357 to 258 sections, the split section 125 to 7,399 words, 30 sampled PDFs lose under 1.8% of words. test_alternating_heads_and_folios_drop. C-20261105-3. Kept active: new, and L-053 and L-054 tune the same code.
+- Scope: skill
+- Status: active · helpful 1 · harmful 0 · last_confirmed 2026-11-05
+- Status: retired: C-20261108-1 · merged into L-053 `spread-headings-stay` (same head-versus-folio code; L-053 now cites C-20261105-3)
+
+### L-057 · 2026-11-05 · A typed hyphen missed a book's U+2010
+J.K. Lasser's Small Business Taxes 2024 (Wiley EPUB) prints U+2010: grep for self-employment tax found 2 matches where the true count was 73, and the small count looked like an answer. grep now treats the hyphen and apostrophe forms as one. It was tried on this one EPUB; en and em dashes stay distinct, since they often mean something else.
+
+The routes CI job hung in its apt install step on PR #73 and #75 (cause not found); that step now has a 12-minute timeout and DEBIAN_FRONTEND=noninteractive.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-058 · 2026-11-06 · Notes sections looked like second copies of the chapters
+Quietly Powerful (one-file EPUB) split its endnotes at headings named Chapter 1, Chapter 2 and so on, so the outline showed each chapter twice, and a citation could point at the wrong one. Repeats at the book's end under half the first copy's words are now titled as notes. A book built from interviews with people the author already admires selects on the outcome: that is now a distilling tip.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-059 · 2026-11-06 · A cap could end on a bare section title
+Reading The Argument Culture, a batch ended at the title of section 135 with no body, which looked like an empty section until the footer was read. A cut now backs up to before such a header.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-069 · 2026-11-07 · `margin-folio-in-text`: a side-margin page number lands inside sentences
+Refining Sound sets folios at mid-page height in the margin, so pdftotext read "close together in 65 frequency". The number is removed only when one shift holds on a quarter of the pages, twice the runner-up, and the page has one plain occurrence. Of 40 other PDFs 5 qualified; sampled removals were real folios except line references and contents leaders, which are now blocked. The sample was small, so an odd number could still go.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-070 · 2026-11-07 · `contents-page-survivors`: lines of a contents page that repeat nothing opened false sections
+Power Tools for Synthesizer Programming has a contents file with no heading. `contents_entry` rejected Chapter 1 to 8 because a later cut shared the word, but Introduction, Chapter 9 and Appendix survived, giving three false sections at the front. A short-line block that names itself contents, or lost three or more cuts, now keeps none.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-071 · 2026-11-07 · `caption-credit-heading`: a photographer's name closing a caption opened a section
+split_caps took small-caps credits at the end of captions as inline headings, so body text sat under the photographer's name in a Crowood EPUB. A caps run closing a paragraph of 150 words or fewer now stays in the caption; OCR page paragraphs run longer.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-073 · 2026-11-07 · `same-page-runin-titles`: names run into one paragraph gave their outline entries 0 words
+The Foley Grail's ch. 15 lists 44 experts as outline entries, several per page, each name run into one long paragraph ("... received. Mark Mangini (supervising ..."). Only numbered titles were split inside running text, so all but the last name on a page read as 0 words. When several entries share a page, an unnumbered title of two or more words in its exact case right after a sentence end now splits the paragraph; a lone entry never does.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-072 · 2026-11-07 · `chapter-mini-contents`: a chapter's own contents printed every heading twice
+MIT Press EPUBs (Roads, The Computer Music Tutorial) open each chapter with paragraphs that are each one link to a heading further down the file. Read printed them as bare lines before the body, which reader agents took for empty paragraphs. A run of three or more such blocks at the start or after a heading is now one `[chapter contents: N headings]` line; `--headings` still lists them.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-063 · 2026-11-07 · `page-is-not-section`: printed page numbers were turned into section numbers
+An OCR PDF of Introduction to Computer Music has several outline sections per page, so `--section p264` silently read printed p. 71. The selector now maps pages through `pageN` section ids. A wrong page with plausible text gives no error, so check the `printed N` in the header when citing.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-064 · 2026-11-07 · `caps-list-acronym`: small-caps names opened sections, and ruled headings went unseen
+In an Oxford handbook, a list broken after DEC, IBM and glossary names such as CSIRAC became sections, while real headings over a rule of dots were missed by `read --headings`. A caps run ending in a comma, or one word also used inside sentences, is no longer a heading; `--headings` falls back to the rule of dots. A split two-line caps title still gives two sections.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-065 · 2026-11-07 · `code-in-classed-divs`: --skip-code dropped nothing on Springer EPUBs
+Springer sets listings as div.ProgramCode with one div per line and no pre, so a third of Sound Analysis and Synthesis with R stayed in and ate the character cap. A div or p whose class names code now becomes one pre block, lines and no-break-space indents kept. When a skip flag leaves code in, look at the EPUB markup first.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-066 · 2026-11-07 · `numbered-headings`: --headings saw nothing in a flat numbered PDF
+The Effects of Sound on People keeps 96% of its text in one section, with headings only as plain `5.2 Annoyance` lines, so `read --headings` reported none and the reader wrote the section to a file and grepped it. Five or more short numbered lines now count as headings; lines of figures and sentences do not.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-089 · 2026-11-07 · `bare-numbered-heads`: list heads without a dot, one page per section
+Collins, Game Sound (MIT Press PDF, no outline) comes out as one section per page, and ch. 8 sets its ten approaches as `1 Variable Tempo` with no dot. Every heading rule counted per section, so a page with one or two heads never passed a threshold and `read --headings` said none. Fixed in 0.52.0: bare-number heads count across the whole selection when they run 1, 2, 3 or longer. Checked on ch. 8: all ten found, nothing else.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-068 · 2026-11-07 · `caps-headings`: subheadings set only in capitals
+Chion, Audio-Vision (Columbia University Press PDF) has no heading marks, numbers or rules; its subheadings are whole lines in capitals (THE UNITY ILLUSION, MATERIALIZING SOUND INDICES (MSIs)). `read --headings` said the chapter had none, so the reader fell back to grep. Fixed in 0.51.0: at least three whole-caps lines of two to ten words, each followed by a paragraph of 20 or more words, count as headings; a short gloss in brackets at the end is allowed. The minimum and the body check keep caps lists and acronyms out (L-064). Checked on ch. 1, 5 and 9 of the book, every line a real heading.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
+### L-067 · 2026-11-07 · `duplicate-picture-marker`: a repeated ornament read as a formula
+You're the Only One I Can Tell sets each chapter ornament as two img tags with one src, for EPUB and Kindle. The first got an image marker, and the marker made the block look like running text, so the second became `[formula: image]`. A false formula sends a reader looking for maths that is not there. Fixed in 0.50.1, with a test.
+- Status: promoted: C-20261108-1 · scripts/rw.py with its test (rule is code), one line in references/formats.md, Heading and furniture rules
+
 ## Consolidation 2026-11-07 (C-20261107-12)
 
 Active entries were 26 of 25. The entry below is unchanged except for its last line.

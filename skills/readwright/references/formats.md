@@ -73,3 +73,19 @@ PDF code blocks: when the text hints at code, a second `pdftotext -layout` pass 
 - One file or zip member: 512 MB (`RW_MAX_MB` changes it). A zip member's declared size is checked before it is read.
 - Spreadsheets: 200,000 rows per sheet and 1,000 columns; repeated ODS rows and cells are capped too.
 - External tools time out (PDF and Office 10 minutes, calibre 15).
+
+## Heading and furniture rules
+
+Each is code in rw.py with a test; LEARNINGS-ARCHIVE.md has the book that prompted it.
+
+- Hyphens and apostrophes: grep treats U+2010 and the typed hyphen, and apostrophe forms, as one; en and em dashes stay distinct (L-057).
+- Repeats at a book's end under half the first copy's words are titled as notes (L-058). A cap never ends on a bare section title (L-059).
+- LaTeX outlines give `#nameddest=`; pages come from `pdfinfo -dests` (L-061). Fixed-layout viewport meta matches in either attribute order (L-062).
+- `--section pN` maps through `pageN` ids; check `printed N` in the header when citing (L-063).
+- Caps runs ending in a comma, or one word used in sentences, are not headings; `--headings` falls back to rules of dots (L-064). Whole-caps lines (3+, 2 to 10 words, each before a 20+ word paragraph) are headings (L-068).
+- A div or p whose class names code becomes one pre block for `--skip-code` (L-065).
+- Five or more short numbered lines count as headings (L-066); bare-number heads (`1 Variable Tempo`) count across the whole selection when they run 1, 2, 3 (L-089).
+- Two img tags with one src give one picture marker, never a formula (L-067).
+- A side-margin folio is removed only when one shift holds on a quarter of pages, twice the runner-up (L-069).
+- A short-line block naming itself contents, or losing three or more cuts, keeps none of its lines (L-070). A caps run closing a paragraph of 150 words or fewer stays in the caption (L-071).
+- Three or more one-link blocks at a chapter start become `[chapter contents: N headings]` (L-072). Several outline entries on one page split a paragraph at an exact-case unnumbered title after a sentence end (L-073).

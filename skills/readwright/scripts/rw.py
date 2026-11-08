@@ -5573,7 +5573,7 @@ BARE_NUM_MIN = 3   # a run 1, 2, 3 at least: fewer are footnote markers or list 
 def bare_numbered_heads(doc: "Doc", idx: list) -> set:
     """(section, para) of '1 Variable Tempo' style heads across the selected sections, kept only as a run counting up
     from 1 (Collins, Game Sound ch. 8: one PDF page per section, so a per-section count never reaches a threshold;
-    L-069 `bare-numbered-heads`)."""
+    L-089 `bare-numbered-heads`)."""
     cands = []
     for i in idx:
         for k, p in enumerate(doc.sections[i - 1].paras):

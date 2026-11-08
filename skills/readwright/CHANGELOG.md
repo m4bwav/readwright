@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-21 · 2026-11-07 · `toc --chapters` maps a one-page-per-section scan to its chapters (0.59.0)
+- because: L-078; Yewdall, Practical Art of Motion Picture Sound (OCR scan) read for everscout ai-sfx
+- files: scripts/rw.py `chapter_runs`, `cmd_toc`; SKILL.md Distilling a book; tests
+A scan with no outline read as 678 page sections, and `--group` could not fold it because each chapter alternates two running heads. `toc --chapters` lists page ranges from the Chapter N headings at the top of pages (numbers must rise, OCR l and I read as 1), and plain toc points to it when it finds three or more. A distilling tip for scanned practitioner books.
+
 ### C-20261107-20 · 2026-11-07 · Dingbat-font bullets read as list items, not the letter l (0.58.0)
 - because: L-077; Holman, Sound for Film and Television read for a book distillation
 - files: scripts/rw.py `pdf_dingbat_fonts`, `dingbat_bullets`, `load_pdf`; SKILL.md Distilling a book; tests

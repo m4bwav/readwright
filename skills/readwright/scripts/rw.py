@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.58.0"
+VERSION = "0.59.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4927,6 +4927,39 @@ def contents_groups(doc: Doc) -> list:
     return []
 
 
+CHAPTER_HEAD = re.compile(r"\bChapter\s*([0-9lI]{1,3})\b\s*(.*)", re.I)
+
+
+def chapter_runs(doc: Doc) -> list:
+    """(first, last, number, title, words) for each chapter of a book read one page per section, found from the
+    "Chapter N" running heads OCR or plain PDF text leaves at the top of pages (L-078 `chapter-heads-on-pages`).
+    Numbers must rise by one to three, so a cross-reference ("see Chapter 13") cannot start a chapter; OCR reads 1
+    as l or I. The title comes from the opening page (no bullet after the number). Empty when under three found."""
+    starts, last = [], 0
+    for i, sec in enumerate(doc.sections, 1):
+        t = re.sub(r"^page \d+:?\s*", "", sec.title)
+        m = CHAPTER_HEAD.search(t[:60])
+        if not m:
+            continue
+        num = int(m.group(1).replace("l", "1").replace("I", "1").replace("i", "1"))
+        if num == last or not (last < num <= last + 3):
+            continue
+        rest = m.group(2).strip()
+        if rest.startswith(("\u2022", "e ", "\u00b7")):
+            continue   # a running head on a later page, not the chapter opener
+        pre = t[:m.start()].strip()
+        title = " ".join(x for x in (pre, rest) if x).strip(" .:\u2022")
+        starts.append((i, num, title))
+        last = num
+    if len(starts) < 3:
+        return []
+    out = []
+    for k, (i, num, title) in enumerate(starts):
+        end = starts[k + 1][0] - 1 if k + 1 < len(starts) else len(doc.sections)
+        out.append((i, end, num, title, sum(doc.sections[j - 1].words() for j in range(i, end + 1))))
+    return out
+
+
 def group_lines(doc: Doc) -> list:
     out = []
     groups = page_groups(doc)
@@ -5163,6 +5196,14 @@ def cmd_toc(a) -> int:
     print(doc_head(doc))
     for n in doc.notes:
         print(f"note: {n}")
+    if getattr(a, "chapters", False):
+        runs = chapter_runs(doc)
+        if not runs:
+            raise RWError("--chapters found under three Chapter N headings at the top of pages; try --group or grep")
+        for f, l, num, title, w in runs:
+            print(f"{f:>5}-{l:<5} Chapter {num}: {title}  ({fmt_n(w)} w)")
+        print("read a chapter: rw.py read FILE --section N-M (pages); headings missed by OCR show as a jump in numbers")
+        return 0
     if a.group:
         lines = group_lines(doc)
         if not lines:
@@ -5180,6 +5221,8 @@ def cmd_toc(a) -> int:
     groups = page_groups(doc)
     if len(doc.sections) > 40 and groups and len(groups) * 3 < len(doc.sections):
         print(f"note: {len(doc.sections)} pages share {len(groups)} running heads; rw.py toc FILE --group lists them as page ranges")
+    elif len(doc.sections) > 40 and (cr := chapter_runs(doc)):
+        print(f"note: {len(cr)} Chapter N headings found on the pages; rw.py toc FILE --chapters lists them as page ranges")
     elif len(doc.sections) > 40 and groups and (cg := contents_groups(doc)):
         print(f"note: the printed contents page lists {len(cg)} parts; rw.py toc FILE --group lists them as page ranges")
     for n in big_section_notes(doc):
@@ -6021,6 +6064,7 @@ def main(argv=None) -> int:
     p.add_argument("--depth", type=int, default=None, help="only sections at indent depth N or less (1 = parts and chapters); word counts include the sections below")
     p.add_argument("--code", action="store_true", help="also show how many of each section's words are code blocks (EPUB, HTML, Markdown): pick prose sections before reading")
     p.add_argument("--group", action="store_true", help="PDF with no outline: fold pages that share a running head into page ranges (chapters)")
+    p.add_argument("--chapters", action="store_true", help="one page per section (scans, OCR): list chapters from the Chapter N headings on the pages")
     p = sub.add_parser("read", help="text of chosen sections")
     common(p, False)
     p.add_argument("--section", "-s", action="append", help="N, N-M, N- or N,M (numbers from toc); repeat to add more")

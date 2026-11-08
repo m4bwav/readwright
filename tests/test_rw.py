@@ -2023,6 +2023,19 @@ class TestTocChapters(Base):
         self.assertTrue(any("Ch. 12: Real Title" in l for l in lines))
         self.assertTrue(any(l.strip().startswith("1. 7") for l in lines))
 
+    def test_chapters_from_page_heads(self):   # L-078 `chapter-heads-on-pages`
+        def pg(n, head, w=40):
+            return rw.Section(f"page {n}: {head}" if head else f"page {n}", [rw.Para("p", lorem(w))], 1, f"page{n}")
+        doc = rw.Doc("x.pdf", "pdf", sections=[pg(1, "Title page"), pg(2, "The Chapter l Empowerment of Sound"),
+            pg(3, "Chapterl \u2022 The Empowerment of Sound"), pg(4, "Chapter 2 Our Beginnings"),
+            pg(5, "Chapter 2 \u2022 Our Beginnings"), pg(6, "see Chapter 13 for more"), pg(7, "Chapter 3 Mixing"),
+            pg(8, "Book title")])
+        runs = rw.chapter_runs(doc)
+        self.assertEqual([(f, l, n) for f, l, n, _, _ in runs], [(2, 3, 1), (4, 6, 2), (7, 8, 3)])
+        self.assertEqual(runs[0][3], "The Empowerment of Sound")
+        self.assertEqual(runs[2][4], 80)
+        self.assertEqual(rw.chapter_runs(rw.Doc("x.pdf", "pdf", sections=[pg(1, "Chapter 1 A")])), [])
+
     def test_group_folds_pages_by_running_head(self):   # L-023 `pdf-pages-by-running-head`
         def pg(n, head, w=50):
             return rw.Section(f"page {n}: {head}" if head else f"page {n}", [rw.Para("p", lorem(w))], 1, f"page{n}")

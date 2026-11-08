@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-082 · 2026-11-07 · `minor-word-heads`: Title Case heads with lowercase minor words
+Trigger: everscout multi-agent-grind run on Humble and Farley, Continuous Delivery (2010 PDF): `read --section 28 --headings` listed 5 of 9 rule headings. Cause: layout_head_titles rejected any lowercase word longer than three letters, and Title Case keeps before, from, with, your lowercase. Fix: a TITLE_MINOR set of such words passes; long two-line heads still list cut at the line end.
+
 ### L-081 · 2026-11-07 · `run-in-pdf-heads`: headings glued to the paragraph under them
 Trigger: everscout ai-sfx run on Zizza, Game Audio Fundamentals (Focal 2023 PDF, outline at chapter level only): `read --section 19 --headings` said no headings, though the chapter has about 40. Cause: plain pdftotext runs a heading line into the next paragraph (The Importance of Sound From the ambience ...), so no paragraph looked like a heading. Fix (0.66.0): `pdftotext -layout` keeps the heading on its own line after a blank line; short Title Case lines there with body text under them become titles, and a paragraph starting with one, followed by a capital, is a heading. Running heads (indented far right) and the chapter's own title are skipped; at least three per section.
 

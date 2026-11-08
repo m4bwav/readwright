@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-076 · 2026-11-07 · `percent-encoded-nameddest`: an InDesign PDF lost 664 of 710 outline entries
+Trigger: reading Pirkle, Designing Audio Effect Plugins in C++ (2nd ed.), the toc held 46 entries, each chapter named after its last subsection ("1.8 Bibliography" for all of ch. 1). Cause: MuPDF writes named destinations percent-encoded (`Book.indd%3APage%201%3A3914`) while `pdfinfo -dests` prints them plain, so only the few entries linked by page number survived. Fix (0.57.0): look the name up decoded too. Same run: `--at-para` was refused with `--compact` and silently ignored with `--out` (the file started at the section top); both now start at the paragraph. Hypothesis: a PDF toc whose titles repeat one subsection word (Bibliography, Homework) chapter after chapter is a lost outline, not the book's structure; check `mutool show FILE outline | wc -l` against the toc.
+
 ### L-075 · 2026-11-07 · `word-cap-before-start`: --max-words with --at-para printed nothing
 Trigger: reading Russ, Sound Synthesis and Sampling, `read -s 17 --at-para 69 --max-words 2300` printed nothing and exited 0, while `--max-chars` worked. Cause: the word cap cut the section from its top before the `--at-para`/`--offset` start was applied, so the start fell past the capped text. Fix (0.56.0): with a start, the cap counts words from it, and a start past the end is an error. The same book's bookmarks stopped at the parts; `read --section N --headings` gave the chapter map, so the giant-section note now names it first. Hypothesis: every cap must apply after the start point.
 

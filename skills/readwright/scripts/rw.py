@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.56.0"
+VERSION = "0.57.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3494,8 +3494,10 @@ def parse_outline(text: str, dests=None) -> list:
     # A named destination reads #nameddest=NAME instead of a page; dests gives its page.
     for line in text.splitlines():
         n = re.match(r'^(.*"\s+)#nameddest=(\S+)\s*$', line)
-        if n and n.group(2) in dests:
-            line = f"{n.group(1)}#page={dests[n.group(2)]}"
+        if n:   # MuPDF percent-encodes the name (InDesign 'Book.indd%3APage%201%3A3914'); pdfinfo prints it plain (L-076)
+            name = n.group(2) if n.group(2) in dests else unquote(n.group(2))
+            if name in dests:
+                line = f"{n.group(1)}#page={dests[name]}"
         m = re.match(r'^( *)[|+\-]?(\t*) *"(.*)"\s+#?(?:page=)?(\d+)', line)
         if m:
             # MuPDF escapes quotes and backslashes (L-015) and writes a line break in a title as \r or \n
@@ -5354,8 +5356,6 @@ def cmd_read(a) -> int:
                                     (" --compact", getattr(a, "compact", False)),
                                     (" --format md", a.format == "md"),
                                     (f" --until {shlex.quote(getattr(a, 'until_re', None) or '')}", getattr(a, "until_re", None))) if on)
-    if getattr(a, "compact", False) and a.at_para:
-        raise RWError("--at-para counts paragraphs of the full layout; drop --compact to use it")
     shape = compact_text if getattr(a, "compact", False) else (lambda t: t)
     until_re = None
     if getattr(a, "until_re", None):
@@ -5446,8 +5446,22 @@ def cmd_read(a) -> int:
     else:   # with a start (--offset, --at-para) the word cap counts from there, not from the section top (empty output, 2026-11-07)
         text = shape(compose(doc, idx, a.format, None if (a.offset or a.at_para) else a.max_words, flags))
     note_until()
-    if a.out:
-        full, start = len(text), a.offset or 0
+
+    def para_start() -> int:   # --at-para: where that paragraph starts in the text as printed, compact or not
+        if not a.section:
+            raise RWError("--at-para needs --section N")
+        po = para_offsets(doc, idx[0], a.format)
+        if not 1 <= a.at_para <= len(po):
+            raise RWError(f"--at-para {a.at_para}: section {idx[0]} has {len(po)} paragraphs")
+        off = po[a.at_para - 1]
+        if getattr(a, "compact", False):   # grep counts paragraphs of the full layout; map the offset onto the compact text
+            off = len(compact_text(compose(doc, idx, a.format, None, flags)[:off]))
+        if until_re and off >= len(text):
+            raise RWError(f"--until {a.until_re!r} matches before paragraph {a.at_para} of section {idx[0]}")
+        return off
+
+    if a.out:   # --at-para counts here too (it was ignored with --out, 2026-11-07)
+        full, start = len(text), (a.offset or 0) + (para_start() if a.at_para else 0)
         text = text[start:]
         cut = bool(a.max_chars) and len(text) > a.max_chars
         if cut:   # same clean break as the stdout path, and say where to resume (a reader could not tell it was cut)
@@ -5474,14 +5488,7 @@ def cmd_read(a) -> int:
     if start and start >= len(text):
         raise RWError(f"--offset {start} is past the end: the selection has {len(text)} characters")
     if a.at_para:
-        if not a.section:
-            raise RWError("--at-para needs --section N")
-        po = para_offsets(doc, idx[0], a.format)
-        if not 1 <= a.at_para <= len(po):
-            raise RWError(f"--at-para {a.at_para}: section {idx[0]} has {len(po)} paragraphs")
-        start += po[a.at_para - 1]
-        if until_re and start >= len(text):
-            raise RWError(f"--until {a.until_re!r} matches before paragraph {a.at_para} of section {idx[0]}")
+        start += para_start()
     if start >= len(text):
         raise RWError(f"the start ({start}) is past the end: the selection has {len(text)} characters")
     word_cap = False

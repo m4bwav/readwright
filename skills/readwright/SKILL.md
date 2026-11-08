@@ -2,7 +2,7 @@
 name: readwright
 description: "Read text out of ebooks and documents a section at a time instead of dumping the whole file into context: outline first, then only the chapters needed, then search. One command-line tool (standard-library Python) for EPUB, MOBI, AZW3, FB2, DOCX, ODT, RTF, PPTX, XLSX, HTML, EML, CSV, JSON, Markdown and zip archives of them, plus PDF and legacy DOC, XLS and PPT when poppler, calibre or LibreOffice is installed. Use whenever the user asks to read, quote, summarise, search or extract text from one of those files: 'read chapter 14 of this book', 'what does this document say about X', 'find every mention of Y in the novel', 'extract the text from this .docx', 'summarise this epub'. Also for a PDF when reading it by page ranges is awkward, and for 'refresh readwright' and 'is readwright stale'. Not for images, notebooks, PDFs the agent's own Read tool handles well, or writing and editing Office files."
 metadata:
-  version: "0.56.0"
+  version: "0.57.0"
 ---
 
 # readwright
@@ -96,6 +96,8 @@ Craft book from a neighbouring field (music mixing read for sound effects): take
 A methods book in a language you will not run (R read for its measures): add `--skip-code --drop-images`, then `read --headings`; take what each measure means and where it fails, and check any stated default against the package's own docs. Its list of figures sits in the frontmatter, so `grep` hits there first.
 
 Project-based tutorial: run `read --headings` on a chapter first, and read the opening, rules and warnings; the numbers sit between screen-by-screen steps, so `--from` a heading saves most of the chapter. Check the arithmetic in its worked examples.
+
+Engineering book built around code (audio plugins, DSP in C++): most pages are framework and class listings. Take the theory sections that open each effect chapter (the rules, ranges and failure modes), stop at the first class listing (`--until` the object heading), and check printed formulas against a second source, since constants get misprinted. A toc whose titles repeat one word chapter after chapter (Bibliography, Homework) means the outline was lost, not that the book is built that way.
 
 - A polemic that builds a taxonomy: read the prologue and the opening of each chapter (`RW read FILE -s 8-16 --each-chars 2500`), since each names its move there and a later chapter may recap the list. Its numbers are often the author's own chosen samples, and its anecdotes single cases, so use it to name patterns, then search for studies of whether they happen and how often. Look for what complicates the claim as well as what supports it.
 - A textbook with end-of-chapter summaries: read those first with `RW read FILE --title 'SUMMARY TITLE' --until 'boilerplate heading' --compact`, then only the sections they send you to. One 445-page PDF's 19 summaries, about 500 words each, covered the argument of its 182k words, once `--until` dropped the exercise list and web links closing each one (0.46.0).

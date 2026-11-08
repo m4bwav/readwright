@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.64.0"
+VERSION = "0.65.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -1908,7 +1908,30 @@ def join_lines(lines) -> str:
             out = out + " " + line if out else line
     # pdftotext can already have joined the lines ("conven‐ tions"); "pre‐ and post-war" keeps its hyphen
     out = SPLIT_WORD.sub(lambda m: "-" if keep_break_hyphen(out[:m.start()], out[m.end():]) else "", out)
-    return SPLIT_THOUSANDS.sub(r"\1,", out)
+    return join_letter_spaced(SPLIT_THOUSANDS.sub(r"\1,", out))
+
+
+# Tracked-out text in PDF tables and figures comes out one character per token ("cp_sfx_penguin_ l a s e r_ 0 2 .w av").
+# A run of four or more one-character tokens (a "." or "_" may cling to one) holding a lower-case letter is one word;
+# a dangling extension ("x.w av") is rejoined when the result is a known file extension.
+LETTER_RUN = re.compile(r"(?<!\S)(?:[._]?[A-Za-z0-9][._]?) (?:[._]?[A-Za-z0-9][._]? ){2,}[._]?[A-Za-z0-9][._]?(?!\S)")
+GLUE_UNDERSCORE = re.compile(r"(?<=[A-Za-z0-9])_ (?=[A-Za-z0-9])")   # "penguin_ laser" in a file name
+SPLIT_EXT = re.compile(r"(\.)([a-z]{1,3}) ([a-z]{1,3})\b")
+FILE_EXTS = {"wav", "ogg", "mp3", "flac", "aiff", "aif", "txt", "pdf", "png", "jpg", "jpeg", "json", "html", "epub", "mp4"}
+
+
+def join_letter_spaced(text: str) -> str:
+    def run(m):
+        t = m.group(0)
+        if not any(c.islower() for c in t):
+            return t   # "A B C D" options, "U S A"
+        if "_" in t or "." in t or (t.count(" ") >= 4 and t.replace(" ", "").isalpha()):
+            return t.replace(" ", "")
+        return t       # "x y z w", "a 1 b 2": short prose or maths lists stay
+    text = LETTER_RUN.sub(run, text)
+    text = GLUE_UNDERSCORE.sub("_", text)
+    return SPLIT_EXT.sub(lambda m: m.group(1) + m.group(2) + m.group(3) if (m.group(2) + m.group(3)) in FILE_EXTS
+                         else m.group(0), text)
 
 
 # "3, 097Hz", "1, 000 through 50, 000RPM": the thin space after a thousands comma came out as a space. A group that

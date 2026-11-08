@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-081 · 2026-11-07 · `run-in-pdf-heads`: headings glued to the paragraph under them
+Trigger: everscout ai-sfx run on Zizza, Game Audio Fundamentals (Focal 2023 PDF, outline at chapter level only): `read --section 19 --headings` said no headings, though the chapter has about 40. Cause: plain pdftotext runs a heading line into the next paragraph (The Importance of Sound From the ambience ...), so no paragraph looked like a heading. Fix (0.66.0): `pdftotext -layout` keeps the heading on its own line after a blank line; short Title Case lines there with body text under them become titles, and a paragraph starting with one, followed by a capital, is a heading. Running heads (indented far right) and the chapter's own title are skipped; at least three per section.
+
 ### L-080 · 2026-11-07 · `letter-spaced-cells`: tracked-out table text split into letters
 Trigger: reading Zizza, Game Audio Fundamentals (Focal 2023 PDF) for everscout ai-sfx, the asset-list figure printed file names as `cp_sfx_penguin_ l a s e r_ 0 2 .w av`. Cause: pdftotext emits a space between widely tracked glyphs. Fix (0.65.0): `join_lines` joins runs of four or more one-character tokens that hold a lower-case letter and a `_` or `.` (or five letters), glues `word_ next` in file names and rejoins a split known extension (`.w av`). Prose lists like `a 1 b 2` and capital runs like `U S A` stay.
 

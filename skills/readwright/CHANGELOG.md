@@ -2,6 +2,9 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-29 · 2026-11-07 · Run-in PDF headings found from the layout (0.66.0)
+- because: L-081 `run-in-pdf-heads`; `read --headings` found nothing in Zizza's Game Audio Fundamentals, a PDF bookmarked only at chapter level, because pdftotext ran each heading into its paragraph. Also: toc no longer suggests `--chapters` for an EPUB whose sections already are its chapters (Belknap, Leadership for Introverts), and a distilling tip for self-published coaching books.
+
 ### C-20261107-28 · 2026-11-07 · Letter-spaced table text rejoined (0.65.0)
 - because: L-080 `letter-spaced-cells`; the Zizza run read file names in a spreadsheet figure as single letters. Plus a distilling tip for broad introductory textbooks.
 

@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.65.0"
+VERSION = "0.66.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -5031,6 +5031,14 @@ def contents_groups(doc: Doc) -> list:
 CHAPTER_HEAD = re.compile(r"\bChapter\s*([0-9lI]{1,3})\b\s*(.*)", re.I)
 
 
+def chapters_hint(doc: Doc) -> list:
+    """chapter_runs for toc's `--chapters` hint, or [] when the sections already are the chapters: an EPUB titled
+    'Chapter 1 ~ ...' got a hint meant for page-per-section scans (Belknap, Leadership for Introverts)."""
+    cr = chapter_runs(doc)
+    named = sum(bool(re.match(r"(?i)chapter\s+\d", s.title)) for s in doc.sections)
+    return cr if cr and named < len(cr) else []
+
+
 def chapter_runs(doc: Doc) -> list:
     """(first, last, number, title, words) for each chapter of a book read one page per section, found from the
     "Chapter N" running heads OCR or plain PDF text leaves at the top of pages (L-078 `chapter-heads-on-pages`).
@@ -5336,7 +5344,7 @@ def cmd_toc(a) -> int:
     groups = page_groups(doc)
     if len(doc.sections) > 40 and groups and len(groups) * 3 < len(doc.sections):
         print(f"note: {len(doc.sections)} pages share {len(groups)} running heads; rw.py toc FILE --group lists them as page ranges")
-    elif len(doc.sections) > 40 and (cr := chapter_runs(doc)):
+    elif len(doc.sections) > 40 and (cr := chapters_hint(doc)):
         print(f"note: {len(cr)} Chapter N headings found on the pages; rw.py toc FILE --chapters lists them as page ranges")
     elif len(doc.sections) > 40 and groups and (cg := contents_groups(doc)):
         print(f"note: the printed contents page lists {len(cg)} parts; rw.py toc FILE --group lists them as page ranges")
@@ -5437,10 +5445,60 @@ def bare_numbered_heads(doc: "Doc", idx: list) -> set:
     return set(best) if len(best) >= BARE_NUM_MIN else set()
 
 
+LAYOUT_HEAD = re.compile(r"^[A-Z0-9][^|]{2,69}[A-Za-z0-9?)]$")
+LAYOUT_HEAD_MIN = 3   # fewer layout-found heads in a section are likely stray short lines
+RUN_IN_NEXT = re.compile(r" [A-Z0-9\"'“‘(]")   # a run-in head is followed by a new sentence: 'Foley is' is prose
+
+
+def layout_head_titles(pages: list) -> set:
+    """Titles of short Title Case lines that `pdftotext -layout` prints alone after a blank line with body text
+    under them. Plain pdftotext runs such a heading into the paragraph below it ('The Importance of Sound From the
+    ambience ...'), so a PDF bookmarked only at chapter level showed no headings (Zizza, Game Audio Fundamentals;
+    L-081 `run-in-pdf-heads`). Right-aligned running heads are skipped by their indent."""
+    out = set()
+    for page in pages:
+        lines = page.splitlines()
+        for j, line in enumerate(lines):
+            text = line.strip()
+            if not text or len(line) - len(line.lstrip()) >= 8 or (j and lines[j - 1].strip()):
+                continue
+            words = text.split()
+            if not (1 <= len(words) <= 10 and LAYOUT_HEAD.match(text)) or ". " in text or re.match(r"(?i)chapter\s+\d", text):
+                continue
+            if any(len(w) > 3 and not (w[0].isupper() or w[0].isdigit()) for w in words):
+                continue
+            body = next((x.strip() for x in lines[j + 1:j + 3] if x.strip()), "")
+            if len(body.split()) >= 8:
+                out.add(clean(text))
+    return out
+
+
+def layout_headings(paras: list, titles: set, own: str = "") -> list:
+    """(index, 1) for paragraphs that start with a layout-found title (layout_head_titles), longest title first."""
+    own = re.sub(r"\s*\(p\. [^()]*\)$", "", own)   # PDF section titles carry their page range
+    bare_own = re.sub(r"^\S*\d\S*\s+", "", own).lower()   # '8 Sound Design' is also the running head 'Sound Design'
+    ordered = sorted((t for t in titles if t.lower() not in (own.lower(), bare_own)), key=len, reverse=True)
+    out = []
+    for k, p in enumerate(paras):
+        text = clean(p.text)
+        if not k or (bare_own and text.lower().startswith(bare_own)):   # para 0 is the section's own title
+            continue
+        if any(text.startswith(t) and (len(text) == len(t) or RUN_IN_NEXT.match(text, len(t))) for t in ordered):
+            out.append((k, 1))
+    return out if len(out) >= LAYOUT_HEAD_MIN else []
+
+
+def head_of(text: str, titles: set) -> str:
+    """The layout-found title a run-in paragraph starts with."""
+    text = clean(text)
+    return max((t for t in titles if text.startswith(t)), key=len, default=text[:70])
+
+
 def heading_lines(doc: Doc, idx: list) -> list:
     """`read --headings`: each heading paragraph of the selected sections, indented by level, with its paragraph
     number (for --at-para) and the words up to the next heading."""
     out = []
+    layout_titles = None
     bare = bare_numbered_heads(doc, idx)
     for i in idx:
         s = doc.sections[i - 1]
@@ -5475,6 +5533,16 @@ def heading_lines(doc: Doc, idx: list) -> list:
                 out.append(f"  {clean(s.paras[k].text)}  (para {k + 1}, {fmt_n(w)} words)")
             if mine:
                 continue
+            if doc.fmt == "pdf":
+                if layout_titles is None:
+                    layout_titles = layout_head_titles(pdf_layout(doc.path, tools()))
+                laid = layout_headings(s.paras, layout_titles, clean(s.title))
+                for n, (k, lv) in enumerate(laid):
+                    end = laid[n + 1][0] if n + 1 < len(laid) else len(s.paras)
+                    w = sum(len(p.text.split()) for p in s.paras[k:end])
+                    out.append(f"  {head_of(s.paras[k].text, layout_titles)}  (para {k + 1}, {fmt_n(w)} words)")
+                if laid:
+                    continue
             out.append("  (no headings under the title in this section; a PDF without structure has none: try toc --group, "
                        "or grep for the words you want)")
             continue

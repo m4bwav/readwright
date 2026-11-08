@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-18 · 2026-11-07 · --max-words counts from --at-para or --offset; the giant-section note names --headings (0.56.0)
+- because: L-075; Russ, Sound Synthesis and Sampling read for a book distillation
+- files: scripts/rw.py `cmd_read`, `big_section_notes`; SKILL.md Distilling a book; tests
+`read --at-para P --max-words N` printed nothing because the cap was applied from the section top before the start; now the cap counts from the start, the footer says it cut at --max-words, and a start past the end is an error. The note on a section holding a large share of the text suggests `read --section N --headings` before grep.
+
 ### C-20261107-17 · 2026-11-07 · A section that ends on a colon names the sections holding its entries (0.55.0)
 - because: L-074; Viers, The Sound Effects Bible read for everscout ai-sfx
 - files: scripts/rw.py `leadin_hint`, `cmd_read`; SKILL.md Distilling a book; tests

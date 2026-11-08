@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-075 · 2026-11-07 · `word-cap-before-start`: --max-words with --at-para printed nothing
+Trigger: reading Russ, Sound Synthesis and Sampling, `read -s 17 --at-para 69 --max-words 2300` printed nothing and exited 0, while `--max-chars` worked. Cause: the word cap cut the section from its top before the `--at-para`/`--offset` start was applied, so the start fell past the capped text. Fix (0.56.0): with a start, the cap counts words from it, and a start past the end is an error. The same book's bookmarks stopped at the parts; `read --section N --headings` gave the chapter map, so the giant-section note now names it first. Hypothesis: every cap must apply after the start point.
+
 ### L-074 · 2026-11-07 · `lead-in-colon`: an entry's list sat in the sections after it
 The Sound Effects Bible ch. 18 is an encyclopedia: each entry ends "Here is a list of techniques and tricks:" and the list items are the next outline entries, one level down. Read by selected section numbers, every entry seemed to end mid-sentence, and the reader first suspected lost lists. Fix: `read` adds a hint naming the sections a selection's closing colon points to (0.55.0). Rule: before calling text lost, read the section after the one that stops on a colon.
 

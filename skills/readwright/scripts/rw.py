@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.55.0"
+VERSION = "0.56.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -4765,7 +4765,8 @@ def big_section_notes(doc: Doc) -> list:
         c = section_chars(s)
         if c > BIG_SECTION_CHARS and c > total // 4 and len(doc.sections) > 1:
             out.append(f"note: section {i} holds {fmt_n(c)} chars ({100 * c // total}% of the text); the outline likely "
-                       f"stops early. Find places with grep (it prints each hit's offset), then read --section {i} "
+                       f"stops early. List its sub-headings with paragraph numbers first: read --section {i} --headings; "
+                       f"or find places with grep (it prints each hit's offset); then read --section {i} "
                        f"--offset N or --at-para P")
     return out
 
@@ -5442,8 +5443,8 @@ def cmd_read(a) -> int:
         text = "".join(parts)
     elif until_re:
         text = shape("\n".join(cut_until(compose(doc, [i], a.format, a.max_words, flags), i) for i in idx))
-    else:
-        text = shape(compose(doc, idx, a.format, a.max_words, flags))
+    else:   # with a start (--offset, --at-para) the word cap counts from there, not from the section top (empty output, 2026-11-07)
+        text = shape(compose(doc, idx, a.format, None if (a.offset or a.at_para) else a.max_words, flags))
     note_until()
     if a.out:
         full, start = len(text), a.offset or 0
@@ -5481,8 +5482,15 @@ def cmd_read(a) -> int:
         start += po[a.at_para - 1]
         if until_re and start >= len(text):
             raise RWError(f"--until {a.until_re!r} matches before paragraph {a.at_para} of section {idx[0]}")
+    if start >= len(text):
+        raise RWError(f"the start ({start}) is past the end: the selection has {len(text)} characters")
+    word_cap = False
+    if a.max_words and (a.offset or a.at_para):   # cap the words from the start point
+        m = list(re.finditer(r"\S+", text[start:start + limit + 1]))
+        if len(m) > a.max_words:
+            limit, word_cap = m[a.max_words - 1].end() + 1, True
     piece = text[start:start + limit]
-    if start + limit < len(text):
+    if start + limit < len(text) and not word_cap:
         piece = clean_cut(piece)
     sys.stdout.write(piece)
     end = start + len(piece)
@@ -5492,7 +5500,8 @@ def cmd_read(a) -> int:
         rest = (f"show the rest with --offset {start} --max-chars {len(text) - start}" if start
                 else f"show it all with --max-chars {len(text)}")
         # say why fewer chars than asked came back: a reader took the short cut for a bug (Roads, 2026-11-07)
-        short = f" (cut at a break, {fmt_n(limit - len(piece))} short of --max-chars)" if len(piece) < limit else ""
+        short = (f" (cut at --max-words {a.max_words})" if word_cap
+                 else f" (cut at a break, {fmt_n(limit - len(piece))} short of --max-chars)" if len(piece) < limit else "")
         print(f"[readwright: shown chars {fmt_n(start)}-{fmt_n(end)} of {fmt_n(len(text))}{short}; continue with "
               f"--offset {end}, {rest}, or write it all with --out FILE]")
     if added and not a.with_next:

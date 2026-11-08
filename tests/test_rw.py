@@ -1564,6 +1564,36 @@ class TestCommands(Base):
             _, rest, _ = cli("read", t, "--section", "2", "--offset", m.group(1), "--format", fmt, "--quiet")
             self.assertTrue(rest.startswith(" consectetur adipiscing"), rest[:40])
 
+    def test_max_words_with_at_para_counts_from_that_paragraph(self):
+        # the cap used to apply from the section top, so a later --at-para or --offset printed nothing (2026-11-07)
+        t = self.f("longsec.md")
+        t.write_text("## Only\n\n" + "\n\n".join(f"Para{i} " + lorem(60) for i in range(1, 40)), encoding="utf-8")
+        for extra in ((), ("--quiet",)):
+            code, out, _ = cli("read", t, "--section", "1", "--at-para", "30", "--max-words", "100", *extra)
+            self.assertEqual(code, 0)
+            self.assertTrue(out.startswith("Para29") or out.startswith("Para30"), out[:40])
+            body, hint = out.rsplit("[readwright:", 1)
+            self.assertEqual(len(body.split()), 100)
+            self.assertIn("cut at --max-words 100", hint)
+            self.assertIn("continue with --offset", hint)
+        code, out, _ = cli("read", t, "--section", "1", "--offset", "5000", "--max-words", "50", "--quiet")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(out.rsplit("[readwright:", 1)[0].split()), 50)
+
+    def test_big_section_note_suggests_headings_first(self):
+        P = lambda t: rw.Para("p", t)
+        doc = rw.Doc("x.pdf", "pdf", sections=[rw.Section("Front", [P("short")]),
+                                                rw.Section("Part", [P(lorem(300)) for _ in range(60)])])
+        old = rw.BIG_SECTION_CHARS
+        try:
+            rw.BIG_SECTION_CHARS = 10_000
+            notes = rw.big_section_notes(doc)
+        finally:
+            rw.BIG_SECTION_CHARS = old
+        self.assertTrue(notes, notes)
+        self.assertIn("read --section 2 --headings", notes[0])
+        self.assertLess(notes[0].index("--headings"), notes[0].index("grep"))
+
     def test_multi_section_read_prints_one_hint(self):
         t = self.f("short.md")
         t.write_text("\n\n".join(f"## Part {i}\n\n{lorem(5)}" for i in range(1, 7)), encoding="utf-8")

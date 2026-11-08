@@ -2,6 +2,10 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-27 · 2026-11-07 · Distilling tips move to references/distilling.md (0.64.0)
+- because: a hook flagged about 9.9k tokens loaded per use; the Distilling a book section was two thirds of SKILL.md (40.7k to 13.4k characters) and only distillation runs need it. Content moved whole, plus one tip from Samara's Typography Workbook run (dated chapters on a fast-moving medium: read for structure, mark as dated).
+- files: SKILL.md (pointer), references/distilling.md (new)
+
 ### C-20261107-24 · 2026-11-07 · One-copy running heads and glued heads leave PDF page titles (0.63.0)
 - because: user request (Mark: fix readwright bugs in-session); Pezze and Young, Software Testing and Analysis: page titles read "Capture and Replay 337 systems provide..." because a short section's head shows on one or two pages only.
 - files: scripts/rw.py `running_head_keys`, `folio_lead`, `edge_folio_lead`, `strip_glued_folio_heads`, `pdf` pipeline; tests `TestShortSectionHeads`

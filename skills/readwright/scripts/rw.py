@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.69.1"
+VERSION = "0.70.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -3504,6 +3504,53 @@ def drop_repeated(doc: Doc, share: float = 0.3, least: int = 5) -> int:
     return gone
 
 
+RUN_WORDS = 8   # a run of this many words recurring across the book is overprinted furniture, not prose
+
+
+def drop_repeated_runs(doc: Doc, share: float = 0.3, least: int = 5) -> int:
+    """Cut runs of RUN_WORDS or more words that recur in at least `share` of the sections that have text (and at
+    least `least` sections) out of body paragraphs, even mid-paragraph: a back-cover blurb overprinted on every page
+    of a ripped PDF comes out interleaved with the page's own sentences, too long for drop_repeated. Words are
+    compared lower-cased, letters and digits only; a paragraph left empty goes. Returns how many words went."""
+    secs = [s for s in doc.sections if s.words()]
+    n = RUN_WORDS
+
+    def norm(w):
+        return "".join(c for c in w.lower() if c.isalnum())
+
+    seen = {}
+    for k, s in enumerate(secs):
+        for p in s.paras[1:]:
+            if p.kind == "p":
+                ws = [norm(w) for w in p.text.split()]
+                for i in range(len(ws) - n + 1):
+                    seen.setdefault(tuple(ws[i:i + n]), set()).add(k)
+    need = max(least, share * len(secs))
+    bad = {g for g, ks in seen.items() if len(ks) >= need and all(g)}
+    if not bad:
+        return 0
+    gone = 0
+    for s in secs:
+        keep = s.paras[:1]
+        for p in s.paras[1:]:
+            if p.kind != "p":
+                keep.append(p)
+                continue
+            raw = p.text.split()
+            ws = [norm(w) for w in raw]
+            cut = [False] * len(raw)
+            for i in range(len(ws) - n + 1):
+                if tuple(ws[i:i + n]) in bad:
+                    cut[i:i + n] = [True] * n
+            if any(cut):
+                gone += sum(cut)
+                p.text = " ".join(w for w, c in zip(raw, cut) if not c)
+            if p.text.strip():
+                keep.append(p)
+        s.paras = keep
+    return gone
+
+
 EPIGRAPH_MAX_WORDS = 80   # a quotation epigraph is short
 ATTRIB_MAX_WORDS = 8      # and its attribution is a name
 QUOTED_RE = re.compile(r'^\s*["\u201c\u201e\u00ab].*["\u201d\u00bb]\s*$', re.S)
@@ -5642,8 +5689,11 @@ def cmd_read(a) -> int:
     if getattr(a, "drop_repeated", False):
         glued = strip_glued_heads(doc)
         n = drop_repeated(doc)
+        runs = drop_repeated_runs(doc)
         hints.append(f"--drop-repeated dropped {n} short paragraph(s) that recur across the book (credit lines, notices)"
-                     + (f" and {glued} running head(s) glued to page text" if glued else ""))
+                     + (f" and {glued} running head(s) glued to page text" if glued else "")
+                     + (f"; cut {runs} word(s) of {RUN_WORDS}-word runs recurring on many pages (an overprinted blurb)"
+                        if runs else ""))
     if getattr(a, "drop_epigraphs", False):
         n = drop_epigraphs(doc)
         hints.append(f"--drop-epigraphs dropped {n} paragraph(s): quotation epigraphs and their attribution lines")

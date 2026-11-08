@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-086 · 2026-11-07 · `overprinted-blurb`: a back-cover blurb on every page
+A 2002 Addison-Wesley PDF rip (Beck, Test-Driven Development: By Example) carries the book's blurb and a credits block as a hidden layer on every one of its 218 pages. pdftotext interleaves it with the page's own sentences, sometimes mid-sentence, so paragraphs ran half blurb; `--drop-repeated` only dropped short whole paragraphs. 8-word runs that recur on 30% or more of the pages are now cut out of paragraphs too (31,066 words gone; 79k to 48k words). Where the two layers overlap glyph by glyph the text is letter-interleaved salad that no text pass can undo; read around it or OCR the page.
+
 ### L-085 · 2026-11-07 · `chapter-subsections`: --chapter dropped a chapter's unnumbered subsections
 Tidy First? (O'Reilly EPUB) nests Never, Later, After, First, Summary under 21. First, After, Later, Never; --chapter matched only titles starting with the number, so the reader got a 65-word opener and had to fetch five sections by position. A matched chapter now takes the deeper sections that follow it.
 

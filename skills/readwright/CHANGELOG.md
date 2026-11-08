@@ -2,6 +2,9 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261107-35 · 2026-11-07 · --drop-repeated cuts 8-word runs that recur on many pages (0.70.0)
+- because: L-086 `overprinted-blurb`; Beck, Test-Driven Development: By Example (PDF rip) printed its back-cover blurb inside every page's text, mid-paragraph. `drop_repeated_runs` removes runs of 8 or more words recurring in 30% of sections from body paragraphs; the hint reports the words cut. Test `test_drop_repeated_runs_cuts_an_overprinted_blurb`.
+
 ### C-20261107-34 · 2026-11-07 · --chapter N brings the chapter's unnumbered subsections (0.69.1)
 - because: L-085 `chapter-subsections`; Beck, Tidy First? (O'Reilly EPUB) splits ch. 21 into Never, Later, After, First and Summary; `read --chapter 16-21` printed only the 65-word chapter opener and skipped them (and ch. 17's Conclusion). Sections deeper than a matched chapter now come with it, up to the next section at its level. Test `test_chapter_brings_unnumbered_subsections`.
 

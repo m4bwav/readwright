@@ -2640,6 +2640,24 @@ class TestRealWorldShapes(Base):
         self.assertIn("A note that appears twice only.", [p.text for p in doc.sections[0].paras])
         self.assertEqual(rw.repeat_keys(" ".join(["word"] * 50)), [])   # long paragraphs never count
 
+    def test_drop_repeated_runs_cuts_an_overprinted_blurb(self):
+        P = rw.Para
+        blurb = "Clean code that works now is the seeming contradiction behind much of the pain of programming."
+        secs = []
+        for n in range(10):
+            body = f"Page {n} talks about " + ["lamps", "quays", "tides", "ships", "ropes"][n % 5] + f" number {n} and more."
+            mixed = body + " " + blurb + f" Then page {n} goes on about " + "y" * (n + 1) + "."
+            secs.append(rw.Section(f"Page {n}", [P("h", f"Page {n}", 2), P("p", mixed), P("p", blurb)], 1, f"s{n}"))
+        doc = rw.Doc("x.pdf", "pdf", sections=secs)
+        self.assertGreater(rw.drop_repeated_runs(doc), 0)
+        for s in doc.sections:
+            texts = [p.text for p in s.paras]
+            self.assertEqual(len(texts), 2)   # the blurb-only paragraph went
+            self.assertNotIn("contradiction", texts[1])
+            self.assertTrue(texts[1].startswith("Page"))
+            self.assertIn(f"{s.title[5:]} goes on about", texts[1])   # a word that also recurs next to the blurb may go
+        self.assertEqual(rw.drop_repeated_runs(rw.Doc("y.pdf", "pdf", sections=secs[:3])), 0)
+
     def test_repeated_section_flags_add_up(self):
         p = self.f("lamps.md")
         p.write_text("# One\n\nAlpha lamp.\n\n# Two\n\nBeta lamp.\n\n# Three\n\nGamma lamp.\n", encoding="utf-8")

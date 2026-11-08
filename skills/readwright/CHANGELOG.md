@@ -9,6 +9,11 @@ Runs of three or more same-file link paragraphs at a chapter's start become one 
 
 ### C-YYYYMMDD-n · date · one-line summary`, then `because:` (IDs or "user request"), `files:` (file and section), and a sentence on what changed. Cite section headings, not line numbers.
 
+### C-20261107-22 · 2026-11-07 · Monospace blockquotes from converted Kindle books read as code (0.60.0)
+- because: L-079; Lanham, Game Audio Development With Unity 5.x (MOBI) read for everscout ai-sfx
+- files: scripts/rw.py `HTMLText` (`MONO_TAGS`); SKILL.md Distilling a book; tests
+calibre turns a MOBI's listings into a blockquote of `<tt>` lines split by `<br/>`, so code read as one run-on prose line and `--skip-code` found no code blocks. A block whose letters are all in `<tt>`, `<code>`, `<kbd>` or `<samp>` and that sits in a blockquote or holds a line break is now a code block, one line per `<br/>`. Inline code in prose and a lone monospace word stay prose. Paragraph numbers shift in converted Kindle books with code.
+
 ### C-20261107-21 · 2026-11-07 · `toc --chapters` maps a one-page-per-section scan to its chapters (0.59.0)
 - because: L-078; Yewdall, Practical Art of Motion Picture Sound (OCR scan) read for everscout ai-sfx
 - files: scripts/rw.py `chapter_runs`, `cmd_toc`; SKILL.md Distilling a book; tests

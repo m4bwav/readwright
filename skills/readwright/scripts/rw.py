@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.59.0"
+VERSION = "0.60.0"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -452,6 +452,9 @@ CODE_DIV = {"programcode", "programlisting", "sourcecode", "codeblock", "code-bl
 SKIP = {"script", "style", "noscript", "template", "svg", "math", "head", "object", "iframe", "button", "select", "nav"}
 
 
+MONO_TAGS = {"tt", "code", "kbd", "samp"}
+
+
 class HTMLText(HTMLParser):
     """Turns (X)HTML into Para blocks; records element ids -> index of the next block."""
 
@@ -480,6 +483,9 @@ class HTMLText(HTMLParser):
         self.sup = 0
         self.blockid = ""
         self.noteref = 0   # inside a note reference: its number prints as [40], not glued to the sentence
+        self.mono = 0      # inside <tt>, <code>, <kbd> or <samp>
+        self.mono_n = 0    # letters of this block set in monospace
+        self.text_n = 0    # letters of this block
 
     def flush(self):
         if self.cells is not None:   # inside a table row: blocks within a cell only add a space
@@ -487,6 +493,18 @@ class HTMLText(HTMLParser):
             return
         raw = "".join(self.buf)
         self.buf = []
+        # a block set wholly in monospace, inside a blockquote or broken into lines, is a listing: calibre turns a
+        # Kindle book's <pre> into <blockquote><tt>..</tt><br/><tt>..</tt></blockquote> (Lanham run, 2026-11-07)
+        mono = not self.pre and self.text_n and self.mono_n == self.text_n and (self.quote or "\x01" in raw)
+        self.mono_n = self.text_n = 0
+        if mono:
+            t = "\n".join(x for x in (clean(x) for x in raw.split("\x01")) if x)
+            if t:
+                self.paras.append(Para("pre", t))
+            self.local_link = None
+            self.kind, self.level = "p", 0
+            return
+        raw = raw.replace("\x01", " ")
         if self.pre:   # CRLF line ends and no-break-space indents become plain lines and spaces
             t = raw.replace("\r\n", "\n").replace("\r", "\n").replace("\u00a0", " ").strip("\n")
             if t.strip():
@@ -551,8 +569,10 @@ class HTMLText(HTMLParser):
             if "noteref" in kinds or (self.sup and "#" in (a.get("href") or "")):
                 self.noteref += 1
         if tag == "br":
-            self.buf.append("\n" if self.pre else " ")
+            self.buf.append("\n" if self.pre else " \x01 " if self.cells is None else " ")
             return
+        if tag in MONO_TAGS and not self.pre:
+            self.mono += 1
         if tag == "img" and a.get("alt") and len(a["alt"]) > 1 and self.kind == "h":
             self.buf.append(a["alt"])
         elif tag == "img":   # an equation set as a picture (<p id="eq_11_32"><img alt="image">) says so, not a silent gap
@@ -608,6 +628,8 @@ class HTMLText(HTMLParser):
             return
         if self.skip:
             return
+        if tag in MONO_TAGS and self.mono:
+            self.mono -= 1
         if self.code_div:
             if tag == self.code_div[0]:
                 self.code_div[1] -= 1
@@ -679,6 +701,10 @@ class HTMLText(HTMLParser):
         elif self.sup and data[:1].isdigit() and "".join(self.buf)[-1:].isdigit():   # 1.1021<sup>5</sup> reads 1.1021^5, not 1.10215
             data = "^" + data
         self.buf.append(data)
+        if not self.pre and self.cells is None:
+            n = len("".join(data.split()))
+            self.text_n += n
+            self.mono_n += n if self.mono else 0
         if self._a is not None:
             self._a[1].append(data)
 

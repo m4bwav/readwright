@@ -6,6 +6,9 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-079 · 2026-11-07 · `mobi-code-as-quote`: a Kindle book's code read as prose
+Trigger: reading Lanham, Game Audio Development With Unity 5.x (Packt MOBI, converted by calibre), `--skip-code` said it found no code blocks while C# lines sat inside numbered steps. Cause: calibre writes each listing as `<blockquote>` holding `<tt>` spans split by `<br/>`, not `<pre>`. Fix (0.60.0): a block wholly in monospace that is a blockquote or has line breaks becomes a code block; on this book 2 listings and their lead-ins left section 39. Hypothesis: most Packt and O'Reilly MOBI or AZW3 files convert this way; a book that sets one-line commands as monospace paragraphs without a blockquote still keeps them as prose.
+
 ### L-078 · 2026-11-07 · `chapter-heads-on-pages`: a scan had pages but no chapters
 Trigger: reading Yewdall, Practical Art of Motion Picture Sound (4th ed., scan, OCR), toc listed 678 page sections and `--group` folded nothing, because the left page carries the chapter head and the right the book title; finding ch. 14 and 19 took a grep of the toc. Fix (0.59.0): `toc --chapters` builds page ranges from Chapter N heads at the top of pages, accepting only rising numbers so a cross-reference cannot start a chapter; it found all 22. Hypothesis: any page-sectioned book with numbered chapter heads, text or OCR, maps this way; books with unnumbered chapters still need `--group` or the printed contents.
 

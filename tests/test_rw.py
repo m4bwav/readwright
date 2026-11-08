@@ -2065,6 +2065,10 @@ class TestTocChapters(Base):
         self.assertEqual(runs[0][3], "The Empowerment of Sound")
         self.assertEqual(runs[2][4], 80)
         self.assertEqual(rw.chapter_runs(rw.Doc("x.pdf", "pdf", sections=[pg(1, "Chapter 1 A")])), [])
+        self.assertEqual(len(rw.chapters_hint(doc)), 3)
+        named = rw.Doc("x.epub", "epub", sections=[rw.Section(f"Chapter {n} ~ Part", [rw.Para("p", f"Chapter {n} ~ Part")])
+                                                   for n in (1, 2, 3)] + [rw.Section("Notes", [rw.Para("p", "x")])])
+        self.assertEqual(rw.chapters_hint(named), [])   # sections already are the chapters: no --chapters hint
 
     def test_group_folds_pages_by_running_head(self):   # L-023 `pdf-pages-by-running-head`
         def pg(n, head, w=50):
@@ -3160,6 +3164,27 @@ class TestHeadings(Base):
         paras = [rw.Para("p", x) for x in noise + heads]
         self.assertEqual(rw.numbered_headings(paras), [(3, 1), (4, 1), (5, 2), (6, 1), (7, 1)])
         self.assertEqual(rw.numbered_headings([rw.Para("p", "1.1 Lone heading")]), [])
+
+    def test_run_in_heads_from_the_layout_text(self):   # L-081 `run-in-pdf-heads`
+        body = "words of the body run on across the printed line for a while longer here"
+        page = "\n".join(["Chapter 8", "", "Sound Design", "", "The Importance of Sound", body, body, "progression.", "",
+                          "A Unified Aesthetic", body, "", "How Much Sound?", "", body, "",
+                          "                                         Sound Design", "", "Pickups", body, "",
+                          "Sound Components: A Closer Look", body, "", "this is a lower case line", body])
+        titles = rw.layout_head_titles([page])
+        self.assertIn("The Importance of Sound", titles)
+        self.assertIn("How Much Sound?", titles)
+        self.assertIn("Sound Components: A Closer Look", titles)
+        self.assertNotIn("this is a lower case line", titles)
+        self.assertNotIn("Chapter 8", titles)
+        paras = [rw.Para("p", x) for x in [
+            "Sound Design", "The Importance of Sound From the ambience of a planet.", "Pickups are small items.",
+            "A Unified Aesthetic Suppose your game is set on Mars.", "Sound Design 155 running head leak",
+            "How Much Sound?", "Pickups", "Plain body text."]]
+        found = rw.layout_headings(paras, titles, "8 Sound Design (p. 155-176)")
+        self.assertEqual(found, [(1, 1), (3, 1), (5, 1), (6, 1)])   # 'Pickups are' is prose; title and running head skipped
+        self.assertEqual(rw.head_of(paras[1].text, titles), "The Importance of Sound")
+        self.assertEqual(rw.layout_headings(paras[:2], titles), [])   # one head is below the minimum
 
     def test_bare_numbered_heads_across_page_sections(self):   # L-069 `bare-numbered-heads`
         doc = rw.Doc("x.pdf", "pdf", {}, [

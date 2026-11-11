@@ -77,6 +77,13 @@ claude plugin install readwright@readwright
 
 Other agents that read Agent Skills (`SKILL.md`): link or copy `skills/readwright` into their skills folder (`~/.claude/skills/`, `~/.agents/skills/`). The tool alone needs only Python: `python skills/readwright/scripts/rw.py --help`.
 
+## Works with
+
+- **[everscout](https://github.com/m4bwav/everscout)**: beats read books with readwright: the outline becomes `toc.txt`, the sections become learnings.
+- **[editwright](https://github.com/m4bwav/editwright)**: editwright cannot read PDFs or EPUBs itself. It tells you to extract the text with `rw.py read FILE --out text.md` first, then suggests edits on that.
+- **[tokenwright](https://github.com/m4bwav/tokenwright)**: tokenwright's rule for big documents is to read the outline first, use readwright for books and PDFs, then read only the part that fits.
+- **[cinewright](https://github.com/m4bwav/cinewright)**: cinewright reads source books and long scripts through readwright before planning shots.
+
 ## Tests
 
 `python tests/test_rw.py` runs the unit tests. They build every fixture (EPUB, DOCX, ODT, FB2, RTF, HTML, EML, zip and more) from invented text at test time, so no book or document is stored in the repository. The route tests convert those fixtures with each external tool that is installed and skip the rest; the CI job `routes` installs the free tools on Linux and runs them all. `python tests/real_files.py` downloads Pride and Prejudice from Project Gutenberg, builds every format with calibre and LibreOffice, and checks each route on it; `python tests/measure_tokens.py` makes the table above. The eval suite in `evals/` (trigger prompts, decoys, and cases proven by the `rw.py` calls in the trace) runs with `claude plugin eval`; the latest results are in [TESTS.md](skills/readwright/TESTS.md).

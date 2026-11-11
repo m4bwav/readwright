@@ -125,3 +125,6 @@ Pezze and Young page titles carried short-section heads ("Capture and Replay 337
 ## [2026-11-07] trim | 0.64.0: distilling tips on demand
 
 SKILL.md loaded ~9.9k tokens per use; the Distilling a book section moved whole to `skills/readwright/references/distilling.md` (SKILL.md 40.7k to 13.4k characters), with a pointer left in SKILL.md. Added one tip from the Samara Typography Workbook run (everscout T-20261107-26). Future distilling tips go in that file.
+
+## [2026-11-11] docs | Works with section
+README gained a Works with section (everscout, editwright, tokenwright, cinewright); no wiki exists, so README only. Each entry describes a handoff found in the skill files on one side or the other.

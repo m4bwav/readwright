@@ -83,6 +83,7 @@ Other agents that read Agent Skills (`SKILL.md`): link or copy `skills/readwrigh
 - **[editwright](https://github.com/m4bwav/editwright)**: editwright cannot read PDFs or EPUBs itself. It tells you to extract the text with `rw.py read FILE --out text.md` first, then suggests edits on that.
 - **[tokenwright](https://github.com/m4bwav/tokenwright)**: tokenwright's rule for big documents is to read the outline first, use readwright for books and PDFs, then read only the part that fits.
 - **[cinewright](https://github.com/m4bwav/cinewright)**: cinewright reads source books and long scripts through readwright before planning shots.
+- **[fractalwright](https://github.com/m4bwav/fractalwright)**: fractalwright reads fractal books and papers through readwright, a section at a time.
 
 ## Tests
 

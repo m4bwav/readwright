@@ -128,3 +128,5 @@ SKILL.md loaded ~9.9k tokens per use; the Distilling a book section moved whole 
 
 ## [2026-11-11] docs | Works with section
 README gained a Works with section (everscout, editwright, tokenwright, cinewright); no wiki exists, so README only. Each entry describes a handoff found in the skill files on one side or the other.
+
+## [2026-11-14] update | README Works with: fractalwright (new public plugin), mirroring its own section

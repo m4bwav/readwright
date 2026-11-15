@@ -55,7 +55,7 @@ from pathlib import Path
 from urllib.parse import unquote, urldefrag
 import xml.etree.ElementTree as ET
 
-VERSION = "0.71.1"
+VERSION = "0.71.2"
 BIG_SECTION_CHARS = 200_000
 
 MB = 1024 * 1024
@@ -2056,7 +2056,7 @@ def running_head_keys(pages, titles=()) -> set:
             if CAPTION_LINE.match(title):
                 continue   # "122 Exhibit 4-3": a caption with the folio glued on; strip_glued_folio takes the number
             if title.strip("# ") and (re.sub(r"\s", "", title) in known or n >= 3 and (pages_cluster(where) or
-                                                  shifts[k].most_common(1)[0][1] * 2 > n)):
+                                                  max(shifts[k].values(), default=0) * 2 > n)):
                 keys.add(k)
             elif lead is not None and shifts[k][lead] == n and n <= 2 and len(title.split()) <= 8 \
                     and re.sub(r"^\d+\s+|\s+\d+$", "", orig[k])[:1].isupper():

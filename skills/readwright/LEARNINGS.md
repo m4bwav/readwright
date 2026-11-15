@@ -6,6 +6,10 @@ Write an entry the moment a real signal happens: a user correction, the same err
 
 ## Active
 
+### L-090 · 2026-11-15 · `hash-copyright-line`: a copyright sign read as '#' looked like a numbered head
+Trigger: rw.py IndexError in running_head_keys on a 2010 publisher PDF whose chapter openers end with "(c) 2010 Publisher. All rights reserved. doi: ...", the sign mapped to '#'.
+Hypothesis: any line that keys as a numbered head may have no folio number; code that reads the folio vote must accept an empty vote. Fixed in 0.71.2 with a test.
+
 ### L-088 · 2026-11-07 · `ocr-resume`: a partial OCR looked finished
 Trigger: everscout ai-music run on Boulanger, The Csound Book (MIT 2000, 746-page scan). `rw.py ocr FILE --pages 1-24` first, to read the contents cheaply; then `rw.py ocr FILE` answered "already OCR'd" because the cache file existed, and the book read as 3k words. Fix (0.71.1): a plain run OCRs pages still empty and remembers the ones that stay empty. OCR on Windows ran at about 9 pages a second here, so OCR the whole scan up front rather than sampling.
 

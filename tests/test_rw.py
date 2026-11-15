@@ -3787,3 +3787,13 @@ class LetterSpacedTest(unittest.TestCase):
     def test_prose_kept(self):
         for t in ["pick a b or c here", "options A B C D", "the U S A", "see a 1 b 2", "files .w and .x stay"]:
             self.assertEqual(rw.join_letter_spaced(t), t)
+
+
+class LiteralHashHeadTest(unittest.TestCase):
+    def test_copyright_sign_read_as_hash_does_not_crash(self):
+        # a symbol font maps the copyright sign to '#': the line keys as a numbered head but carries no folio (0.71.2)
+        nl = chr(10)
+        heads = [nl.join([f"# 2031 Acme Press. All rights reserved. id 7-{i}X", f"body text {i} here", "more words"])
+                 for i in range(0, 40, 7)]
+        pages = [p for q in heads for p in [q] + [nl.join([f"plain page {j}", "nothing"]) for j in range(5)]]
+        self.assertIsInstance(rw.running_head_keys(pages), set)

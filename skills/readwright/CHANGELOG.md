@@ -2,6 +2,10 @@
 
 Every change to [SKILL.md](SKILL.md) and its companions, newest first, each with the reason. Reasons cite findings in [RESEARCH.md](RESEARCH.md) (`R-`), lessons in [LEARNINGS.md](LEARNINGS.md) (`L-`), and test runs in [TESTS.md](TESTS.md) (`T-`). State in `evergreen.json`. Protocol: MAINTENANCE.md.
 
+### C-20261115-1 · 2026-11-15 · literal-hash edge line no longer crashes running_head_keys (0.71.2)
+- because: L-090 `hash-copyright-line`; on a 2010 film-production PDF the copyright sign came through as '#', so a chapter-opening line keyed as a numbered running head but carried no folio, and `shifts[k].most_common(1)[0]` raised IndexError on load. The vote now uses `max(..., default=0)`. Test test_copyright_sign_read_as_hash_does_not_crash. A second report from the same reading round (chapter 5 of a directing book showing another book's interview pages) did not reproduce: that text is not in the PDF and rw.py's output is clean; it came from two parallel readers sharing one scratch dump file. Versions in SKILL.md and evergreen.json had drifted (0.70.0, 0.61.0) and are back in step.
+- files: scripts/rw.py (running_head_keys, VERSION), tests/test_rw.py, SKILL.md, evergreen.json, plugin manifests
+
 ### C-20261108-1 · 2026-11-08 · learnings consolidation
 - because: active LEARNINGS were 43 of 25. L-069 had been given twice: the 11-07 `bare-numbered-heads` entry is now L-089, with its citations in rw.py, test_rw.py and this file. L-072 and L-073 put back in order. Promoted L-057 to L-059, L-061 to L-073 and L-089 (rules already code with tests) into references/formats.md, Heading and furniture rules; L-052 merged into L-053. 25 active. Next free L-090.
 - files: LEARNINGS.md, LEARNINGS-ARCHIVE.md, references/formats.md, scripts/rw.py (comment), tests/test_rw.py (comment)

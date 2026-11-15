@@ -130,3 +130,5 @@ SKILL.md loaded ~9.9k tokens per use; the Distilling a book section moved whole 
 README gained a Works with section (everscout, editwright, tokenwright, cinewright); no wiki exists, so README only. Each entry describes a handoff found in the skill files on one side or the other.
 
 ## [2026-11-14] update | README Works with: fractalwright (new public plugin), mirroring its own section
+
+## [2026-11-15] fix | 0.71.2: running_head_keys IndexError on a PDF whose copyright sign reads as "#" (empty folio vote). The "chapter 5 shows another book's pages" report did not reproduce in rw.py; cause was parallel readers sharing one scratch dump file.
